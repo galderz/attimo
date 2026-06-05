@@ -80,6 +80,27 @@ class ResourceCleanerIT
         }
     }
 
+    @Test
+    void cleanOrphansFindsTaggedSecurityGroup()
+    {
+        try (final var ec2 = ec2Client())
+        {
+            // Create a tagged SG (simulating an orphan)
+            final var manager = new SpotManager(ec2, "it-orphan-test");
+            final var sgId = manager.createSecurityGroup();
+
+            // Verify it exists
+            assertThat(describeSecurityGroup(ec2, sgId)).isTrue();
+
+            // cleanOrphans should find and delete it
+            final var cleaner = new ResourceCleaner(ec2);
+            final var errors = cleaner.cleanOrphans();
+
+            assertThat(errors).isEmpty();
+            assertThat(describeSecurityGroup(ec2, sgId)).isFalse();
+        }
+    }
+
     private boolean describeSecurityGroup(final Ec2Client ec2, final String sgId)
     {
         try

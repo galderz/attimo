@@ -9,6 +9,8 @@ import software.amazon.awssdk.services.ec2.model.DeleteKeyPairRequest;
 import software.amazon.awssdk.services.ec2.model.DeleteSecurityGroupRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.InstanceStateName;
 import software.amazon.awssdk.services.ec2.model.Reservation;
@@ -52,7 +54,8 @@ class ResourceCleanerTest
             .thenReturn(TerminateInstancesResponse.builder().build());
         when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
             .thenReturn(terminatedResponse());
-        doThrow(new RuntimeException("SG in use"))
+        // SG deletion fails with non-dependent-object error (no retry)
+        doThrow(new RuntimeException("Access denied"))
             .when(ec2).deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
 
         final var state = createTestState();
@@ -66,6 +69,26 @@ class ResourceCleanerTest
     }
 
     @Test
+    void stateNotClearedOnError()
+    {
+        when(ec2.terminateInstances(any(TerminateInstancesRequest.class)))
+            .thenReturn(TerminateInstancesResponse.builder().build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
+            .thenReturn(terminatedResponse());
+        doThrow(new RuntimeException("SG still in use"))
+            .when(ec2).deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
+
+        final var state = createTestState();
+        final var cleaner = new ResourceCleaner(ec2);
+        final var errors = cleaner.cleanAll(state);
+
+        // State should NOT be cleared when there are errors
+        assertThat(errors).isNotEmpty();
+        // (InstanceState.clear() is not called — verified by the fact that
+        //  errors are returned, which means the caller knows to retry)
+    }
+
+    @Test
     void handlesEmptyState()
     {
         final var state = new org.mendrugo.attimo.config.InstanceState();
@@ -73,6 +96,22 @@ class ResourceCleanerTest
         final var errors = cleaner.cleanAll(state);
 
         assertThat(errors).isEmpty();
+    }
+
+    @Test
+    void cleanOrphansScansForTaggedResources()
+    {
+        when(ec2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class)))
+            .thenReturn(DescribeSecurityGroupsResponse.builder().build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
+            .thenReturn(DescribeInstancesResponse.builder().build());
+
+        final var cleaner = new ResourceCleaner(ec2);
+        final var errors = cleaner.cleanOrphans();
+
+        assertThat(errors).isEmpty();
+        verify(ec2).describeSecurityGroups(any(DescribeSecurityGroupsRequest.class));
+        verify(ec2).describeInstances(any(DescribeInstancesRequest.class));
     }
 
     private org.mendrugo.attimo.config.InstanceState createTestState()

@@ -2,6 +2,7 @@ package org.mendrugo.attimo.command;
 
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.BaseAmiResolver;
+import org.mendrugo.attimo.aws.ResourceCleaner;
 import org.mendrugo.attimo.aws.SpotAdvisor;
 import org.mendrugo.attimo.aws.SpotManager;
 import org.mendrugo.attimo.config.AttimoConfig;
@@ -239,42 +240,21 @@ public class RequestCommand extends BaseCommand
         else
         {
             System.out.println("Destroying instance...");
-            try
+            final var cleaner = new ResourceCleaner(ec2);
+            final var errors = cleaner.cleanAll(state);
+
+            if (errors.isEmpty())
             {
-                ec2.terminateInstances(
-                    software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest.builder()
-                        .instanceIds(state.getInstanceId())
-                        .build()
-                );
-                // Wait briefly for termination before cleaning up SG
-                Thread.sleep(5000);
-                ec2.deleteKeyPair(
-                    software.amazon.awssdk.services.ec2.model.DeleteKeyPairRequest.builder()
-                        .keyName(state.getKeyPairName())
-                        .build()
-                );
-                // SG deletion may fail if instance hasn't fully terminated
-                try
-                {
-                    Thread.sleep(10000);
-                    ec2.deleteSecurityGroup(
-                        software.amazon.awssdk.services.ec2.model.DeleteSecurityGroupRequest.builder()
-                            .groupId(state.getSecurityGroupId())
-                            .build()
-                    );
-                }
-                catch (final Exception e)
-                {
-                    System.err.println("  Warning: could not delete security group: " + e.getMessage());
-                    System.err.println("  It will be cleaned up by 'ato destroy' later.");
-                }
-                InstanceState.clear();
-                System.out.println("Instance destroyed.");
+                System.out.println("Instance destroyed. Zero cost footprint.");
             }
-            catch (final Exception e)
+            else
             {
-                System.err.println("Error during cleanup: " + e.getMessage());
-                System.err.println("Use 'ato destroy' to finish cleanup.");
+                System.err.println("Cleanup completed with errors:");
+                for (final var error : errors)
+                {
+                    System.err.println("  - " + error);
+                }
+                System.err.println("Run 'ato destroy' to retry.");
             }
         }
     }
