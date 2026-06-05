@@ -7,6 +7,7 @@ import software.amazon.awssdk.services.ec2.model.Image;
 
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,8 +17,12 @@ import java.util.Map;
  */
 public class BaseAmiResolver
 {
-    // Fedora Cloud images are published by the Fedora project account
-    private static final String FEDORA_OWNER_ID = "125523088429";
+    // Fedora Cloud images are published by the Fedora project account.
+    // Both owner IDs are checked — Fedora has used different accounts over time.
+    private static final String[] FEDORA_OWNER_IDS = {
+        "125523088429"
+        , "013116697141"
+    };
 
     // Cache: "region:arch:name" → AMI ID
     private final Map<String, String> cache = new HashMap<>();
@@ -75,42 +80,71 @@ public class BaseAmiResolver
         }
 
         final var version = parts[1];
-
-        // Fedora Cloud AMI naming: Fedora-Cloud-Base-44-*.x86_64-*
-        // or Fedora-Cloud-Base-44-*.aarch64-*
         final var fedoraArch = "arm64".equals(arch) ? "aarch64" : arch;
-        final var namePattern = "Fedora-Cloud-Base-" + version + "-*." + fedoraArch + "-*";
 
-        final var response = ec2.describeImages(
-            DescribeImagesRequest.builder()
-                .owners(FEDORA_OWNER_ID)
-                .filters(
-                    Filter.builder()
-                        .name("name")
-                        .values(namePattern)
-                        .build()
-                    , Filter.builder()
-                        .name("state")
-                        .values("available")
-                        .build()
-                    , Filter.builder()
-                        .name("architecture")
-                        .values(arch)
-                        .build()
-                )
-                .build()
+        // Fedora Cloud AMI naming has changed over time:
+        //   Old:  Fedora-Cloud-Base-39-1.5.x86_64-hvm-us-east-1-gp3-0
+        //   New:  Fedora-Cloud-Base-AmazonEC2.x86_64-44-20260501.0
+        // Try multiple patterns to handle both conventions.
+        final var namePatterns = List.of(
+            "Fedora-Cloud-Base-AmazonEC2." + fedoraArch + "-" + version + "-*"
+            , "Fedora-Cloud-Base-" + version + "-*." + fedoraArch + "-*"
+            , "Fedora-Cloud-Base-" + version + "*" + fedoraArch + "*"
         );
 
-        if (response.images().isEmpty())
+        final var allImages = new java.util.ArrayList<Image>();
+
+        for (final String pattern : namePatterns)
+        {
+            System.out.println("  Searching for: " + pattern);
+
+            try
+            {
+                final var response = ec2.describeImages(
+                    DescribeImagesRequest.builder()
+                        .owners(FEDORA_OWNER_IDS)
+                        .filters(
+                            Filter.builder()
+                                .name("name")
+                                .values(pattern)
+                                .build()
+                            , Filter.builder()
+                                .name("state")
+                                .values("available")
+                                .build()
+                            , Filter.builder()
+                                .name("architecture")
+                                .values(arch)
+                                .build()
+                        )
+                        .build()
+                );
+
+                allImages.addAll(response.images());
+            }
+            catch (final Exception e)
+            {
+                System.err.println("  Warning: AMI search failed for pattern " + pattern
+                    + ": " + e.getMessage());
+            }
+
+            if (!allImages.isEmpty())
+            {
+                break;
+            }
+        }
+
+        if (allImages.isEmpty())
         {
             throw new AwsException(
                 "No Fedora " + version + " Cloud AMI found for architecture " + arch
-                + " (searched for: " + namePattern + " owned by " + FEDORA_OWNER_ID + ")"
+                + " (searched patterns: " + namePatterns
+                + ", owners: " + java.util.Arrays.toString(FEDORA_OWNER_IDS) + ")"
             );
         }
 
         // Pick the most recent image (by creation date)
-        final var newest = response.images().stream()
+        final var newest = allImages.stream()
             .max(Comparator.comparing(Image::creationDate))
             .orElseThrow();
 
