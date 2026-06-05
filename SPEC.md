@@ -61,7 +61,7 @@ ato cost                           # Show current/total cost information
 ```
 src/
 ├── main/
-│   ├── java/dev/attimo/
+│   ├── java/org/mendrugo/attimo/
 │   │   ├── Attimo.java                    # @QuarkusMain entry point
 │   │   ├── BuildInfo.java                 # Version/git SHA info
 │   │   ├── Environment.java               # XDG paths, home dir
@@ -115,7 +115,7 @@ src/
 │       └── tools/                          # Built-in tool definitions
 │           └── jtreg.yaml
 ├── test/
-│   ├── java/dev/attimo/
+│   ├── java/org/mendrugo/attimo/
 │   │   ├── aws/
 │   │   │   ├── SpotAdvisorTest.java       # Pricing logic with mocked AWS responses
 │   │   │   ├── SpotManagerTest.java        # Lifecycle with mocked EC2 client

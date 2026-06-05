@@ -74,9 +74,9 @@ Maven project + Quarkus skeleton
 
 **Files likely touched:**
 - `pom.xml`
-- `src/main/java/dev/attimo/Attimo.java`
-- `src/main/java/dev/attimo/BuildInfo.java`
-- `src/main/java/dev/attimo/command/BaseCommand.java`
+- `src/main/java/org/mendrugo/attimo/Attimo.java`
+- `src/main/java/org/mendrugo/attimo/BuildInfo.java`
+- `src/main/java/org/mendrugo/attimo/command/BaseCommand.java`
 - `src/main/resources/application.properties`
 
 **Estimated scope:** Small
@@ -100,10 +100,10 @@ Maven project + Quarkus skeleton
 **Dependencies:** Task 1
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/config/AttimoConfig.java`
-- `src/main/java/dev/attimo/Environment.java`
-- `src/main/java/dev/attimo/config/InstanceState.java`
-- `src/test/java/dev/attimo/config/AttimoConfigTest.java`
+- `src/main/java/org/mendrugo/attimo/config/AttimoConfig.java`
+- `src/main/java/org/mendrugo/attimo/Environment.java`
+- `src/main/java/org/mendrugo/attimo/config/InstanceState.java`
+- `src/test/java/org/mendrugo/attimo/config/AttimoConfigTest.java`
 
 **Estimated scope:** Small
 
@@ -125,9 +125,9 @@ Maven project + Quarkus skeleton
 **Dependencies:** Task 1
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/aws/AwsClientFactory.java`
-- `src/main/java/dev/attimo/aws/AwsException.java`
-- `src/test/java/dev/attimo/aws/AwsClientFactoryTest.java`
+- `src/main/java/org/mendrugo/attimo/aws/AwsClientFactory.java`
+- `src/main/java/org/mendrugo/attimo/aws/AwsException.java`
+- `src/test/java/org/mendrugo/attimo/aws/AwsClientFactoryTest.java`
 
 **Estimated scope:** Small
 
@@ -160,11 +160,11 @@ Maven project + Quarkus skeleton
 **Dependencies:** Task 1
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/isa/IsaMapping.java`
-- `src/main/java/dev/attimo/isa/IsaFeature.java`
+- `src/main/java/org/mendrugo/attimo/isa/IsaMapping.java`
+- `src/main/java/org/mendrugo/attimo/isa/IsaFeature.java`
 - `src/main/resources/isa-mappings/x86_64.yaml`
 - `src/main/resources/isa-mappings/aarch64.yaml`
-- `src/test/java/dev/attimo/isa/IsaMappingTest.java`
+- `src/test/java/org/mendrugo/attimo/isa/IsaMappingTest.java`
 
 **Estimated scope:** Medium
 
@@ -186,8 +186,8 @@ Maven project + Quarkus skeleton
 **Dependencies:** Task 1
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/config/RegionGroup.java`
-- `src/test/java/dev/attimo/config/RegionGroupTest.java`
+- `src/main/java/org/mendrugo/attimo/config/RegionGroup.java`
+- `src/test/java/org/mendrugo/attimo/config/RegionGroupTest.java`
 
 **Estimated scope:** XS
 
@@ -213,9 +213,9 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 2, 3
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/command/InitCommand.java`
-- `src/main/java/dev/attimo/ssh/SshKeyManager.java`
-- `src/test/java/dev/attimo/ssh/SshKeyManagerTest.java`
+- `src/main/java/org/mendrugo/attimo/command/InitCommand.java`
+- `src/main/java/org/mendrugo/attimo/ssh/SshKeyManager.java`
+- `src/test/java/org/mendrugo/attimo/ssh/SshKeyManagerTest.java`
 
 **Estimated scope:** Medium
 
@@ -249,9 +249,9 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 3, 4, 5
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/aws/SpotAdvisor.java`
-- `src/main/java/dev/attimo/aws/SpotRecommendation.java`
-- `src/test/java/dev/attimo/aws/SpotAdvisorTest.java`
+- `src/main/java/org/mendrugo/attimo/aws/SpotAdvisor.java`
+- `src/main/java/org/mendrugo/attimo/aws/SpotRecommendation.java`
+- `src/test/java/org/mendrugo/attimo/aws/SpotAdvisorTest.java`
 
 **Estimated scope:** Medium
 
@@ -274,8 +274,8 @@ Maven project + Quarkus skeleton
 **Dependencies:** Task 3
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/aws/BaseAmiResolver.java`
-- `src/test/java/dev/attimo/aws/BaseAmiResolverTest.java`
+- `src/main/java/org/mendrugo/attimo/aws/BaseAmiResolver.java`
+- `src/test/java/org/mendrugo/attimo/aws/BaseAmiResolverTest.java`
 
 **Estimated scope:** Small
 
@@ -301,8 +301,8 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 2, 3, 8
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/aws/SpotManager.java`
-- `src/test/java/dev/attimo/aws/SpotManagerTest.java`
+- `src/main/java/org/mendrugo/attimo/aws/SpotManager.java`
+- `src/test/java/org/mendrugo/attimo/aws/SpotManagerTest.java`
 
 **Estimated scope:** Medium
 
@@ -326,8 +326,8 @@ Maven project + Quarkus skeleton
 **Dependencies:** Task 6 (SSH key manager)
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/ssh/SshSession.java`
-- `src/test/java/dev/attimo/ssh/SshSessionTest.java`
+- `src/main/java/org/mendrugo/attimo/ssh/SshSession.java`
+- `src/test/java/org/mendrugo/attimo/ssh/SshSessionTest.java`
 
 **Estimated scope:** Small
 
@@ -354,8 +354,8 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 4, 7, 8, 9, 10
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/command/RequestCommand.java`
-- `src/main/java/dev/attimo/ssh/SshProvisioner.java`
+- `src/main/java/org/mendrugo/attimo/command/RequestCommand.java`
+- `src/main/java/org/mendrugo/attimo/ssh/SshProvisioner.java`
 
 **Estimated scope:** Medium
 
@@ -393,9 +393,9 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 2, 3
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/aws/ResourceCleaner.java`
-- `src/main/java/dev/attimo/command/DestroyCommand.java`
-- `src/test/java/dev/attimo/aws/ResourceCleanerTest.java`
+- `src/main/java/org/mendrugo/attimo/aws/ResourceCleaner.java`
+- `src/main/java/org/mendrugo/attimo/command/DestroyCommand.java`
+- `src/test/java/org/mendrugo/attimo/aws/ResourceCleanerTest.java`
 
 **Estimated scope:** Medium
 
@@ -418,8 +418,8 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 2, 10
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/command/StatusCommand.java`
-- `src/main/java/dev/attimo/command/ConnectCommand.java`
+- `src/main/java/org/mendrugo/attimo/command/StatusCommand.java`
+- `src/main/java/org/mendrugo/attimo/command/ConnectCommand.java`
 
 **Estimated scope:** Small
 
@@ -454,8 +454,8 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 3, 8, SSH provisioner from Task 11
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/aws/AmiManager.java`
-- `src/test/java/dev/attimo/aws/AmiManagerTest.java`
+- `src/main/java/org/mendrugo/attimo/aws/AmiManager.java`
+- `src/test/java/org/mendrugo/attimo/aws/AmiManagerTest.java`
 
 **Estimated scope:** Medium
 
@@ -479,8 +479,8 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 11, 12, 14
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/command/RequestCommand.java`
-- `src/main/java/dev/attimo/command/DestroyCommand.java`
+- `src/main/java/org/mendrugo/attimo/command/RequestCommand.java`
+- `src/main/java/org/mendrugo/attimo/command/DestroyCommand.java`
 
 **Estimated scope:** Small
 
@@ -502,7 +502,7 @@ Maven project + Quarkus skeleton
 **Dependencies:** Task 14
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/command/BuildAmiCommand.java`
+- `src/main/java/org/mendrugo/attimo/command/BuildAmiCommand.java`
 
 **Estimated scope:** XS
 
@@ -540,9 +540,9 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 9, 10, 14
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/aws/SpotManager.java`
-- `src/main/java/dev/attimo/ssh/SshSession.java`
-- `src/main/java/dev/attimo/command/RequestCommand.java`
+- `src/main/java/org/mendrugo/attimo/aws/SpotManager.java`
+- `src/main/java/org/mendrugo/attimo/ssh/SshSession.java`
+- `src/main/java/org/mendrugo/attimo/command/RequestCommand.java`
 
 **Estimated scope:** Medium
 
@@ -575,9 +575,9 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 2, 13
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/cost/CostTracker.java`
-- `src/main/java/dev/attimo/command/CostCommand.java`
-- `src/test/java/dev/attimo/cost/CostTrackerTest.java`
+- `src/main/java/org/mendrugo/attimo/cost/CostTracker.java`
+- `src/main/java/org/mendrugo/attimo/command/CostCommand.java`
+- `src/test/java/org/mendrugo/attimo/cost/CostTrackerTest.java`
 
 **Estimated scope:** Small
 
@@ -602,10 +602,10 @@ Maven project + Quarkus skeleton
 **Dependencies:** Tasks 11, 12, 13, 18
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/command/ListCommand.java`
-- `src/main/java/dev/attimo/tui/BackgroundTask.java`
-- `src/main/java/dev/attimo/tui/BackgroundTaskManager.java`
-- `src/main/java/dev/attimo/Attimo.java` (wire TUI as default)
+- `src/main/java/org/mendrugo/attimo/command/ListCommand.java`
+- `src/main/java/org/mendrugo/attimo/tui/BackgroundTask.java`
+- `src/main/java/org/mendrugo/attimo/tui/BackgroundTaskManager.java`
+- `src/main/java/org/mendrugo/attimo/Attimo.java` (wire TUI as default)
 
 **Estimated scope:** Large (but self-contained — TUI only)
 
@@ -663,12 +663,12 @@ Maven project + Quarkus skeleton
 **Dependencies:** Task 11 (SshProvisioner exists)
 
 **Files likely touched:**
-- `src/main/java/dev/attimo/config/ImageDef.java`
-- `src/main/java/dev/attimo/tool/ToolDef.java`
-- `src/main/java/dev/attimo/tool/ToolDefLoader.java`
-- `src/main/java/dev/attimo/tool/ToolSetup.java`
-- `src/test/java/dev/attimo/config/ImageDefTest.java`
-- `src/test/java/dev/attimo/tool/ToolDefTest.java`
+- `src/main/java/org/mendrugo/attimo/config/ImageDef.java`
+- `src/main/java/org/mendrugo/attimo/tool/ToolDef.java`
+- `src/main/java/org/mendrugo/attimo/tool/ToolDefLoader.java`
+- `src/main/java/org/mendrugo/attimo/tool/ToolSetup.java`
+- `src/test/java/org/mendrugo/attimo/config/ImageDefTest.java`
+- `src/test/java/org/mendrugo/attimo/tool/ToolDefTest.java`
 
 **Estimated scope:** Medium
 
