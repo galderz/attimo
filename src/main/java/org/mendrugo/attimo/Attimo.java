@@ -1,9 +1,11 @@
 package org.mendrugo.attimo;
 
 import org.mendrugo.attimo.command.BaseCommand;
+import org.mendrugo.attimo.command.ConnectCommand;
 import org.mendrugo.attimo.command.DestroyCommand;
 import org.mendrugo.attimo.command.InitCommand;
 import org.mendrugo.attimo.command.RequestCommand;
+import org.mendrugo.attimo.command.StatusCommand;
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
 import org.aesh.AeshRuntimeRunner;
@@ -46,6 +48,8 @@ public class Attimo implements QuarkusApplication
         , groupCommands = {
             InitCommand.class
             , RequestCommand.class
+            , StatusCommand.class
+            , ConnectCommand.class
             , DestroyCommand.class
         }
         , generateHelp = true
