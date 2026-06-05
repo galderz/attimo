@@ -2,6 +2,7 @@ package org.mendrugo.attimo;
 
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.command.InitCommand;
+import org.mendrugo.attimo.command.RequestCommand;
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
 import org.aesh.AeshRuntimeRunner;
@@ -43,6 +44,7 @@ public class Attimo implements QuarkusApplication
         , description = "AWS spot instance manager for OpenJDK engineers"
         , groupCommands = {
             InitCommand.class
+            , RequestCommand.class
         }
         , generateHelp = true
     )
