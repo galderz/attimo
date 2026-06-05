@@ -1,6 +1,7 @@
 package org.mendrugo.attimo;
 
 import org.mendrugo.attimo.command.BaseCommand;
+import org.mendrugo.attimo.command.DestroyCommand;
 import org.mendrugo.attimo.command.InitCommand;
 import org.mendrugo.attimo.command.RequestCommand;
 import io.quarkus.runtime.QuarkusApplication;
@@ -45,6 +46,7 @@ public class Attimo implements QuarkusApplication
         , groupCommands = {
             InitCommand.class
             , RequestCommand.class
+            , DestroyCommand.class
         }
         , generateHelp = true
     )
