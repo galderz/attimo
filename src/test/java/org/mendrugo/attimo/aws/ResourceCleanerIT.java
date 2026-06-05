@@ -37,7 +37,7 @@ class ResourceCleanerIT
             // Create resources via SpotManager
             final var manager = new SpotManager(ec2, "it-cleanup-test");
             final var sgId = manager.createSecurityGroup();
-            final var dummyPubKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAX2A6rV8bgKL838kzc4t9Fpt75HaIRhFDQqHuSgR2LI attimo-it-test";
+            final var dummyPubKey = org.mendrugo.attimo.TestKeys.generateEd25519PublicKey();
             final var keyName = manager.importKeyPair(dummyPubKey);
 
             // Verify resources exist
