@@ -50,10 +50,11 @@ Maven project + Quarkus skeleton
 - **Skip TUI for phase 1**: CLI-only until the core lifecycle works
 - **Skip spot interruption recovery for phase 1**: handle it in phase 2
 - **Minimal init**: just validate credentials and set region + SSH key
+- **Integration tests from the start**: LocalStack (via Testcontainers + Podman) is set up in Phase 1 so every subsequent phase is verified by both unit and integration tests
 
 ## Task List
 
-### Phase 1: Project Skeleton
+### Phase 1: Project Skeleton + CI
 
 #### Task 1: Maven project + Quarkus CLI skeleton
 
@@ -83,7 +84,36 @@ Maven project + Quarkus skeleton
 
 ---
 
-#### Task 2: Configuration system
+#### Task 2: CI + integration test infrastructure
+
+**Description:** Set up GitHub Actions CI, Podman as the container runtime, and LocalStack via Testcontainers for integration tests. Ensure both `mvn test` and `mvn verify -DskipITs=false` run in CI. Include a trivial integration test that validates LocalStack EC2 connectivity.
+
+**Acceptance criteria:**
+- [ ] `.github/workflows/ci.yml` runs on push to main and PRs
+- [ ] CI installs Podman and configures `DOCKER_HOST` for Testcontainers
+- [ ] Unit tests job: `mvn test` with OpenJDK 25
+- [ ] Integration tests job: `mvn verify -DskipITs=false` with LocalStack
+- [ ] Trivial integration test: create and describe an EC2 security group via LocalStack
+- [ ] `pom.xml` includes Testcontainers + LocalStack dependencies (test scope)
+- [ ] Developer docs note: install Podman locally to run integration tests
+
+**Verification:**
+- [ ] `mvn test` passes (no container runtime needed)
+- [ ] `mvn verify -DskipITs=false` passes locally with Podman installed
+- [ ] CI pipeline runs both successfully
+
+**Dependencies:** Task 1
+
+**Files likely touched:**
+- `.github/workflows/ci.yml`
+- `pom.xml` (Testcontainers + LocalStack dependencies)
+- `src/test/java/org/mendrugo/attimo/aws/LocalStackSmokeIT.java`
+
+**Estimated scope:** Small
+
+---
+
+#### Task 3: Configuration system
 
 **Description:** Implement `AttimoConfig` (load/save YAML from `~/.config/attimo/config.yaml`), `Environment` (XDG paths), and state file (`~/.config/attimo/state.yaml`). Follow incus-spawn's `SpawnConfig` pattern.
 
@@ -109,7 +139,7 @@ Maven project + Quarkus skeleton
 
 ---
 
-#### Task 3: AWS client factory + credential validation
+#### Task 4: AWS client factory + credential validation
 
 **Description:** Implement `AwsClientFactory` that creates regional EC2/STS clients using the default credential chain. Include a `validateCredentials()` method that calls STS `GetCallerIdentity`.
 
@@ -120,21 +150,26 @@ Maven project + Quarkus skeleton
 
 **Verification:**
 - [ ] `AwsClientFactoryTest` — mock STS client, verify success/failure paths
+- [ ] `AwsClientFactoryIT` — validate credentials against LocalStack STS
 - [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
 
-**Dependencies:** Task 1
+**Dependencies:** Tasks 1, 2
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/aws/AwsClientFactory.java`
 - `src/main/java/org/mendrugo/attimo/aws/AwsException.java`
 - `src/test/java/org/mendrugo/attimo/aws/AwsClientFactoryTest.java`
+- `src/test/java/org/mendrugo/attimo/aws/AwsClientFactoryIT.java`
 
 **Estimated scope:** Small
 
 ---
 
-### Checkpoint: Project Skeleton
+### Checkpoint: Project Skeleton + CI
 - [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes (LocalStack integration tests)
+- [ ] CI pipeline green
 - [ ] `mvn package` produces runnable JAR
 - [ ] Config and AWS client foundation in place
 
@@ -142,7 +177,7 @@ Maven project + Quarkus skeleton
 
 ### Phase 2: Init + ISA Resolution
 
-#### Task 4: ISA mapping (static YAML + dynamic fallback)
+#### Task 5: ISA mapping (static YAML + dynamic fallback)
 
 **Description:** Implement `IsaMapping` that loads static YAML mappings from classpath, resolves ISA feature names to AWS instance families, and falls back to `DescribeInstanceTypes` for unknown features. User overrides from `~/.config/attimo/isa-mappings/`.
 
@@ -170,7 +205,7 @@ Maven project + Quarkus skeleton
 
 ---
 
-#### Task 5: Region groups
+#### Task 6: Region groups
 
 **Description:** Implement `RegionGroup` enum with geographic groupings of AWS regions. Given a preferred region, return all regions in the same group for spot pricing comparison.
 
@@ -193,7 +228,7 @@ Maven project + Quarkus skeleton
 
 ---
 
-#### Task 6: InitCommand
+#### Task 7: InitCommand
 
 **Description:** Implement `ato init` — validates AWS credentials, prompts for preferred region, configures SSH public key path. Provides install instructions for `aws` CLI when credentials are missing.
 
@@ -210,7 +245,7 @@ Maven project + Quarkus skeleton
 - [ ] Manual test: `ato init` runs interactively
 - [ ] `mvn test` passes (no new unit tests needed — interactive command)
 
-**Dependencies:** Tasks 2, 3
+**Dependencies:** Tasks 3, 4
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/command/InitCommand.java`
@@ -223,6 +258,7 @@ Maven project + Quarkus skeleton
 
 ### Checkpoint: Init + ISA
 - [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
 - [ ] `ato init` works end-to-end interactively
 - [ ] ISA features resolve to instance families
 - [ ] Region groups work
@@ -231,7 +267,7 @@ Maven project + Quarkus skeleton
 
 ### Phase 3: Spot Instance Launch (The Critical Path)
 
-#### Task 7: SpotAdvisor — pricing + instance selection
+#### Task 8: SpotAdvisor — pricing + instance selection
 
 **Description:** Implement spot pricing analysis. Given ISA-resolved instance families and a region group, query `DescribeSpotPriceHistory` across regions, score candidates by price + interruption rate + size bias + proximity, and return the best recommendation.
 
@@ -246,7 +282,7 @@ Maven project + Quarkus skeleton
 - [ ] `SpotAdvisorTest` — mocked pricing responses, cheapest selection, proximity preference, no-capacity fallback
 - [ ] `mvn test` passes
 
-**Dependencies:** Tasks 3, 4, 5
+**Dependencies:** Tasks 4, 5, 6
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/aws/SpotAdvisor.java`
@@ -257,7 +293,7 @@ Maven project + Quarkus skeleton
 
 ---
 
-#### Task 8: Base AMI auto-resolution
+#### Task 9: Base AMI auto-resolution
 
 **Description:** Implement Fedora AMI lookup via `DescribeImages` filtered by owner and name pattern (e.g., `Fedora-Cloud-Base-44-*`). Resolve to the correct AMI ID for a given region and architecture (x86_64 or arm64).
 
@@ -271,7 +307,7 @@ Maven project + Quarkus skeleton
 - [ ] `BaseAmiResolverTest` — mocked `DescribeImages`, both architectures, no-match error
 - [ ] `mvn test` passes
 
-**Dependencies:** Task 3
+**Dependencies:** Task 4
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/aws/BaseAmiResolver.java`
@@ -281,7 +317,7 @@ Maven project + Quarkus skeleton
 
 ---
 
-#### Task 9: SpotManager — launch + monitor
+#### Task 10: SpotManager — launch + monitor
 
 **Description:** Implement spot instance launch using `RunInstances` with `InstanceMarketOptions`. Creates security group (SSH-only), imports SSH key pair, launches instance, waits for running + status checks, returns connection info. Tags all resources.
 
@@ -298,17 +334,24 @@ Maven project + Quarkus skeleton
 - [ ] `SpotManagerTest` — mocked EC2 client: launch flow, resource tagging, wait loop
 - [ ] `mvn test` passes
 
-**Dependencies:** Tasks 2, 3, 8
+**Verification:**
+- [ ] `SpotManagerTest` — mocked EC2 client: launch flow, resource tagging, wait loop
+- [ ] `SpotManagerIT` — launch and terminate instance via LocalStack
+- [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
+
+**Dependencies:** Tasks 3, 4, 9
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/aws/SpotManager.java`
 - `src/test/java/org/mendrugo/attimo/aws/SpotManagerTest.java`
+- `src/test/java/org/mendrugo/attimo/aws/SpotManagerIT.java`
 
 **Estimated scope:** Medium
 
 ---
 
-#### Task 10: SSH session management
+#### Task 11: SSH session management
 
 **Description:** Implement `SshSession` — waits for SSH to be reachable (retry loop), then launches `ssh` via `ProcessBuilder` with the managed key. Monitor subprocess exit and spot termination (EC2 API polling in background thread).
 
@@ -323,7 +366,7 @@ Maven project + Quarkus skeleton
 - [ ] `SshSessionTest` — verify command construction, key path, options
 - [ ] `mvn test` passes
 
-**Dependencies:** Task 6 (SSH key manager)
+**Dependencies:** Task 7 (SSH key manager)
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/ssh/SshSession.java`
@@ -333,7 +376,7 @@ Maven project + Quarkus skeleton
 
 ---
 
-#### Task 11: RequestCommand — wire it all together
+#### Task 12: RequestCommand — wire it all together
 
 **Description:** Implement `ato request --isa <feature> [--template <name>]`. This is the main command that ties SpotAdvisor, SpotManager, and SshSession together. For phase 1, skip AMI caching — provision over SSH after launch using the base Fedora AMI directly.
 
@@ -351,7 +394,7 @@ Maven project + Quarkus skeleton
 - [ ] Manual end-to-end test: `ato request --isa avx512` → SSH session on real AWS
 - [ ] `mvn test` passes (unit tests with mocks)
 
-**Dependencies:** Tasks 4, 7, 8, 9, 10
+**Dependencies:** Tasks 5, 8, 9, 10, 11
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/command/RequestCommand.java`
@@ -363,6 +406,7 @@ Maven project + Quarkus skeleton
 
 ### Checkpoint: End-to-End Launch
 - [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
 - [ ] `ato request --isa avx512` launches a spot instance and drops into SSH
 - [ ] Can build OpenJDK on the instance
 - [ ] Can run a basic jtreg test on the instance
@@ -372,7 +416,7 @@ Maven project + Quarkus skeleton
 
 ### Phase 4: Cleanup + Reconnect
 
-#### Task 12: ResourceCleaner + DestroyCommand
+#### Task 13: ResourceCleaner + DestroyCommand
 
 **Description:** Implement `ato destroy` — tears down all resources created for the active instance. Terminate instance, delete security group, delete key pair. Report what was cleaned up.
 
@@ -390,18 +434,25 @@ Maven project + Quarkus skeleton
 - [ ] `ResourceCleanerTest` — mocked EC2: full cleanup, partial failure, orphan detection
 - [ ] `mvn test` passes
 
-**Dependencies:** Tasks 2, 3
+**Verification:**
+- [ ] `ResourceCleanerTest` — mocked EC2: full cleanup, partial failure, orphan detection
+- [ ] `ResourceCleanerIT` — create resources via LocalStack, verify cleanup removes them all
+- [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
+
+**Dependencies:** Tasks 3, 4
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/aws/ResourceCleaner.java`
 - `src/main/java/org/mendrugo/attimo/command/DestroyCommand.java`
 - `src/test/java/org/mendrugo/attimo/aws/ResourceCleanerTest.java`
+- `src/test/java/org/mendrugo/attimo/aws/ResourceCleanerIT.java`
 
 **Estimated scope:** Medium
 
 ---
 
-#### Task 13: StatusCommand + ConnectCommand
+#### Task 14: StatusCommand + ConnectCommand
 
 **Description:** Implement `ato status` (show running instance info) and `ato connect` (SSH into existing instance). Both read from the state file.
 
@@ -415,7 +466,7 @@ Maven project + Quarkus skeleton
 - [ ] Manual test: `ato status` and `ato connect` after a `ato request`
 - [ ] `mvn test` passes
 
-**Dependencies:** Tasks 2, 10
+**Dependencies:** Tasks 3, 11
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/command/StatusCommand.java`
@@ -427,6 +478,8 @@ Maven project + Quarkus skeleton
 
 ### Checkpoint: Full CLI Lifecycle
 - [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
+- [ ] CI pipeline green
 - [ ] `ato request` → `ato status` → `ato connect` → `ato destroy` all work
 - [ ] `ato destroy` leaves zero AWS resources
 - [ ] **Review with human before proceeding**
@@ -435,7 +488,7 @@ Maven project + Quarkus skeleton
 
 ### Phase 5: AMI Caching
 
-#### Task 14: AmiManager — build, lookup, cleanup
+#### Task 15: AmiManager — build, lookup, cleanup
 
 **Description:** Implement AMI build flow: launch cheap on-demand instance, provision over SSH, snapshot to AMI, terminate build instance. Lookup existing AMIs by attimo tags. Cleanup (deregister + delete snapshot).
 
@@ -451,17 +504,24 @@ Maven project + Quarkus skeleton
 - [ ] `AmiManagerTest` — mocked EC2: build flow, lookup, cleanup, cross-region copy
 - [ ] `mvn test` passes
 
-**Dependencies:** Tasks 3, 8, SSH provisioner from Task 11
+**Verification:**
+- [ ] `AmiManagerTest` — mocked EC2: build flow, lookup, cleanup, cross-region copy
+- [ ] `AmiManagerIT` — create and deregister AMI via LocalStack
+- [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
+
+**Dependencies:** Tasks 4, 9, SSH provisioner from Task 12
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/aws/AmiManager.java`
 - `src/test/java/org/mendrugo/attimo/aws/AmiManagerTest.java`
+- `src/test/java/org/mendrugo/attimo/aws/AmiManagerIT.java`
 
 **Estimated scope:** Medium
 
 ---
 
-#### Task 15: Integrate AMI caching into RequestCommand + DestroyCommand
+#### Task 16: Integrate AMI caching into RequestCommand + DestroyCommand
 
 **Description:** Update `ato request` to check for cached AMI before provisioning. Update `ato destroy` to prompt for AMI cleanup.
 
@@ -476,7 +536,7 @@ Maven project + Quarkus skeleton
 - [ ] Manual test: first request provisions + builds AMI; second request uses cached AMI
 - [ ] `mvn test` passes
 
-**Dependencies:** Tasks 11, 12, 14
+**Dependencies:** Tasks 12, 13, 15
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/command/RequestCommand.java`
@@ -486,7 +546,7 @@ Maven project + Quarkus skeleton
 
 ---
 
-#### Task 16: BuildAmiCommand
+#### Task 17: BuildAmiCommand
 
 **Description:** Implement `ato build-ami --template <name>` to pre-build an AMI without launching a spot instance.
 
@@ -499,7 +559,7 @@ Maven project + Quarkus skeleton
 - [ ] Manual test: `ato build-ami --template jdk-dev`
 - [ ] `mvn test` passes
 
-**Dependencies:** Task 14
+**Dependencies:** Task 15
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/command/BuildAmiCommand.java`
@@ -510,6 +570,7 @@ Maven project + Quarkus skeleton
 
 ### Checkpoint: AMI Caching
 - [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
 - [ ] Second `ato request` launches in ~60 seconds (no provisioning)
 - [ ] `ato destroy` offers AMI cleanup
 - [ ] `ato build-ami` works standalone
@@ -519,7 +580,7 @@ Maven project + Quarkus skeleton
 
 ### Phase 6: Spot Interruption Recovery
 
-#### Task 17: Spot termination detection + automatic replacement
+#### Task 18: Spot termination detection + automatic replacement
 
 **Description:** Add background thread to RequestCommand that polls EC2 API for instance state changes. On spot termination: notify user, request replacement instance (same AMI, same or fallback region), reconnect SSH.
 
@@ -537,7 +598,7 @@ Maven project + Quarkus skeleton
 - [ ] `SpotManagerTest` — mock termination detection, replacement flow
 - [ ] `mvn test` passes
 
-**Dependencies:** Tasks 9, 10, 14
+**Dependencies:** Tasks 10, 11, 15
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/aws/SpotManager.java`
@@ -550,6 +611,7 @@ Maven project + Quarkus skeleton
 
 ### Checkpoint: Resilient Lifecycle
 - [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
 - [ ] Spot interruption handled gracefully (manual test or simulated)
 - [ ] **Review with human before proceeding**
 
@@ -557,7 +619,7 @@ Maven project + Quarkus skeleton
 
 ### Phase 7: Cost Tracking + TUI
 
-#### Task 18: Cost tracking
+#### Task 19: Cost tracking
 
 **Description:** Implement `CostTracker` — calculates ongoing and total session cost. Add `ato cost` command. Display cost in `ato status` and on `ato destroy`.
 
@@ -572,7 +634,7 @@ Maven project + Quarkus skeleton
 - [ ] `CostTrackerTest` — cost calculation, multi-instance sessions
 - [ ] `mvn test` passes
 
-**Dependencies:** Tasks 2, 13
+**Dependencies:** Tasks 3, 14
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/cost/CostTracker.java`
@@ -583,7 +645,7 @@ Maven project + Quarkus skeleton
 
 ---
 
-#### Task 19: TUI main view
+#### Task 20: TUI main view
 
 **Description:** Implement the TUI using Tamboui (launched with bare `ato`). Shows instance status, templates, quick actions. Follows incus-spawn's ListCommand pattern.
 
@@ -599,7 +661,7 @@ Maven project + Quarkus skeleton
 - [ ] Manual test: TUI renders correctly, actions work
 - [ ] `mvn test` passes
 
-**Dependencies:** Tasks 11, 12, 13, 18
+**Dependencies:** Tasks 12, 13, 14, 19
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/command/ListCommand.java`
@@ -613,6 +675,8 @@ Maven project + Quarkus skeleton
 
 ### Checkpoint: Feature Complete v1
 - [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
+- [ ] CI pipeline green
 - [ ] Full CLI lifecycle works
 - [ ] TUI works
 - [ ] Cost tracking works
@@ -621,29 +685,7 @@ Maven project + Quarkus skeleton
 
 ---
 
-### Phase 8: CI + Template System
-
-#### Task 20: GitHub Actions CI
-
-**Description:** Set up GitHub Actions workflow for unit tests and integration tests (LocalStack).
-
-**Acceptance criteria:**
-- [ ] CI runs on push to main and PRs
-- [ ] Unit tests job: `mvn test` with OpenJDK 25
-- [ ] Integration tests job: `mvn verify -DskipITs=false` with LocalStack
-- [ ] Both jobs pass
-
-**Verification:**
-- [ ] Push to repo, CI runs green
-
-**Dependencies:** All previous tasks
-
-**Files likely touched:**
-- `.github/workflows/ci.yml`
-
-**Estimated scope:** XS
-
----
+### Phase 8: Template System
 
 #### Task 21: Image template + tool system
 
@@ -660,7 +702,7 @@ Maven project + Quarkus skeleton
 - [ ] `ToolDefTest` — parsing, execution order
 - [ ] `mvn test` passes
 
-**Dependencies:** Task 11 (SshProvisioner exists)
+**Dependencies:** Task 12 (SshProvisioner exists)
 
 **Files likely touched:**
 - `src/main/java/org/mendrugo/attimo/config/ImageDef.java`
@@ -676,7 +718,9 @@ Maven project + Quarkus skeleton
 
 ### Checkpoint: Complete
 - [ ] All acceptance criteria met
-- [ ] CI passes
+- [ ] `mvn test` passes
+- [ ] `mvn verify -DskipITs=false` passes
+- [ ] CI pipeline green
 - [ ] Template system works
 - [ ] Ready for real-world use
 
@@ -697,13 +741,15 @@ Maven project + Quarkus skeleton
 
 | Phase | What it delivers | Needed for goal? |
 |-------|-----------------|------------------|
-| 1. Project Skeleton | Compiling project with CLI framework | Yes — foundation |
+| 1. Project Skeleton + CI | Compiling project, CI pipeline, LocalStack integration tests | Yes — foundation |
 | 2. Init + ISA | `ato init`, ISA→instance type resolution | Yes — prerequisite |
 | 3. Spot Launch | **`ato request` → SSH into spot instance** | **Yes — the goal** |
 | 4. Cleanup + Reconnect | `ato destroy`, `ato status`, `ato connect` | Yes — must clean up |
 | 5. AMI Caching | Fast subsequent launches | Nice to have for v1 |
 | 6. Spot Interruption | Auto-recovery from spot termination | Nice to have for v1 |
 | 7. Cost + TUI | Cost tracking, interactive TUI | Nice to have for v1 |
-| 8. CI + Templates | GitHub Actions, full template system | Nice to have for v1 |
+| 8. Templates | Full incus-spawn-style template system | Nice to have for v1 |
 
 **The goal (build JDK + run jtreg) is achievable after Phase 4.** Phases 5-8 improve the experience but are not blocking.
+
+**Integration tests gate every phase.** Both `mvn test` and `mvn verify -DskipITs=false` must pass at every checkpoint. CI is set up in Phase 1 and validates every subsequent change.
