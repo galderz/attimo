@@ -100,7 +100,16 @@ public class DestroyCommand extends BaseCommand
             }
             catch (final Exception e)
             {
-                System.err.println("  Warning: could not check " + region + ": " + e.getMessage());
+                final var msg = e.getMessage();
+                if (msg != null && (msg.contains("401") || msg.contains("AuthFailure")
+                    || msg.contains("OptInRequired")))
+                {
+                    System.out.println("  Skipped (region not enabled in your account)");
+                }
+                else
+                {
+                    System.err.println("  Warning: could not check " + region + ": " + msg);
+                }
             }
         }
 

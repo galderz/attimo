@@ -77,8 +77,17 @@ public class SpotAdvisor
             }
             catch (final Exception e)
             {
-                System.err.println("  Warning: could not query spot prices in "
-                    + region + ": " + e.getMessage());
+                final var msg = e.getMessage();
+                if (msg != null && (msg.contains("401") || msg.contains("AuthFailure")
+                    || msg.contains("OptInRequired")))
+                {
+                    System.out.println("  Skipping " + region + " (region not enabled in your account)");
+                }
+                else
+                {
+                    System.err.println("  Warning: could not query spot prices in "
+                        + region + ": " + msg);
+                }
             }
         }
 

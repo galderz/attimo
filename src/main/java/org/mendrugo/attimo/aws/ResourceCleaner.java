@@ -115,6 +115,11 @@ public class ResourceCleaner
         }
         catch (final Exception e)
         {
+            if (isRegionNotEnabled(e))
+            {
+                return; // silently skip — region not enabled in account
+            }
+
             errors.add("Failed to scan for orphaned security groups: " + e.getMessage());
         }
     }
@@ -164,8 +169,31 @@ public class ResourceCleaner
         }
         catch (final Exception e)
         {
+            if (isRegionNotEnabled(e))
+            {
+                return; // silently skip — region not enabled in account
+            }
+
             errors.add("Failed to scan for orphaned instances: " + e.getMessage());
         }
+    }
+
+    /**
+     * Check if an exception indicates the region is not enabled in the account.
+     * AWS opt-in regions (eu-south-1, eu-south-2, etc.) return 401/AuthFailure
+     * when not activated.
+     */
+    private static boolean isRegionNotEnabled(final Exception e)
+    {
+        final var msg = e.getMessage();
+        if (msg == null)
+        {
+            return false;
+        }
+
+        return msg.contains("401")
+            || msg.contains("AuthFailure")
+            || msg.contains("OptInRequired");
     }
 
     private void terminateInstance(final String instanceId)
