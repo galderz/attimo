@@ -72,12 +72,16 @@ public class InitCommand extends BaseCommand
         System.out.println();
         System.out.println("  No AWS credentials found. Choose an option:");
         System.out.println();
-        System.out.println("  Option A: Install the AWS CLI and run 'aws configure'");
+        System.out.println("  Option A: Install the AWS CLI and configure credentials");
         System.out.println("    Fedora:    sudo dnf install awscli2");
         System.out.println("    Ubuntu:    sudo apt install awscli");
         System.out.println("    macOS:     brew install awscli");
         System.out.println("    Nix:       nix-env -iA nixpkgs.awscli2");
         System.out.println("    Other:     https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html");
+        System.out.println();
+        System.out.println("    Then authenticate with one of:");
+        System.out.println("      aws configure           # access key + secret (personal accounts)");
+        System.out.println("      aws sso login            # SSO / Identity Center (organizations)");
         System.out.println();
         System.out.println("  Option B: Enter your AWS access key now");
         System.out.println("    (Get one from https://console.aws.amazon.com/iam → Security credentials → Access keys)");
