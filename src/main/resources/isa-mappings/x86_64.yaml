@@ -1,0 +1,62 @@
+# Static mapping of x86_64 CPU ISA features to AWS instance families.
+# User overrides at ~/.config/attimo/isa-mappings/ take precedence.
+architecture: x86_64
+
+features:
+  sse4_2:
+    description: "SSE 4.2"
+    families:
+      - c5
+      - m5
+      - r5
+      - c6i
+      - m6i
+      - r6i
+      - c7i
+      - m7i
+      - c7a
+      - m7a
+
+  avx2:
+    description: "Advanced Vector Extensions 2 (256-bit)"
+    families:
+      - c5
+      - m5
+      - r5
+      - c6i
+      - m6i
+      - r6i
+      - c7i
+      - m7i
+      - c7a
+      - m7a
+
+  avx512:
+    description: "AVX-512 Foundation + common subsets"
+    families:
+      - c5
+      - m5
+      - r5
+      - c6i
+      - m6i
+      - r6i
+      - c7i
+      - m7i
+      - c7a
+      - m7a
+
+  avx512_vnni:
+    description: "AVX-512 Vector Neural Network Instructions (Intel Ice Lake+)"
+    families:
+      - c6i
+      - m6i
+      - r6i
+      - c7i
+      - m7i
+
+  amx:
+    description: "Advanced Matrix Extensions (Intel Sapphire Rapids)"
+    families:
+      - c7i
+      - m7i
+      - r7i

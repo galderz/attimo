@@ -1,0 +1,60 @@
+# Static mapping of AArch64 CPU ISA features to AWS instance families.
+# User overrides at ~/.config/attimo/isa-mappings/ take precedence.
+architecture: aarch64
+
+features:
+  neon:
+    description: "ARM NEON/ASIMD"
+    families:
+      - c6g
+      - m6g
+      - r6g
+      - c7g
+      - m7g
+      - r7g
+      - c8g
+      - m8g
+
+  lse:
+    description: "Large System Extensions (atomics, Graviton2+)"
+    families:
+      - c6g
+      - m6g
+      - r6g
+      - c7g
+      - m7g
+      - r7g
+      - c8g
+      - m8g
+
+  sve:
+    description: "Scalable Vector Extension (256-bit, Graviton3)"
+    families:
+      - c7g
+      - m7g
+      - r7g
+
+  sve2:
+    description: "Scalable Vector Extension v2 (Graviton4)"
+    families:
+      - c8g
+      - m8g
+      - r8g
+
+  bf16:
+    description: "BFloat16 instructions (Graviton3+)"
+    families:
+      - c7g
+      - m7g
+      - r7g
+      - c8g
+      - m8g
+
+  rng:
+    description: "Hardware random number generator (FEAT_RNG, Graviton3+)"
+    families:
+      - c7g
+      - m7g
+      - r7g
+      - c8g
+      - m8g
