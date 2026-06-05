@@ -1,5 +1,6 @@
 package org.mendrugo.attimo.aws;
 
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.sts.StsClient;
@@ -34,7 +35,8 @@ public class AwsClientFactory
     public Ec2Client ec2(final String region)
     {
         final var builder = Ec2Client.builder()
-            .region(Region.of(region));
+            .region(Region.of(region))
+            .httpClient(UrlConnectionHttpClient.builder().build());
 
         if (endpointOverride != null)
         {
@@ -53,7 +55,8 @@ public class AwsClientFactory
     {
         try
         {
-            final var builder = StsClient.builder();
+            final var builder = StsClient.builder()
+                .httpClient(UrlConnectionHttpClient.builder().build());
             if (endpointOverride != null)
             {
                 builder.endpointOverride(endpointOverride);
