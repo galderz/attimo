@@ -70,18 +70,13 @@ public class InitCommand extends BaseCommand
 
         System.out.println("  " + error);
 
-        // Detect common misconfiguration: 'aws login' creates a format the SDK can't use
+        // Detect login_session issue — may indicate expired session or missing signin module
         if (error.contains("login_session"))
         {
             System.out.println();
-            System.out.println("  It looks like you used 'aws login' which creates a config format");
-            System.out.println("  that the AWS Java SDK cannot read.");
-            System.out.println();
-            System.out.println("  To fix this, run one of:");
-            System.out.println("    aws configure       # add access key credentials");
-            System.out.println("    aws configure sso   # set up SSO with fields the SDK understands");
-            System.out.println();
-            System.out.println("  Your existing ~/.aws/config will be preserved.");
+            System.out.println("  Your profile uses 'login_session' (from 'aws login').");
+            System.out.println("  This may mean your session has expired. Try:");
+            System.out.println("    aws login           # refresh your session");
             System.out.println();
         }
 
