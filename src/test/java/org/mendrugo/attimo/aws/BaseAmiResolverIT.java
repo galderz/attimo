@@ -1,0 +1,110 @@
+package org.mendrugo.attimo.aws;
+
+import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
+import software.amazon.awssdk.services.ec2.model.Filter;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
+
+/**
+ * Integration tests for BaseAmiResolver against LocalStack.
+ * LocalStack does not have real Fedora AMIs, so these tests verify
+ * the search behaviour (pattern matching, error handling) rather than
+ * finding actual images.
+ */
+@Testcontainers
+class BaseAmiResolverIT
+{
+    @Container
+    static final LocalStackContainer LOCALSTACK = new LocalStackContainer(
+        DockerImageName.parse("localstack/localstack:4.4")
+    )
+        .withServices(EC2);
+
+    @Test
+    void describeImagesWorksAgainstLocalStack()
+    {
+        // Verify we can call DescribeImages without error
+        try (final var ec2 = ec2Client())
+        {
+            final var response = ec2.describeImages(
+                DescribeImagesRequest.builder()
+                    .filters(
+                        Filter.builder()
+                            .name("name")
+                            .values("nonexistent-*")
+                            .build()
+                    )
+                    .build()
+            );
+
+            // Should return empty, not throw
+            assertThat(response.images()).isEmpty();
+        }
+    }
+
+    @Test
+    void resolverThrowsClearErrorWhenNoAmisFound()
+    {
+        // LocalStack has no Fedora AMIs, so the resolver should fail
+        // with a clear error listing all patterns and owners tried
+        try (final var ec2 = ec2Client())
+        {
+            final var resolver = new BaseAmiResolver();
+            assertThatThrownBy(() -> resolver.resolve("fedora-44", ec2, "x86_64"))
+                .isInstanceOf(AwsException.class)
+                .hasMessageContaining("No Fedora 44 Cloud AMI found")
+                .hasMessageContaining("searched patterns")
+                .hasMessageContaining("owners");
+        }
+    }
+
+    @Test
+    void resolverTriesMultiplePatternsBeforeFailing()
+    {
+        // Verify the resolver doesn't fail on the first pattern —
+        // it should try all patterns before giving up
+        try (final var ec2 = ec2Client())
+        {
+            final var resolver = new BaseAmiResolver();
+
+            try
+            {
+                resolver.resolve("fedora-44", ec2, "x86_64");
+            }
+            catch (final AwsException e)
+            {
+                // Expected — no AMIs in LocalStack
+                // The error message should reference multiple patterns
+                assertThat(e.getMessage()).contains("Fedora-Cloud-Base-AmazonEC2");
+                assertThat(e.getMessage()).contains("Fedora-Cloud-Base-44");
+            }
+        }
+    }
+
+    private Ec2Client ec2Client()
+    {
+        return Ec2Client.builder()
+            .endpointOverride(LOCALSTACK.getEndpointOverride(EC2))
+            .credentialsProvider(
+                StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(
+                        LOCALSTACK.getAccessKey()
+                        , LOCALSTACK.getSecretKey()
+                    )
+                )
+            )
+            .region(Region.of(LOCALSTACK.getRegion()))
+            .build();
+    }
+}
