@@ -32,8 +32,10 @@ public class BaseAmiResolver
     // Amazon Linux 2023 is published by Amazon
     private static final String AMAZON_OWNER_ID = "137112412989";
 
-    // How many Fedora versions to try before falling back to Amazon Linux
-    static final int FEDORA_FALLBACK_VERSIONS = 3;
+    // How many earlier Fedora versions to try before falling back.
+    // Limited to 1 because JDK packages (e.g., java-25-openjdk-devel)
+    // are only available on the current and previous Fedora release.
+    static final int FEDORA_FALLBACK_VERSIONS = 1;
 
     // Cache: "arch:resolvedName" → AmiResult
     private final Map<String, AmiResult> cache = new HashMap<>();
@@ -132,8 +134,10 @@ public class BaseAmiResolver
 
         throw new AwsException(
             "No suitable AMI found for architecture " + arch
-            + " in this region. Tried Fedora " + requestedVersion + " through "
-            + (requestedVersion - FEDORA_FALLBACK_VERSIONS)
+            + " in this region. Tried Fedora " + requestedVersion
+            + (FEDORA_FALLBACK_VERSIONS > 0
+                ? " through " + (requestedVersion - FEDORA_FALLBACK_VERSIONS)
+                : "")
             + " and Amazon Linux 2023."
         );
     }

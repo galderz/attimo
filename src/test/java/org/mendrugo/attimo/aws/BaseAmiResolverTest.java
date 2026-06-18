@@ -239,15 +239,9 @@ class BaseAmiResolverTest
     @Test
     void fallsBackToAmazonLinuxWhenNoFedora()
     {
-        // All Fedora versions fail (4 versions × 3 patterns = 12 empty),
+        // All Fedora versions fail (2 versions × 3 patterns = 6 empty),
         // then Amazon Linux found
         when(ec2.describeImages(any(DescribeImagesRequest.class)))
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
             .thenReturn(DescribeImagesResponse.builder().build())
             .thenReturn(DescribeImagesResponse.builder().build())
             .thenReturn(DescribeImagesResponse.builder().build())
