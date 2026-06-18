@@ -252,8 +252,9 @@ public class BaseAmiResolver
         , final String arch
     )
     {
-        // Amazon Linux 2023 naming: al2023-ami-2023.*-kernel-*-<arch>
-        final var pattern = "al2023-ami-2023.*-kernel-*-" + arch;
+        // Amazon Linux 2023 naming: al2023-ami-2023.6.20260601.0-kernel-6.1-arm64
+        // EC2 filters use glob wildcards (*), not regex (.*)
+        final var pattern = "al2023-ami-2023*-kernel-*-" + arch;
 
         System.out.println("  Searching for: " + pattern);
 
