@@ -2,7 +2,7 @@
 # ai-review.sh — AI-driven PR review with inline comments
 #
 # Usage:
-#   ./scripts/ai-review.sh <PR_NUMBER>
+#   ./scripts/ai-review.sh <PR_NUMBER> [EXTRA_INSTRUCTIONS...]
 #
 # Required env vars (never commit these):
 #   GITHUB_TOKEN        — GitHub PAT with repo + pull_request write scope
@@ -32,7 +32,9 @@ set -euo pipefail
 
 # ── Validate ─────────────────────────────────────────────────────────
 PR_NUMBER="${1:-}"
-[[ -z "$PR_NUMBER" ]]        && { echo "Usage: $0 <PR_NUMBER>" >&2; exit 1; }
+[[ -z "$PR_NUMBER" ]]        && { echo "Usage: $0 <PR_NUMBER> [extra instructions...]" >&2; exit 1; }
+shift
+EXTRA_INSTRUCTIONS="${*:-}"
 [[ -z "${GITHUB_TOKEN:-}" ]] && { echo "Error: GITHUB_TOKEN not set" >&2; exit 1; }
 
 REPO=$(git remote get-url origin | sed -E 's#.*github\.com[:/]##; s#\.git$##; s#/$##')
@@ -125,6 +127,13 @@ Rules for the JSON response:
 - "line" must be the NEW file line number from the diff hunk header (the number after the + in @@ -a,b +c,d @@). Only comment on added or modified lines (lines starting with + in the diff).
 - "body" should be concise and actionable.
 - Output raw JSON only. No ```json fences. No text before or after.'
+
+if [[ -n "$EXTRA_INSTRUCTIONS" ]]; then
+    REVIEW_INSTRUCTIONS+="
+
+Additional instructions:
+${EXTRA_INSTRUCTIONS}"
+fi
 
 REVIEW_PROMPT="## PR #${PR_NUMBER}: ${PR_TITLE}
 
