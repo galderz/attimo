@@ -14,6 +14,11 @@ import java.util.Map;
  * Resolves human-readable base AMI names (e.g., "fedora-44") to actual
  * AMI IDs in a given region and architecture. Uses DescribeImages with
  * owner/name filters.
+ *
+ * <p>When the requested Fedora version is not available in the target
+ * region (common in newer/opt-in regions like eu-central-2), falls back
+ * to earlier Fedora versions (44 → 43 → 42 → 41), then to Amazon Linux
+ * 2023 as a last resort.</p>
  */
 public class BaseAmiResolver
 {
@@ -24,11 +29,117 @@ public class BaseAmiResolver
         , "013116697141"
     };
 
-    // Cache: "region:arch:name" → AMI ID
-    private final Map<String, String> cache = new HashMap<>();
+    // Amazon Linux 2023 is published by Amazon
+    private static final String AMAZON_OWNER_ID = "137112412989";
+
+    // How many Fedora versions to try before falling back to Amazon Linux
+    static final int FEDORA_FALLBACK_VERSIONS = 3;
+
+    // Cache: "arch:resolvedName" → AmiResult
+    private final Map<String, AmiResult> cache = new HashMap<>();
 
     /**
-     * Resolve a base AMI name to an AMI ID.
+     * Result of AMI resolution, including metadata needed for provisioning.
+     */
+    public record AmiResult(
+        String amiId
+        , String resolvedName
+        , String sshUser
+        , boolean isFallback
+    ) {}
+
+    /**
+     * Resolve a base AMI name to an AMI ID, with version and OS fallback.
+     *
+     * <p>Fallback order for "fedora-44":
+     * <ol>
+     *   <li>Fedora 44 in target region</li>
+     *   <li>Fedora 43, 42, 41 in target region</li>
+     *   <li>Amazon Linux 2023 in target region (always available)</li>
+     * </ol>
+     *
+     * @param name   the base AMI name (e.g., "fedora-44")
+     * @param ec2    the EC2 client for the target region
+     * @param arch   the target architecture ("x86_64" or "arm64")
+     * @return the resolution result with AMI ID and metadata
+     * @throws AwsException if no matching AMI is found at all
+     */
+    public AmiResult resolveWithFallback(
+        final String name
+        , final Ec2Client ec2
+        , final String arch
+    )
+    {
+        final var cacheKey = name + ":" + arch;
+        final var cached = cache.get(cacheKey);
+        if (cached != null)
+        {
+            return cached;
+        }
+
+        if (!name.startsWith("fedora-"))
+        {
+            throw new AwsException(
+                "Unknown base AMI: " + name
+                + ". Supported: fedora-<version> (e.g., fedora-44)"
+            );
+        }
+
+        final var parts = name.split("-");
+        if (parts.length != 2)
+        {
+            throw new AwsException(
+                "Invalid Fedora AMI name: " + name + ". Expected: fedora-<version>"
+            );
+        }
+
+        final var requestedVersion = Integer.parseInt(parts[1]);
+
+        // Try requested version first, then fall back to earlier versions
+        for (int v = requestedVersion; v >= requestedVersion - FEDORA_FALLBACK_VERSIONS; v--)
+        {
+            final var amiId = searchFedora(v, ec2, arch);
+            if (amiId != null)
+            {
+                final var isFallback = v != requestedVersion;
+                if (isFallback)
+                {
+                    System.out.println("  Note: Fedora " + requestedVersion
+                        + " not available, using Fedora " + v + " instead");
+                }
+
+                final var result = new AmiResult(
+                    amiId, "fedora-" + v, "fedora", isFallback
+                );
+                cache.put(cacheKey, result);
+                return result;
+            }
+        }
+
+        // No Fedora version found — try Amazon Linux 2023
+        System.out.println("  No Fedora AMI available in this region, trying Amazon Linux 2023...");
+        final var al2023Id = searchAmazonLinux2023(ec2, arch);
+        if (al2023Id != null)
+        {
+            System.out.println("  WARNING: Using Amazon Linux 2023 instead of Fedora.");
+            System.out.println("  Some packages (e.g., java-25-openjdk-devel) may not be available.");
+            System.out.println("  Consider using a region where Fedora AMIs are published.");
+
+            final var result = new AmiResult(al2023Id, "al2023", "ec2-user", true);
+            cache.put(cacheKey, result);
+            return result;
+        }
+
+        throw new AwsException(
+            "No suitable AMI found for architecture " + arch
+            + " in this region. Tried Fedora " + requestedVersion + " through "
+            + (requestedVersion - FEDORA_FALLBACK_VERSIONS)
+            + " and Amazon Linux 2023."
+        );
+    }
+
+    /**
+     * Resolve a base AMI name to an AMI ID (legacy method, no fallback).
      *
      * @param name   the base AMI name (e.g., "fedora-44")
      * @param ec2    the EC2 client for the target region
@@ -42,44 +153,21 @@ public class BaseAmiResolver
         , final String arch
     )
     {
-        final var cacheKey = name + ":" + arch;
-        final var cached = cache.get(cacheKey);
-        if (cached != null)
-        {
-            return cached;
-        }
-
-        final String amiId;
-        if (name.startsWith("fedora-"))
-        {
-            amiId = resolveFedora(name, ec2, arch);
-        }
-        else
-        {
-            throw new AwsException(
-                "Unknown base AMI: " + name
-                + ". Supported: fedora-<version> (e.g., fedora-44)"
-            );
-        }
-
-        cache.put(cacheKey, amiId);
-        return amiId;
+        final var result = resolveWithFallback(name, ec2, arch);
+        return result.amiId();
     }
 
-    private String resolveFedora(
-        final String name
+    /**
+     * Search for a specific Fedora version AMI.
+     *
+     * @return AMI ID if found, null otherwise
+     */
+    String searchFedora(
+        final int version
         , final Ec2Client ec2
         , final String arch
     )
     {
-        // Parse version from "fedora-44"
-        final var parts = name.split("-");
-        if (parts.length != 2)
-        {
-            throw new AwsException("Invalid Fedora AMI name: " + name + ". Expected: fedora-<version>");
-        }
-
-        final var version = parts[1];
         final var fedoraArch = "arm64".equals(arch) ? "aarch64" : arch;
 
         // Fedora Cloud AMI naming has changed over time:
@@ -136,11 +224,7 @@ public class BaseAmiResolver
 
         if (allImages.isEmpty())
         {
-            throw new AwsException(
-                "No Fedora " + version + " Cloud AMI found for architecture " + arch
-                + " (searched patterns: " + namePatterns
-                + ", owners: " + java.util.Arrays.toString(FEDORA_OWNER_IDS) + ")"
-            );
+            return null;
         }
 
         // Pick the most recent image (by creation date)
@@ -148,9 +232,68 @@ public class BaseAmiResolver
             .max(Comparator.comparing(Image::creationDate))
             .orElseThrow();
 
-        System.out.println("  Resolved " + name + " (" + arch + ") → " + newest.imageId()
-            + " (" + newest.name() + ")");
+        System.out.println("  Resolved fedora-" + version + " (" + arch + ") → "
+            + newest.imageId() + " (" + newest.name() + ")");
 
         return newest.imageId();
+    }
+
+    /**
+     * Search for Amazon Linux 2023 AMI. Amazon publishes these in every region.
+     *
+     * @return AMI ID if found, null otherwise
+     */
+    String searchAmazonLinux2023(
+        final Ec2Client ec2
+        , final String arch
+    )
+    {
+        // Amazon Linux 2023 naming: al2023-ami-2023.*-kernel-*-<arch>
+        final var pattern = "al2023-ami-2023.*-kernel-*-" + arch;
+
+        System.out.println("  Searching for: " + pattern);
+
+        try
+        {
+            final var response = ec2.describeImages(
+                DescribeImagesRequest.builder()
+                    .owners(AMAZON_OWNER_ID)
+                    .filters(
+                        Filter.builder()
+                            .name("name")
+                            .values(pattern)
+                            .build()
+                        , Filter.builder()
+                            .name("state")
+                            .values("available")
+                            .build()
+                        , Filter.builder()
+                            .name("architecture")
+                            .values(arch)
+                            .build()
+                    )
+                    .build()
+            );
+
+            if (response.images().isEmpty())
+            {
+                return null;
+            }
+
+            final var newest = response.images().stream()
+                .max(Comparator.comparing(Image::creationDate))
+                .orElseThrow();
+
+            System.out.println("  Resolved Amazon Linux 2023 (" + arch + ") → "
+                + newest.imageId() + " (" + newest.name() + ")");
+
+            return newest.imageId();
+        }
+        catch (final Exception e)
+        {
+            System.err.println("  Warning: Amazon Linux 2023 search failed: "
+                + e.getMessage());
+            return null;
+        }
     }
 }

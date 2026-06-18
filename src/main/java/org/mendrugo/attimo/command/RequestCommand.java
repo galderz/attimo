@@ -8,6 +8,7 @@ import org.mendrugo.attimo.aws.SpotManager;
 import org.mendrugo.attimo.config.AttimoConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.isa.IsaMapping;
+import org.mendrugo.attimo.ssh.OsPackages;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.mendrugo.attimo.ssh.SshProvisioner;
 import org.mendrugo.attimo.ssh.SshSession;
@@ -33,29 +34,7 @@ public class RequestCommand extends BaseCommand
     )
     String isaFeature;
 
-    // Packages to install on the instance (phase 1: hardcoded jdk-dev template)
-    private static final List<String> JDK_DEV_PACKAGES = List.of(
-        "gcc"
-        , "gcc-c++"
-        , "make"
-        , "autoconf"
-        , "java-25-openjdk-devel"
-        , "java-25-openjdk-javadoc"
-        , "java-25-openjdk-src"
-        , "libcups-devel"
-        , "libX11-devel"
-        , "libXt-devel"
-        , "libXrender-devel"
-        , "libXrandr-devel"
-        , "libXi-devel"
-        , "libXtst-devel"
-        , "alsa-lib-devel"
-        , "fontconfig-devel"
-        , "freetype-devel"
-        , "capstone"
-        , "capstone-devel"
-        , "capstone-tool"
-    );
+
 
     @Override
     protected CommandResult doExecute() throws Exception
@@ -116,16 +95,16 @@ public class RequestCommand extends BaseCommand
 
         System.out.println("  Best option: " + recommendation.rationale());
 
-        // 3. Resolve base AMI
+        // 3. Resolve base AMI (with version + OS fallback)
         System.out.println("\n[3/5] Resolving base AMI...");
         final var arch = "aarch64".equals(feature.architecture()) ? "arm64" : "x86_64";
         final var amiResolver = new BaseAmiResolver();
 
         final Ec2Client ec2 = factory.ec2(recommendation.region());
-        final String amiId;
+        final BaseAmiResolver.AmiResult amiResult;
         try
         {
-            amiId = amiResolver.resolve("fedora-44", ec2, arch);
+            amiResult = amiResolver.resolveWithFallback("fedora-44", ec2, arch);
         }
         catch (final Exception e)
         {
@@ -133,6 +112,9 @@ public class RequestCommand extends BaseCommand
             ec2.close();
             return CommandResult.valueOf(1);
         }
+
+        final var amiId = amiResult.amiId();
+        final var sshUser = amiResult.sshUser();
 
         // 4. Launch spot instance
         System.out.println("\n[4/5] Launching spot instance...");
@@ -192,7 +174,7 @@ public class RequestCommand extends BaseCommand
         // 5. Provision + SSH
         System.out.println("\n[5/5] Provisioning and connecting...");
 
-        final var sshSession = new SshSession(publicIp);
+        final var sshSession = new SshSession(publicIp, sshUser, org.mendrugo.attimo.Environment.sshKeyFile());
         if (!sshSession.waitForSsh(300))
         {
             System.err.println("Error: SSH not reachable after 5 minutes.");
@@ -202,8 +184,17 @@ public class RequestCommand extends BaseCommand
         }
 
         // Provision packages (phase 1: hardcoded jdk-dev)
-        final var provisioner = new SshProvisioner(publicIp);
-        provisioner.installPackages(JDK_DEV_PACKAGES);
+        final var provisioner = new SshProvisioner(publicIp, sshUser, org.mendrugo.attimo.Environment.sshKeyFile());
+        final var os = OsPackages.detectOs(amiResult.resolvedName());
+        final var resolved = OsPackages.resolve(OsPackages.JDK_DEV_PACKAGES, os);
+
+        if (!resolved.skipped().isEmpty())
+        {
+            System.out.println("  Note: skipping packages not available on "
+                + amiResult.resolvedName() + ": " + String.join(", ", resolved.skipped()));
+        }
+
+        provisioner.installPackages(resolved.installable());
 
         // Connect
         final var exitCode = sshSession.connect();

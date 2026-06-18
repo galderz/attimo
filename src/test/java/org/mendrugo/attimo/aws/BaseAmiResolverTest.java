@@ -10,8 +10,6 @@ import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeImagesResponse;
 import software.amazon.awssdk.services.ec2.model.Image;
 
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -101,18 +99,16 @@ class BaseAmiResolverTest
     }
 
     @Test
-    void throwsWhenNoPatternsMatch()
+    void throwsWhenNoPatternsMatchAndNoFallback()
     {
+        // All searches return empty — no Fedora versions, no Amazon Linux
         when(ec2.describeImages(any(DescribeImagesRequest.class)))
             .thenReturn(DescribeImagesResponse.builder().build());
 
         final var resolver = new BaseAmiResolver();
         assertThatThrownBy(() -> resolver.resolve("fedora-44", ec2, "x86_64"))
             .isInstanceOf(AwsException.class)
-            .hasMessageContaining("No Fedora 44 Cloud AMI found");
-
-        // Should have tried all 3 patterns
-        verify(ec2, times(3)).describeImages(any(DescribeImagesRequest.class));
+            .hasMessageContaining("No suitable AMI found");
     }
 
     @Test
@@ -207,17 +203,125 @@ class BaseAmiResolverTest
         assertThat(nameFilter.values().getFirst()).contains("aarch64");
     }
 
+    // === Fallback tests ===
+
     @Test
-    void errorMessageIncludesAllPatternsAndOwners()
+    void fallsBackToEarlierFedoraVersion()
     {
+        // Fedora 44 not found (3 patterns), Fedora 43 found on first pattern
         when(ec2.describeImages(any(DescribeImagesRequest.class)))
-            .thenReturn(DescribeImagesResponse.builder().build());
+            // Fedora 44: 3 empty responses (3 patterns)
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            // Fedora 43: found
+            .thenReturn(
+                DescribeImagesResponse.builder()
+                    .images(
+                        Image.builder()
+                            .imageId("ami-fedora43")
+                            .name("Fedora-Cloud-Base-AmazonEC2.x86_64-43-20250301.0")
+                            .creationDate("2025-03-01T00:00:00Z")
+                            .build()
+                    )
+                    .build()
+            );
 
         final var resolver = new BaseAmiResolver();
-        assertThatThrownBy(() -> resolver.resolve("fedora-44", ec2, "x86_64"))
-            .isInstanceOf(AwsException.class)
-            .hasMessageContaining("searched patterns")
-            .hasMessageContaining("owners")
-            .hasMessageContaining("125523088429");
+        final var result = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
+
+        assertThat(result.amiId()).isEqualTo("ami-fedora43");
+        assertThat(result.resolvedName()).isEqualTo("fedora-43");
+        assertThat(result.sshUser()).isEqualTo("fedora");
+        assertThat(result.isFallback()).isTrue();
+    }
+
+    @Test
+    void fallsBackToAmazonLinuxWhenNoFedora()
+    {
+        // All Fedora versions fail (4 versions × 3 patterns = 12 empty),
+        // then Amazon Linux found
+        when(ec2.describeImages(any(DescribeImagesRequest.class)))
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            .thenReturn(DescribeImagesResponse.builder().build())
+            // Amazon Linux 2023
+            .thenReturn(
+                DescribeImagesResponse.builder()
+                    .images(
+                        Image.builder()
+                            .imageId("ami-al2023")
+                            .name("al2023-ami-2023.6.20260601.0-kernel-6.1-x86_64")
+                            .creationDate("2026-06-01T00:00:00Z")
+                            .build()
+                    )
+                    .build()
+            );
+
+        final var resolver = new BaseAmiResolver();
+        final var result = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
+
+        assertThat(result.amiId()).isEqualTo("ami-al2023");
+        assertThat(result.resolvedName()).isEqualTo("al2023");
+        assertThat(result.sshUser()).isEqualTo("ec2-user");
+        assertThat(result.isFallback()).isTrue();
+    }
+
+    @Test
+    void resolveWithFallbackReturnsFedoraDetailsWhenFound()
+    {
+        when(ec2.describeImages(any(DescribeImagesRequest.class)))
+            .thenReturn(
+                DescribeImagesResponse.builder()
+                    .images(
+                        Image.builder()
+                            .imageId("ami-f44")
+                            .name("Fedora-Cloud-Base-AmazonEC2.x86_64-44-20250601.0")
+                            .creationDate("2025-06-01T00:00:00Z")
+                            .build()
+                    )
+                    .build()
+            );
+
+        final var resolver = new BaseAmiResolver();
+        final var result = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
+
+        assertThat(result.amiId()).isEqualTo("ami-f44");
+        assertThat(result.resolvedName()).isEqualTo("fedora-44");
+        assertThat(result.sshUser()).isEqualTo("fedora");
+        assertThat(result.isFallback()).isFalse();
+    }
+
+    @Test
+    void resolveWithFallbackCachesResults()
+    {
+        when(ec2.describeImages(any(DescribeImagesRequest.class)))
+            .thenReturn(
+                DescribeImagesResponse.builder()
+                    .images(
+                        Image.builder()
+                            .imageId("ami-cached")
+                            .name("Fedora-Cloud-Base-AmazonEC2.x86_64-44-20250601.0")
+                            .creationDate("2025-06-01T00:00:00Z")
+                            .build()
+                    )
+                    .build()
+            );
+
+        final var resolver = new BaseAmiResolver();
+        final var first = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
+        final var second = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
+
+        assertThat(first.amiId()).isEqualTo(second.amiId());
+        verify(ec2, times(1)).describeImages(any(DescribeImagesRequest.class));
     }
 }

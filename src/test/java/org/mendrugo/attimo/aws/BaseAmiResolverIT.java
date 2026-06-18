@@ -54,40 +54,28 @@ class BaseAmiResolverIT
     }
 
     @Test
-    void resolverThrowsClearErrorWhenNoAmisFound()
+    void resolverSearchesFedoraAndFallsBack()
     {
-        // LocalStack has no Fedora AMIs, so the resolver should fail
-        // with a clear error listing all patterns and owners tried
-        try (final var ec2 = ec2Client())
-        {
-            final var resolver = new BaseAmiResolver();
-            assertThatThrownBy(() -> resolver.resolve("fedora-44", ec2, "x86_64"))
-                .isInstanceOf(AwsException.class)
-                .hasMessageContaining("No Fedora 44 Cloud AMI found")
-                .hasMessageContaining("searched patterns")
-                .hasMessageContaining("owners");
-        }
-    }
-
-    @Test
-    void resolverTriesMultiplePatternsBeforeFailing()
-    {
-        // Verify the resolver doesn't fail on the first pattern —
-        // it should try all patterns before giving up
+        // LocalStack has no real AMIs, so the resolver should either
+        // throw (no AMIs at all) or return a fallback result.
+        // We verify it doesn't crash and exercises the search logic.
         try (final var ec2 = ec2Client())
         {
             final var resolver = new BaseAmiResolver();
 
             try
             {
-                resolver.resolve("fedora-44", ec2, "x86_64");
+                final var result = resolver.resolveWithFallback(
+                    "fedora-44", ec2, "x86_64"
+                );
+                // If LocalStack returns any AMI, verify the result is valid
+                assertThat(result.amiId()).isNotBlank();
+                assertThat(result.sshUser()).isNotBlank();
             }
             catch (final AwsException e)
             {
                 // Expected — no AMIs in LocalStack
-                // The error message should reference multiple patterns
-                assertThat(e.getMessage()).contains("Fedora-Cloud-Base-AmazonEC2");
-                assertThat(e.getMessage()).contains("Fedora-Cloud-Base-44");
+                assertThat(e.getMessage()).contains("No suitable AMI found");
             }
         }
     }
