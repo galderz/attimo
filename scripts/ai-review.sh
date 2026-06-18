@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ai-review.sh — AI-driven PR review
+# ai-review.sh — AI-driven PR review with inline comments
 #
 # Usage:
 #   ./scripts/ai-review.sh <PR_NUMBER>
@@ -82,8 +82,10 @@ PR_DIFF=$(curl -s --fail-with-body -H "Authorization: token ${GITHUB_TOKEN}" \
 
 PR_TITLE=$(jq -r '.title' <<< "$PR_JSON")
 PR_BODY=$(jq -r '.body // ""' <<< "$PR_JSON")
+COMMIT_SHA=$(jq -r '.head.sha' <<< "$PR_JSON")
 
 echo "   ${PR_TITLE}"
+echo "   HEAD: ${COMMIT_SHA:0:8}"
 
 TRUNCATION_NOTE=""
 if [[ ${#PR_DIFF} -gt $MAX_DIFF_CHARS ]]; then
@@ -93,16 +95,36 @@ if [[ ${#PR_DIFF} -gt $MAX_DIFF_CHARS ]]; then
 fi
 
 # ── Build prompt ─────────────────────────────────────────────────────
-REVIEW_INSTRUCTIONS="You are an expert code reviewer. Review the pull request diff below.
+REVIEW_INSTRUCTIONS='You are an expert code reviewer. Review the pull request diff below.
 
 Focus on: correctness (bugs, logic errors, edge cases), security (vulnerabilities, leaks),
 performance (unnecessary allocations, algorithmic complexity), maintainability (naming,
 complexity, missing tests), style (consistency).
 
-Be concise and actionable. Use markdown. Quote relevant code for each issue.
-If the PR looks good, say so briefly — don't invent problems.
-Do NOT repeat the full diff back.
-Do NOT use any tools — just analyze the diff and respond with your review."
+Be concise and actionable. If the PR looks good, say so briefly — do not invent problems.
+Do NOT use any tools — just analyze the diff and respond.
+
+IMPORTANT: You MUST respond with ONLY a JSON object (no markdown fences, no extra text).
+The JSON must have this exact structure:
+
+{
+  "summary": "A brief overall summary of the review in markdown.",
+  "comments": [
+    {
+      "path": "relative/path/to/file.java",
+      "line": 42,
+      "body": "Your inline comment in markdown."
+    }
+  ]
+}
+
+Rules for the JSON response:
+- "summary" is required and should be a concise overall assessment.
+- "comments" is an array of inline comments. It can be empty if there are no specific line-level issues.
+- "path" must be the file path exactly as shown in the diff (e.g. "src/main/java/Foo.java").
+- "line" must be the NEW file line number from the diff hunk header (the number after the + in @@ -a,b +c,d @@). Only comment on added or modified lines (lines starting with + in the diff).
+- "body" should be concise and actionable.
+- Output raw JSON only. No ```json fences. No text before or after.'
 
 REVIEW_PROMPT="## PR #${PR_NUMBER}: ${PR_TITLE}
 
@@ -112,9 +134,7 @@ ${PR_BODY}
 ### Diff${TRUNCATION_NOTE}
 \`\`\`diff
 ${PR_DIFF}
-\`\`\`
-
-Review this PR."
+\`\`\`"
 
 echo "🧠 Requesting review..."
 
@@ -185,30 +205,84 @@ AI_RESPONSE=$(call_${AI_PROVIDER})
 
 [[ -z "$AI_RESPONSE" || "$AI_RESPONSE" == "null" ]] && { echo "Error: empty AI response" >&2; exit 1; }
 
-echo "✅ Review generated (${#AI_RESPONSE} chars)"
+# ── Parse AI response ───────────────────────────────────────────────
+# Strip markdown fences if the model wraps the JSON anyway
+AI_JSON=$(sed -E '/^```(json)?$/d' <<< "$AI_RESPONSE")
 
-# ── Post review ──────────────────────────────────────────────────────
-REVIEW_BODY="## 🤖 AI Review
+if ! jq empty <<< "$AI_JSON" 2>/dev/null; then
+    echo "⚠️  AI response is not valid JSON, posting as plain comment" >&2
+    # Fallback: post the raw response as a single review comment
+    REVIEW_BODY="## 🤖 AI Review
 
 ${AI_RESPONSE}
 
 ---
 *Automated review by \`ai-review.sh\` — not a substitute for human review.*"
 
-echo "📤 Posting review..."
+    REVIEW_RESULT=$(jq -n \
+        --arg body "$REVIEW_BODY" \
+        --arg event "$REVIEW_EVENT" \
+        '{body: $body, event: $event}' \
+        | curl -s --fail-with-body "${GH_HEADERS[@]}" \
+            -H "Content-Type: application/json" \
+            -d @- \
+            "${GH_API}/pulls/${PR_NUMBER}/reviews") || {
+        echo "Error: failed to post review:" >&2
+        echo "$REVIEW_RESULT" >&2
+        exit 1
+    }
+    REVIEW_URL=$(jq -r '.html_url' <<< "$REVIEW_RESULT")
+    echo "🎉 Done (fallback) → ${REVIEW_URL}"
+    exit 0
+fi
 
-REVIEW_RESULT=$(jq -n \
-    --arg body "$REVIEW_BODY" \
+SUMMARY=$(jq -r '.summary' <<< "$AI_JSON")
+COMMENT_COUNT=$(jq '.comments | length' <<< "$AI_JSON")
+
+echo "✅ Review: ${COMMENT_COUNT} inline comment(s)"
+
+# ── Build review payload ─────────────────────────────────────────────
+REVIEW_SUMMARY="## 🤖 AI Review
+
+${SUMMARY}
+
+---
+*Automated review by \`ai-review.sh\` — ${COMMENT_COUNT} inline comment(s) — not a substitute for human review.*"
+
+# Build the GitHub review API payload with inline comments
+REVIEW_PAYLOAD=$(jq -n \
+    --arg body "$REVIEW_SUMMARY" \
     --arg event "$REVIEW_EVENT" \
-    '{body: $body, event: $event}' \
-    | curl -s --fail-with-body "${GH_HEADERS[@]}" \
-        -H "Content-Type: application/json" \
-        -d @- \
-        "${GH_API}/pulls/${PR_NUMBER}/reviews") || {
+    --arg commit_id "$COMMIT_SHA" \
+    --argjson comments "$(jq '[.comments[] | {path, line: (.line // empty), body}]' <<< "$AI_JSON")" \
+    '{body: $body, event: $event, commit_id: $commit_id, comments: $comments}')
+
+# ── Post review ──────────────────────────────────────────────────────
+echo "📤 Posting review with inline comments..."
+
+REVIEW_RESULT=$(curl -s --fail-with-body "${GH_HEADERS[@]}" \
+    -H "Content-Type: application/json" \
+    -d "$REVIEW_PAYLOAD" \
+    "${GH_API}/pulls/${PR_NUMBER}/reviews") || {
     echo "Error: failed to post review:" >&2
     echo "$REVIEW_RESULT" >&2
-    exit 1
-}
-REVIEW_URL=$(jq -r '.html_url' <<< "$REVIEW_RESULT")
 
+    # If inline comments fail (e.g. line number mismatch), retry without them
+    echo "⚠️  Retrying without inline comments..." >&2
+    REVIEW_PAYLOAD=$(jq -n \
+        --arg body "$REVIEW_SUMMARY" \
+        --arg event "$REVIEW_EVENT" \
+        '{body: $body, event: $event}')
+
+    REVIEW_RESULT=$(curl -s --fail-with-body "${GH_HEADERS[@]}" \
+        -H "Content-Type: application/json" \
+        -d "$REVIEW_PAYLOAD" \
+        "${GH_API}/pulls/${PR_NUMBER}/reviews") || {
+        echo "Error: retry also failed:" >&2
+        echo "$REVIEW_RESULT" >&2
+        exit 1
+    }
+}
+
+REVIEW_URL=$(jq -r '.html_url' <<< "$REVIEW_RESULT")
 echo "🎉 Done → ${REVIEW_URL}"
