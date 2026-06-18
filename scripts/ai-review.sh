@@ -120,7 +120,7 @@ echo "🧠 Requesting review..."
 
 # ── Call AI ──────────────────────────────────────────────────────────
 call_bob() {
-    local bob_args=(--chat-mode ask --yolo --hide-intermediary-output --auth-method api-key)
+    local bob_args=(--chat-mode ask --approval-mode yolo --hide-intermediary-output --auth-method api-key)
     [[ -n "${AI_MODEL:-}" ]] && bob_args+=(-m "$AI_MODEL")
 
     local full_prompt="${REVIEW_INSTRUCTIONS}
