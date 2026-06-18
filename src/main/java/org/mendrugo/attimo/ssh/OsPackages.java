@@ -1,19 +1,16 @@
 package org.mendrugo.attimo.ssh;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
- * Maps logical package names to OS-specific package names.
- * Handles differences between Fedora and Amazon Linux 2023.
+ * Packages required for OpenJDK development on Amazon Linux 2023.
  *
- * <p>Both use dnf, but package naming conventions differ:
+ * <p>Package notes:
  * <ul>
- *   <li>Fedora: {@code java-25-openjdk-devel}, {@code libcups-devel}</li>
- *   <li>AL2023: {@code java-21-amazon-corretto-devel}, {@code cups-devel}</li>
+ *   <li>Boot JDK: Amazon Corretto 25 (installed from Corretto yum repo,
+ *       not in default AL2023 repos)</li>
+ *   <li>capstone: built from source (not in AL2023 repos)</li>
+ *   <li>{@code cups-devel} (not {@code libcups-devel} as on Fedora)</li>
  * </ul>
  */
 public final class OsPackages
@@ -21,53 +18,26 @@ public final class OsPackages
     private OsPackages() {}
 
     /**
-     * Supported OS types for package resolution.
+     * Commands to add the Amazon Corretto yum repo and install JDK 25.
+     * The default AL2023 repos only ship LTS versions (21), so the
+     * Corretto repo is needed for JDK 25.
      */
-    public enum Os
-    {
-        FEDORA
-        , AL2023
-    }
-
-    /**
-     * AL2023 package name mappings. Keys are Fedora package names,
-     * values are the AL2023 equivalents.
-     */
-    private static final Map<String, String> AL2023_MAPPINGS;
-
-    /**
-     * Packages not available on AL2023 (skipped during provisioning).
-     */
-    private static final Set<String> AL2023_UNAVAILABLE = Set.of(
-        "java-25-openjdk-src"   // Corretto doesn't ship source
-        , "capstone"            // not in AL2023 repos
-        , "capstone-devel"
-        , "capstone-tool"
+    public static final List<String> CORRETTO_25_INSTALL_COMMANDS = List.of(
+        "sudo rpm --import https://yum.corretto.aws/corretto.key"
+        , "sudo curl -Lo /etc/yum.repos.d/corretto.repo https://yum.corretto.aws/corretto.repo"
+        , "sudo dnf install -y java-25-amazon-corretto-devel"
     );
 
-    static
-    {
-        final var m = new HashMap<String, String>();
-        // JDK: AL2023 ships Amazon Corretto, not OpenJDK packages.
-        m.put("java-25-openjdk-devel", "java-21-amazon-corretto-devel");
-        m.put("java-25-openjdk-javadoc", "java-21-amazon-corretto-javadoc");
-        // Library naming differences
-        m.put("libcups-devel", "cups-devel");
-        AL2023_MAPPINGS = Map.copyOf(m);
-    }
-
     /**
-     * JDK-dev packages in Fedora naming (the canonical list).
+     * Packages for OpenJDK build + test on Amazon Linux 2023.
+     * Does not include the boot JDK — see {@link #CORRETTO_25_INSTALL_COMMANDS}.
      */
     public static final List<String> JDK_DEV_PACKAGES = List.of(
         "gcc"
         , "gcc-c++"
         , "make"
         , "autoconf"
-        , "java-25-openjdk-devel"
-        , "java-25-openjdk-javadoc"
-        , "java-25-openjdk-src"
-        , "libcups-devel"
+        , "cups-devel"
         , "libX11-devel"
         , "libXt-devel"
         , "libXrender-devel"
@@ -77,80 +47,18 @@ public final class OsPackages
         , "alsa-lib-devel"
         , "fontconfig-devel"
         , "freetype-devel"
-        , "capstone"
-        , "capstone-devel"
-        , "capstone-tool"
     );
 
     /**
-     * Determine the OS type from the resolved AMI name.
-     *
-     * @param resolvedName the AMI name (e.g., "fedora-44", "al2023")
-     * @return the OS type
+     * Commands to install capstone from source (not in AL2023 repos).
+     * Run after the dnf packages are installed.
      */
-    public static Os detectOs(final String resolvedName)
-    {
-        if (resolvedName.startsWith("fedora-"))
-        {
-            return Os.FEDORA;
-        }
-        if ("al2023".equals(resolvedName))
-        {
-            return Os.AL2023;
-        }
-
-        // Default to Fedora naming if unknown
-        return Os.FEDORA;
-    }
-
-    /**
-     * Resolve a list of canonical (Fedora) package names to OS-specific names.
-     *
-     * @param packages the canonical package names
-     * @param os       the target OS
-     * @return result containing installable packages and skipped packages
-     */
-    public static ResolvedPackages resolve(
-        final List<String> packages
-        , final Os os
-    )
-    {
-        if (os == Os.FEDORA)
-        {
-            return new ResolvedPackages(packages, List.of());
-        }
-
-        final var installable = new ArrayList<String>();
-        final var skipped = new ArrayList<String>();
-
-        for (final var pkg : packages)
-        {
-            if (AL2023_UNAVAILABLE.contains(pkg))
-            {
-                skipped.add(pkg);
-            }
-            else if (AL2023_MAPPINGS.containsKey(pkg))
-            {
-                installable.add(AL2023_MAPPINGS.get(pkg));
-            }
-            else
-            {
-                // Package name is the same on AL2023
-                installable.add(pkg);
-            }
-        }
-
-        return new ResolvedPackages(installable, skipped);
-    }
-
-    /**
-     * Result of package name resolution.
-     *
-     * @param installable packages that can be installed
-     * @param skipped     packages not available on this OS
-     */
-    public record ResolvedPackages(
-        List<String> installable
-        , List<String> skipped
-    ) {}
+    public static final List<String> CAPSTONE_INSTALL_COMMANDS = List.of(
+        "sudo dnf install -y cmake git"
+        , "git clone --depth 1 --branch 5.0.6 https://github.com/capstone-engine/capstone.git /tmp/capstone"
+        , "cd /tmp/capstone && cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release"
+        , "cd /tmp/capstone && cmake --build build -j$(nproc)"
+        , "cd /tmp/capstone && sudo cmake --install build"
+        , "rm -rf /tmp/capstone"
+    );
 }

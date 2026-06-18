@@ -30,7 +30,7 @@ public class SshProvisioner
 
     public SshProvisioner(final String host)
     {
-        this(host, "fedora", Environment.sshKeyFile());
+        this(host, "ec2-user", Environment.sshKeyFile());
     }
 
     /**

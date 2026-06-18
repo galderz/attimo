@@ -18,7 +18,7 @@ public class SshSession
     private static final int SSH_PORT = 22;
     private static final int CONNECT_TIMEOUT_MS = 3000;
     private static final int RETRY_DELAY_MS = 5000;
-    private static final String DEFAULT_USER = "fedora";
+    private static final String DEFAULT_USER = "ec2-user";
 
     private final String host;
     private final String user;

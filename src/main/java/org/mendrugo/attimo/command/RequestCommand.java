@@ -1,5 +1,6 @@
 package org.mendrugo.attimo.command;
 
+import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.BaseAmiResolver;
 import org.mendrugo.attimo.aws.ResourceCleaner;
@@ -18,7 +19,6 @@ import org.aesh.command.option.Option;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 
 import java.time.Instant;
-import java.util.List;
 
 @CommandDefinition(
     name = "request"
@@ -33,8 +33,6 @@ public class RequestCommand extends BaseCommand
         , required = true
     )
     String isaFeature;
-
-
 
     @Override
     protected CommandResult doExecute() throws Exception
@@ -95,16 +93,16 @@ public class RequestCommand extends BaseCommand
 
         System.out.println("  Best option: " + recommendation.rationale());
 
-        // 3. Resolve base AMI (with version + OS fallback)
+        // 3. Resolve base AMI (Amazon Linux 2023 via SSM)
         System.out.println("\n[3/5] Resolving base AMI...");
         final var arch = "aarch64".equals(feature.architecture()) ? "arm64" : "x86_64";
         final var amiResolver = new BaseAmiResolver();
 
         final Ec2Client ec2 = factory.ec2(recommendation.region());
-        final BaseAmiResolver.AmiResult amiResult;
-        try (final var ssmClient = factory.ssm(recommendation.region()))
+        final String amiId;
+        try (final var ssm = factory.ssm(recommendation.region()))
         {
-            amiResult = amiResolver.resolveWithFallback("fedora-44", ec2, arch, ssmClient);
+            amiId = amiResolver.resolve(ssm, arch);
         }
         catch (final Exception e)
         {
@@ -112,9 +110,6 @@ public class RequestCommand extends BaseCommand
             ec2.close();
             return CommandResult.valueOf(1);
         }
-
-        final var amiId = amiResult.amiId();
-        final var sshUser = amiResult.sshUser();
 
         // 4. Launch spot instance
         System.out.println("\n[4/5] Launching spot instance...");
@@ -174,7 +169,9 @@ public class RequestCommand extends BaseCommand
         // 5. Provision + SSH
         System.out.println("\n[5/5] Provisioning and connecting...");
 
-        final var sshSession = new SshSession(publicIp, sshUser, org.mendrugo.attimo.Environment.sshKeyFile());
+        final var sshUser = BaseAmiResolver.SSH_USER;
+        final var keyFile = Environment.sshKeyFile();
+        final var sshSession = new SshSession(publicIp, sshUser, keyFile);
         if (!sshSession.waitForSsh(300))
         {
             System.err.println("Error: SSH not reachable after 5 minutes.");
@@ -183,18 +180,34 @@ public class RequestCommand extends BaseCommand
             return CommandResult.valueOf(1);
         }
 
-        // Provision packages (phase 1: hardcoded jdk-dev)
-        final var provisioner = new SshProvisioner(publicIp, sshUser, org.mendrugo.attimo.Environment.sshKeyFile());
-        final var os = OsPackages.detectOs(amiResult.resolvedName());
-        final var resolved = OsPackages.resolve(OsPackages.JDK_DEV_PACKAGES, os);
+        // Provision packages
+        final var provisioner = new SshProvisioner(publicIp, sshUser, keyFile);
 
-        if (!resolved.skipped().isEmpty())
+        // Install Corretto 25 (not in default AL2023 repos)
+        System.out.println("  Installing Amazon Corretto 25...");
+        for (final var cmd : OsPackages.CORRETTO_25_INSTALL_COMMANDS)
         {
-            System.out.println("  Note: skipping packages not available on "
-                + amiResult.resolvedName() + ": " + String.join(", ", resolved.skipped()));
+            final var rc = provisioner.run(cmd);
+            if (rc != 0)
+            {
+                System.err.println("  Warning: Corretto 25 install failed (exit " + rc + ").");
+                break;
+            }
         }
 
-        provisioner.installPackages(resolved.installable());
+        provisioner.installPackages(OsPackages.JDK_DEV_PACKAGES);
+
+        // Install capstone from source (not in AL2023 repos)
+        System.out.println("  Installing capstone from source...");
+        for (final var cmd : OsPackages.CAPSTONE_INSTALL_COMMANDS)
+        {
+            final var rc = provisioner.run(cmd);
+            if (rc != 0)
+            {
+                System.err.println("  Warning: capstone install step failed (exit " + rc + "), skipping.");
+                break;
+            }
+        }
 
         // Connect
         final var exitCode = sshSession.connect();
