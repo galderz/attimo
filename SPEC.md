@@ -448,17 +448,13 @@ packages:
   - alsa-lib-devel
   - fontconfig-devel
   - freetype-devel
+  - capstone
+  - capstone-devel
 boot-jdk:
   # Amazon Corretto 25 from yum.corretto.aws (not in default AL2023 repos)
   - rpm --import https://yum.corretto.aws/corretto.key
   - curl -Lo /etc/yum.repos.d/corretto.repo https://yum.corretto.aws/corretto.repo
   - dnf install -y java-25-amazon-corretto-devel
-capstone:
-  # Built from source (not in AL2023 repos)
-  - git clone --depth 1 --branch 5.0.6 https://github.com/capstone-engine/capstone.git /tmp/capstone
-  - cd /tmp/capstone && cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
-  - cd /tmp/capstone && cmake --build build -j$(nproc)
-  - cd /tmp/capstone && cmake --install build
 tools:
   - jtreg
 ```
@@ -889,6 +885,6 @@ jobs:
 
 ## Open Questions
 
-1. ~~**Base AMI resolution**~~: **Resolved** — Uses Amazon Linux 2023 via SSM Parameter Store lookup (`/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-<arch>`). Works in every AWS region including opt-in regions. SSH user is `ec2-user`. Boot JDK is Amazon Corretto 25 (from `yum.corretto.aws` repo). Capstone is built from source.
+1. ~~**Base AMI resolution**~~: **Resolved** — Uses Amazon Linux 2023 via SSM Parameter Store lookup (`/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-<arch>`). Works in every AWS region including opt-in regions. SSH user is `ec2-user`. Boot JDK is Amazon Corretto 25 (from `yum.corretto.aws` repo). Capstone is available in AL2023 repos.
 2. ~~**SSH client**~~: **Resolved** — Use the system `ssh` command for interactive sessions (launched via `ProcessBuilder`). This gives users their familiar terminal, respects their `.ssh/config`, and avoids bundling an SSH library. A background thread polls the EC2 API to detect spot termination; on interruption the tool kills the `ssh` subprocess, launches a replacement instance, and starts a new `ssh` process. **Future alternative**: a Java SSH library (Apache MINA SSHD) could replace the system `ssh` for tighter lifecycle control, multiplexed monitoring, and environments where `ssh` is not installed.
 3. ~~**Spot request method**~~: **Resolved** — Use the modern `RunInstances` with `InstanceMarketOptions` (single API call). The legacy `RequestSpotInstances` API is not needed.

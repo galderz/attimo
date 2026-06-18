@@ -9,8 +9,8 @@ import java.util.List;
  * <ul>
  *   <li>Boot JDK: Amazon Corretto 25 (installed from Corretto yum repo,
  *       not in default AL2023 repos)</li>
- *   <li>capstone: built from source (not in AL2023 repos)</li>
  *   <li>{@code cups-devel} (not {@code libcups-devel} as on Fedora)</li>
+ *   <li>{@code capstone}, {@code capstone-devel} are in AL2023 repos</li>
  * </ul>
  */
 public final class OsPackages
@@ -47,18 +47,7 @@ public final class OsPackages
         , "alsa-lib-devel"
         , "fontconfig-devel"
         , "freetype-devel"
-    );
-
-    /**
-     * Commands to install capstone from source (not in AL2023 repos).
-     * Run after the dnf packages are installed.
-     */
-    public static final List<String> CAPSTONE_INSTALL_COMMANDS = List.of(
-        "sudo dnf install -y cmake git"
-        , "git clone --depth 1 --branch 5.0.6 https://github.com/capstone-engine/capstone.git /tmp/capstone"
-        , "cd /tmp/capstone && cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release"
-        , "cd /tmp/capstone && cmake --build build -j$(nproc)"
-        , "cd /tmp/capstone && sudo cmake --install build"
-        , "rm -rf /tmp/capstone"
+        , "capstone"
+        , "capstone-devel"
     );
 }

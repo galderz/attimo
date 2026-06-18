@@ -46,19 +46,18 @@ class OsPackagesTest
     }
 
     @Test
+    void jdkDevPackagesIncludesCapstone()
+    {
+        assertThat(OsPackages.JDK_DEV_PACKAGES)
+            .contains("capstone", "capstone-devel");
+    }
+
+    @Test
     void correttoInstallCommandsAddRepo()
     {
         assertThat(OsPackages.CORRETTO_25_INSTALL_COMMANDS)
             .anyMatch(c -> c.contains("corretto.key"))
             .anyMatch(c -> c.contains("corretto.repo"))
             .anyMatch(c -> c.contains("java-25-amazon-corretto-devel"));
-    }
-
-    @Test
-    void capstoneInstallCommandsBuildFromSource()
-    {
-        assertThat(OsPackages.CAPSTONE_INSTALL_COMMANDS)
-            .anyMatch(c -> c.contains("capstone-engine/capstone"))
-            .anyMatch(c -> c.contains("cmake --install"));
     }
 }

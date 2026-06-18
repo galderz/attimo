@@ -197,18 +197,6 @@ public class RequestCommand extends BaseCommand
 
         provisioner.installPackages(OsPackages.JDK_DEV_PACKAGES);
 
-        // Install capstone from source (not in AL2023 repos)
-        System.out.println("  Installing capstone from source...");
-        for (final var cmd : OsPackages.CAPSTONE_INSTALL_COMMANDS)
-        {
-            final var rc = provisioner.run(cmd);
-            if (rc != 0)
-            {
-                System.err.println("  Warning: capstone install step failed (exit " + rc + "), skipping.");
-                break;
-            }
-        }
-
         // Connect
         final var exitCode = sshSession.connect();
 

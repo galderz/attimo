@@ -77,7 +77,7 @@ If you're a new agent session picking up this project:
 ### Base OS & Provisioning
 - **Amazon Linux 2023** — base AMI, resolved via SSM Parameter Store (works in every region)
 - **Amazon Corretto 25** — boot JDK, installed from `yum.corretto.aws` repo
-- **capstone** — built from source (not in AL2023 repos)
+- **capstone** — `capstone`, `capstone-devel` from AL2023 repos
 - **SSH user** — `ec2-user`
 - **Package manager** — `dnf`
 
