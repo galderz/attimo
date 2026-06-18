@@ -234,7 +234,7 @@ Maven project + Quarkus skeleton
 
 **Acceptance criteria:**
 - [ ] Validates credentials via `AwsClientFactory.validateCredentials()`
-- [ ] On failure: prints platform-specific install instructions (Fedora, Ubuntu, macOS, NixOS)
+- [ ] On failure: prints platform-specific install instructions (AL2023, Ubuntu, macOS, NixOS)
 - [ ] On failure: offers to enter access key directly (writes `~/.aws/credentials`)
 - [ ] Prompts for preferred region (with sensible default based on latency or user input)
 - [ ] Prompts for SSH public key path (defaults to `~/.ssh/id_ed25519.pub`)
@@ -295,17 +295,18 @@ Maven project + Quarkus skeleton
 
 #### Task 9: Base AMI auto-resolution
 
-**Description:** Implement Fedora AMI lookup via `DescribeImages` filtered by owner and name pattern (e.g., `Fedora-Cloud-Base-44-*`). Resolve to the correct AMI ID for a given region and architecture (x86_64 or arm64).
+**Description:** Resolve Amazon Linux 2023 AMI via SSM Parameter Store (`/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-<arch>`). Works in every AWS region including opt-in regions.
 
 **Acceptance criteria:**
-- [ ] `resolveBaseAmi("fedora-44", region, arch)` returns an AMI ID
-- [ ] Handles x86_64 and arm64 architectures
-- [ ] Clear error when no matching AMI found
-- [ ] Caches AMI IDs per region for the session (avoid repeated API calls)
+- [x] `resolve(ssm, arch)` returns an AMI ID via SSM lookup
+- [x] Handles x86_64 and arm64 architectures
+- [x] Clear error when SSM lookup fails
+- [x] Caches AMI IDs per architecture for the session
 
 **Verification:**
-- [ ] `BaseAmiResolverTest` — mocked `DescribeImages`, both architectures, no-match error
-- [ ] `mvn test` passes
+- [x] `BaseAmiResolverTest` — mocked SSM client, both architectures, error handling
+- [x] `BaseAmiResolverIT` — SSM against LocalStack
+- [x] `mvn test` passes
 
 **Dependencies:** Task 4
 
@@ -357,7 +358,7 @@ Maven project + Quarkus skeleton
 
 **Acceptance criteria:**
 - [ ] Waits for SSH port 22 to be reachable (retry with backoff, timeout after 5 minutes)
-- [ ] Launches `ssh -i <key> -o StrictHostKeyChecking=no ec2-user@<ip>` (or `fedora@` depending on AMI)
+- [ ] Launches `ssh -i <key> -o StrictHostKeyChecking=no ec2-user@<ip>`
 - [ ] SSH subprocess inherits stdin/stdout/stderr (interactive terminal)
 - [ ] Returns exit code from SSH process
 - [ ] On normal exit (user types `exit`): prompts "Keep instance running? (y/N)"
@@ -378,7 +379,7 @@ Maven project + Quarkus skeleton
 
 #### Task 12: RequestCommand — wire it all together
 
-**Description:** Implement `ato request --isa <feature> [--template <name>]`. This is the main command that ties SpotAdvisor, SpotManager, and SshSession together. For phase 1, skip AMI caching — provision over SSH after launch using the base Fedora AMI directly.
+**Description:** Implement `ato request --isa <feature> [--template <name>]`. This is the main command that ties SpotAdvisor, SpotManager, and SshSession together. For phase 1, skip AMI caching — provision over SSH after launch using the Amazon Linux 2023 base AMI.
 
 **Acceptance criteria:**
 - [ ] Validates init has been run (credentials + config exist)

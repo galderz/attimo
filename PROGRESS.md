@@ -1,7 +1,7 @@
 # Attimo — Progress & Backlog
 
 **Last updated:** 2026-06-18
-**Last session:** AMI fallback for opt-in regions
+**Last session:** Switched to Amazon Linux 2023 + Corretto 25, simplified AMI resolution
 
 ## How to Resume
 
@@ -72,10 +72,18 @@ If you're a new agent session picking up this project:
 - `ato connect` — reconnects to running instance
 - `ato destroy` — cleans up all resources, scans for orphans if state is lost
 - User successfully built OpenJDK and ran commands on a spot instance
+- Works in all AWS regions including opt-in regions (eu-central-2, etc.)
+
+### Base OS & Provisioning
+- **Amazon Linux 2023** — base AMI, resolved via SSM Parameter Store (works in every region)
+- **Amazon Corretto 25** — boot JDK, installed from `yum.corretto.aws` repo
+- **capstone** — built from source (not in AL2023 repos)
+- **SSH user** — `ec2-user`
+- **Package manager** — `dnf`
 
 ### Test Counts
-- **57 unit tests** — all pass, no AWS needed
-- **11 integration tests** — all pass via LocalStack + Podman
+- **60 unit tests** — all pass, no AWS needed
+- **10 integration tests** — all pass via LocalStack + Podman
 
 ### Key Technical Decisions Made During Implementation
 - **UrlConnectionHttpClient** instead of Apache HTTP client (avoids commons-logging dependency with Quarkus)
@@ -112,7 +120,7 @@ Items discovered during implementation that aren't in the original plan:
 - [ ] **Region read from AWS config** — `ato init` should read the default region from `~/.aws/config` and offer it as the default instead of always suggesting `us-east-1`.
 
 ### Medium Priority
-- [ ] **Suppress noisy test output** — unit tests print `Resolved fedora-44...`, `Created security group...` etc. to stdout. Consider redirecting System.out in tests or using a logger.
+- [ ] **Suppress noisy test output** — unit tests print `Resolved Amazon Linux 2023...`, `Created security group...` etc. to stdout. Consider redirecting System.out in tests or using a logger.
 - [ ] **VPC handling** — current SG creation uses the default VPC. Some accounts may not have a default VPC, which would cause failures.
 - [ ] **Instance type validation** — verify the selected instance type is actually available in the target AZ before launching.
 - [ ] **Spot price in `ato request` output** — show estimated hourly cost before launching so user can confirm.
