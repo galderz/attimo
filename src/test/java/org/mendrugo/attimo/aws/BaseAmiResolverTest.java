@@ -9,6 +9,10 @@ import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeImagesResponse;
 import software.amazon.awssdk.services.ec2.model.Image;
+import software.amazon.awssdk.services.ssm.SsmClient;
+import software.amazon.awssdk.services.ssm.model.GetParameterRequest;
+import software.amazon.awssdk.services.ssm.model.GetParameterResponse;
+import software.amazon.awssdk.services.ssm.model.Parameter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -22,6 +26,9 @@ class BaseAmiResolverTest
 {
     @Mock
     Ec2Client ec2;
+
+    @Mock
+    SsmClient ssm;
 
     @Test
     void resolvesFedora44ToNewestImage()
@@ -228,7 +235,7 @@ class BaseAmiResolverTest
             );
 
         final var resolver = new BaseAmiResolver();
-        final var result = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
+        final var result = resolver.resolveWithFallback("fedora-44", ec2, "x86_64", ssm);
 
         assertThat(result.amiId()).isEqualTo("ami-fedora43");
         assertThat(result.resolvedName()).isEqualTo("fedora-43");
@@ -239,30 +246,24 @@ class BaseAmiResolverTest
     @Test
     void fallsBackToAmazonLinuxWhenNoFedora()
     {
-        // All Fedora versions fail (2 versions × 3 patterns = 6 empty),
-        // then Amazon Linux found
+        // All Fedora versions fail (2 versions × 3 patterns = 6 empty)
         when(ec2.describeImages(any(DescribeImagesRequest.class)))
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
-            .thenReturn(DescribeImagesResponse.builder().build())
-            // Amazon Linux 2023
+            .thenReturn(DescribeImagesResponse.builder().build());
+
+        // Amazon Linux 2023 found via SSM
+        when(ssm.getParameter(any(GetParameterRequest.class)))
             .thenReturn(
-                DescribeImagesResponse.builder()
-                    .images(
-                        Image.builder()
-                            .imageId("ami-al2023")
-                            .name("al2023-ami-2023.6.20260601.0-kernel-6.1-x86_64")
-                            .creationDate("2026-06-01T00:00:00Z")
+                GetParameterResponse.builder()
+                    .parameter(
+                        Parameter.builder()
+                            .value("ami-al2023")
                             .build()
                     )
                     .build()
             );
 
         final var resolver = new BaseAmiResolver();
-        final var result = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
+        final var result = resolver.resolveWithFallback("fedora-44", ec2, "x86_64", ssm);
 
         assertThat(result.amiId()).isEqualTo("ami-al2023");
         assertThat(result.resolvedName()).isEqualTo("al2023");
@@ -287,7 +288,7 @@ class BaseAmiResolverTest
             );
 
         final var resolver = new BaseAmiResolver();
-        final var result = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
+        final var result = resolver.resolveWithFallback("fedora-44", ec2, "x86_64", ssm);
 
         assertThat(result.amiId()).isEqualTo("ami-f44");
         assertThat(result.resolvedName()).isEqualTo("fedora-44");
@@ -312,8 +313,8 @@ class BaseAmiResolverTest
             );
 
         final var resolver = new BaseAmiResolver();
-        final var first = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
-        final var second = resolver.resolveWithFallback("fedora-44", ec2, "x86_64");
+        final var first = resolver.resolveWithFallback("fedora-44", ec2, "x86_64", ssm);
+        final var second = resolver.resolveWithFallback("fedora-44", ec2, "x86_64", ssm);
 
         assertThat(first.amiId()).isEqualTo(second.amiId());
         verify(ec2, times(1)).describeImages(any(DescribeImagesRequest.class));

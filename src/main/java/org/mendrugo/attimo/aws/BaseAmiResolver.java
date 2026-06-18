@@ -4,11 +4,14 @@ import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
 import software.amazon.awssdk.services.ec2.model.Filter;
 import software.amazon.awssdk.services.ec2.model.Image;
+import software.amazon.awssdk.services.ssm.SsmClient;
+import software.amazon.awssdk.services.ssm.model.GetParameterRequest;
 
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Resolves human-readable base AMI names (e.g., "fedora-44") to actual
@@ -29,8 +32,9 @@ public class BaseAmiResolver
         , "013116697141"
     };
 
-    // Amazon Linux 2023 is published by Amazon
-    private static final String AMAZON_OWNER_ID = "137112412989";
+    // SSM parameter paths for Amazon Linux 2023 AMI lookup (AWS-recommended)
+    private static final String AL2023_SSM_PARAM_PREFIX =
+        "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-";
 
     // How many earlier Fedora versions to try before falling back.
     // Limited to 1 because JDK packages (e.g., java-25-openjdk-devel)
@@ -60,9 +64,10 @@ public class BaseAmiResolver
      *   <li>Amazon Linux 2023 in target region (always available)</li>
      * </ol>
      *
-     * @param name   the base AMI name (e.g., "fedora-44")
-     * @param ec2    the EC2 client for the target region
-     * @param arch   the target architecture ("x86_64" or "arm64")
+     * @param name       the base AMI name (e.g., "fedora-44")
+     * @param ec2        the EC2 client for the target region
+     * @param arch       the target architecture ("x86_64" or "arm64")
+     * @param ssmClient  SSM client for the target region (for Amazon Linux lookup)
      * @return the resolution result with AMI ID and metadata
      * @throws AwsException if no matching AMI is found at all
      */
@@ -70,6 +75,7 @@ public class BaseAmiResolver
         final String name
         , final Ec2Client ec2
         , final String arch
+        , final SsmClient ssmClient
     )
     {
         final var cacheKey = name + ":" + arch;
@@ -118,9 +124,9 @@ public class BaseAmiResolver
             }
         }
 
-        // No Fedora version found — try Amazon Linux 2023
+        // No Fedora version found — try Amazon Linux 2023 via SSM
         System.out.println("  No Fedora AMI available in this region, trying Amazon Linux 2023...");
-        final var al2023Id = searchAmazonLinux2023(ec2, arch);
+        final var al2023Id = searchAmazonLinux2023(ssmClient, arch);
         if (al2023Id != null)
         {
             System.out.println("  WARNING: Using Amazon Linux 2023 instead of Fedora.");
@@ -143,7 +149,8 @@ public class BaseAmiResolver
     }
 
     /**
-     * Resolve a base AMI name to an AMI ID (legacy method, no fallback).
+     * Resolve a base AMI name to an AMI ID (legacy method, no fallback,
+     * no Amazon Linux 2023 fallback since no SSM client).
      *
      * @param name   the base AMI name (e.g., "fedora-44")
      * @param ec2    the EC2 client for the target region
@@ -157,7 +164,7 @@ public class BaseAmiResolver
         , final String arch
     )
     {
-        final var result = resolveWithFallback(name, ec2, arch);
+        final var result = resolveWithFallback(name, ec2, arch, null);
         return result.amiId();
     }
 
@@ -243,60 +250,42 @@ public class BaseAmiResolver
     }
 
     /**
-     * Search for Amazon Linux 2023 AMI. Amazon publishes these in every region.
+     * Look up the latest Amazon Linux 2023 AMI via SSM Parameter Store.
+     * This is the AWS-recommended approach and works in every region.
+     *
+     * <p>Parameter path:
+     * {@code /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-<arch>}
      *
      * @return AMI ID if found, null otherwise
      */
     String searchAmazonLinux2023(
-        final Ec2Client ec2
+        final SsmClient ssmClient
         , final String arch
     )
     {
-        // Amazon Linux 2023 naming: al2023-ami-2023.6.20260601.0-kernel-6.1-arm64
-        // EC2 filters use glob wildcards (*), not regex (.*)
-        final var pattern = "al2023-ami-2023*-kernel-*-" + arch;
+        if (ssmClient == null)
+        {
+            return null;
+        }
 
-        System.out.println("  Searching for: " + pattern);
+        final var paramName = AL2023_SSM_PARAM_PREFIX + arch;
+        System.out.println("  Looking up SSM parameter: " + paramName);
 
         try
         {
-            final var response = ec2.describeImages(
-                DescribeImagesRequest.builder()
-                    .owners(AMAZON_OWNER_ID)
-                    .filters(
-                        Filter.builder()
-                            .name("name")
-                            .values(pattern)
-                            .build()
-                        , Filter.builder()
-                            .name("state")
-                            .values("available")
-                            .build()
-                        , Filter.builder()
-                            .name("architecture")
-                            .values(arch)
-                            .build()
-                    )
+            final var response = ssmClient.getParameter(
+                GetParameterRequest.builder()
+                    .name(paramName)
                     .build()
             );
 
-            if (response.images().isEmpty())
-            {
-                return null;
-            }
-
-            final var newest = response.images().stream()
-                .max(Comparator.comparing(Image::creationDate))
-                .orElseThrow();
-
-            System.out.println("  Resolved Amazon Linux 2023 (" + arch + ") → "
-                + newest.imageId() + " (" + newest.name() + ")");
-
-            return newest.imageId();
+            final var amiId = response.parameter().value();
+            System.out.println("  Resolved Amazon Linux 2023 (" + arch + ") → " + amiId);
+            return amiId;
         }
         catch (final Exception e)
         {
-            System.err.println("  Warning: Amazon Linux 2023 search failed: "
+            System.err.println("  Warning: Amazon Linux 2023 SSM lookup failed: "
                 + e.getMessage());
             return null;
         }

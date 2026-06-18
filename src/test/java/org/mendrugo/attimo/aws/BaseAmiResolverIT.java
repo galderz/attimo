@@ -11,10 +11,12 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
 import software.amazon.awssdk.services.ec2.model.Filter;
+import software.amazon.awssdk.services.ssm.SsmClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
+import static org.testcontainers.containers.localstack.LocalStackContainer.Service.SSM;
 
 /**
  * Integration tests for BaseAmiResolver against LocalStack.
@@ -29,7 +31,7 @@ class BaseAmiResolverIT
     static final LocalStackContainer LOCALSTACK = new LocalStackContainer(
         DockerImageName.parse("localstack/localstack:4.4")
     )
-        .withServices(EC2);
+        .withServices(EC2, SSM);
 
     @Test
     void describeImagesWorksAgainstLocalStack()
@@ -66,7 +68,7 @@ class BaseAmiResolverIT
             try
             {
                 final var result = resolver.resolveWithFallback(
-                    "fedora-44", ec2, "x86_64"
+                    "fedora-44", ec2, "x86_64", ssmClient()
                 );
                 // If LocalStack returns any AMI, verify the result is valid
                 assertThat(result.amiId()).isNotBlank();
@@ -84,15 +86,27 @@ class BaseAmiResolverIT
     {
         return Ec2Client.builder()
             .endpointOverride(LOCALSTACK.getEndpointOverride(EC2))
-            .credentialsProvider(
-                StaticCredentialsProvider.create(
-                    AwsBasicCredentials.create(
-                        LOCALSTACK.getAccessKey()
-                        , LOCALSTACK.getSecretKey()
-                    )
-                )
-            )
+            .credentialsProvider(credentials())
             .region(Region.of(LOCALSTACK.getRegion()))
             .build();
+    }
+
+    private SsmClient ssmClient()
+    {
+        return SsmClient.builder()
+            .endpointOverride(LOCALSTACK.getEndpointOverride(SSM))
+            .credentialsProvider(credentials())
+            .region(Region.of(LOCALSTACK.getRegion()))
+            .build();
+    }
+
+    private StaticCredentialsProvider credentials()
+    {
+        return StaticCredentialsProvider.create(
+            AwsBasicCredentials.create(
+                LOCALSTACK.getAccessKey()
+                , LOCALSTACK.getSecretKey()
+            )
+        );
     }
 }

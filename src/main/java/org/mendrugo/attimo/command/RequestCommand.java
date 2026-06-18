@@ -102,9 +102,9 @@ public class RequestCommand extends BaseCommand
 
         final Ec2Client ec2 = factory.ec2(recommendation.region());
         final BaseAmiResolver.AmiResult amiResult;
-        try
+        try (final var ssmClient = factory.ssm(recommendation.region()))
         {
-            amiResult = amiResolver.resolveWithFallback("fedora-44", ec2, arch);
+            amiResult = amiResolver.resolveWithFallback("fedora-44", ec2, arch, ssmClient);
         }
         catch (final Exception e)
         {
