@@ -10,7 +10,8 @@
 # Provider-specific requirements:
 #
 #   bob (default):
-#     bob CLI installed + authenticated (browser OAuth on first use)
+#     bob CLI installed
+#     BOBSHELL_API_KEY  — Bob API key
 #     AI_MODEL          — Model override via bob's -m flag (optional)
 #
 #   vertex:
@@ -42,6 +43,7 @@ MAX_DIFF_CHARS=80000
 case "$AI_PROVIDER" in
     bob)
         command -v bob >/dev/null 2>&1 || { echo "Error: bob CLI not found. Install: curl -fsSL https://bob.ibm.com/download/bobshell.sh | bash" >&2; exit 1; }
+        [[ -z "${BOBSHELL_API_KEY:-}" ]] && { echo "Error: BOBSHELL_API_KEY not set" >&2; exit 1; }
         ;;
     vertex)
         [[ -z "${GCLOUD_PROJECT:-}" ]] && { echo "Error: GCLOUD_PROJECT not set" >&2; exit 1; }
@@ -118,7 +120,7 @@ echo "🧠 Requesting review..."
 
 # ── Call AI ──────────────────────────────────────────────────────────
 call_bob() {
-    local bob_args=(--chat-mode ask --yolo --hide-intermediary-output)
+    local bob_args=(--chat-mode ask --yolo --hide-intermediary-output --auth-method api-key)
     [[ -n "${AI_MODEL:-}" ]] && bob_args+=(-m "$AI_MODEL")
 
     local full_prompt="${REVIEW_INSTRUCTIONS}
