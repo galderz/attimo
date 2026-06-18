@@ -187,33 +187,51 @@ public class SpotManager
 
         while (System.currentTimeMillis() < deadline)
         {
-            final var response = ec2.describeInstances(
-                DescribeInstancesRequest.builder()
-                    .instanceIds(instanceId)
-                    .build()
-            );
-
-            if (!response.reservations().isEmpty()
-                && !response.reservations().getFirst().instances().isEmpty())
+            try
             {
-                final var instance = response.reservations().getFirst().instances().getFirst();
-                final var state = instance.state().name();
+                final var response = ec2.describeInstances(
+                    DescribeInstancesRequest.builder()
+                        .instanceIds(instanceId)
+                        .build()
+                );
 
-                if (state == InstanceStateName.RUNNING)
+                if (!response.reservations().isEmpty()
+                    && !response.reservations().getFirst().instances().isEmpty())
                 {
-                    final var publicIp = instance.publicIpAddress();
-                    if (publicIp != null && !publicIp.isBlank())
+                    final var instance = response.reservations().getFirst().instances().getFirst();
+                    final var state = instance.state().name();
+
+                    if (state == InstanceStateName.RUNNING)
                     {
-                        System.out.println("  Instance running: " + publicIp);
-                        return publicIp;
+                        final var publicIp = instance.publicIpAddress();
+                        if (publicIp != null && !publicIp.isBlank())
+                        {
+                            System.out.println("  Instance running: " + publicIp);
+                            return publicIp;
+                        }
+                    }
+                    else if (state == InstanceStateName.TERMINATED
+                        || state == InstanceStateName.SHUTTING_DOWN)
+                    {
+                        throw new AwsException(
+                            "Instance " + instanceId + " terminated unexpectedly (state: " + state + ")"
+                        );
                     }
                 }
-                else if (state == InstanceStateName.TERMINATED
-                    || state == InstanceStateName.SHUTTING_DOWN)
+            }
+            catch (final software.amazon.awssdk.services.ec2.model.Ec2Exception e)
+            {
+                // AWS eventual consistency: instance ID may not be
+                // visible immediately after launch, especially in
+                // newer/opt-in regions. Retry on InvalidInstanceID.NotFound.
+                if (e.awsErrorDetails() != null
+                    && "InvalidInstanceID.NotFound".equals(e.awsErrorDetails().errorCode()))
                 {
-                    throw new AwsException(
-                        "Instance " + instanceId + " terminated unexpectedly (state: " + state + ")"
-                    );
+                    System.out.println("  Waiting for instance to become visible...");
+                }
+                else
+                {
+                    throw e;
                 }
             }
 
