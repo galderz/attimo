@@ -60,7 +60,8 @@ If you're a new agent session picking up this project:
 | Incomplete cleanup (SG deletion fails, state cleared) | SG retry with backoff, state preserved on error, orphan scan | `a6d2850` |
 | Opt-in regions (eu-south-1/2) return 401 | Gracefully skip disabled regions | `9f026e5` |
 | Test SSH keys hardcoded in source | Generate ephemeral ed25519 keys programmatically | `8a7446e` |
-| Fedora AMI not found in opt-in regions | Version fallback (44→43→42→41) + Amazon Linux 2023 fallback | `df397b8` |
+| Fedora AMI not found in opt-in regions | Switched to Amazon Linux 2023 (SSM lookup, works in all regions) | `c26154a` |
+| AWS eventual consistency in waitForRunning | Retry on InvalidInstanceID.NotFound after launch | `03c1737` |
 
 ## Current State
 
@@ -79,7 +80,7 @@ If you're a new agent session picking up this project:
 ### Key Technical Decisions Made During Implementation
 - **UrlConnectionHttpClient** instead of Apache HTTP client (avoids commons-logging dependency with Quarkus)
 - **AWS SDK 2.46.4** (upgraded from 2.31.63) — needed for `signin` module (login_session support)
-- **Fedora AMI multi-pattern search** — naming convention changed; try 3 patterns in order
+- **Amazon Linux 2023 via SSM** — replaced Fedora AMI search with SSM Parameter Store lookup (works in all regions)
 - **SG deletion retry** — up to 6 retries with 10s delay (AWS needs time to release ENI after termination)
 - **Orphan resource scan** — tag-based search across all regions in group, gracefully skips opt-in regions
 - **Test keys generated programmatically** — never stored in source, ephemeral ed25519 via Java KeyPairGenerator
@@ -107,7 +108,7 @@ Items discovered during implementation that aren't in the original plan:
 
 ### High Priority
 - [ ] **jtreg tool provisioning** — currently jtreg is NOT pre-installed (only dnf packages). Need to add jtreg download + install as part of provisioning. The spec has the jtreg.yaml tool definition but the template system (Task 21) isn't implemented yet. For now, users must install jtreg manually.
-- [x] **SSH user detection** — resolved via `AmiResult.sshUser()`, returns `fedora` for Fedora AMIs and `ec2-user` for Amazon Linux 2023.
+- [x] **SSH user detection** — resolved: using Amazon Linux 2023 (`ec2-user`) exclusively.
 - [ ] **Region read from AWS config** — `ato init` should read the default region from `~/.aws/config` and offer it as the default instead of always suggesting `us-east-1`.
 
 ### Medium Priority
