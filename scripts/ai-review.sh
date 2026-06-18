@@ -7,18 +7,17 @@
 # Required env vars (never commit these):
 #   GITHUB_TOKEN        — GitHub PAT with repo + pull_request write scope
 #
-# Provider-specific env vars:
+# Provider-specific requirements:
 #
 #   bob (default):
-#     BOBSHELL_API_KEY  — Bob API key
-#     BOB_API_BASE_URL  — Base URL (default: https://api.bobshell.ai)
-#     AI_MODEL          — Model override (default: bob-default)
+#     bob CLI installed + authenticated (browser OAuth on first use)
+#     AI_MODEL          — Model override via bob's -m flag (optional)
 #
 #   vertex:
 #     GCLOUD_PROJECT    — Google Cloud project ID
 #     GCLOUD_REGION     — Region (default: us-east5)
 #     AI_MODEL          — Model override (default: claude-sonnet-4-20250514)
-#     (auth via: gcloud auth print-access-token)
+#     gcloud CLI installed + authenticated
 #
 #   openai:
 #     AI_API_KEY        — OpenAI API key
@@ -42,9 +41,7 @@ MAX_DIFF_CHARS=80000
 
 case "$AI_PROVIDER" in
     bob)
-        [[ -z "${BOBSHELL_API_KEY:-}" ]] && { echo "Error: BOBSHELL_API_KEY not set" >&2; exit 1; }
-        AI_MODEL="${AI_MODEL:-bob-default}"
-        BOB_API_BASE_URL="${BOB_API_BASE_URL:-https://api.bobshell.ai}"
+        command -v bob >/dev/null 2>&1 || { echo "Error: bob CLI not found. Install: curl -fsSL https://bob.ibm.com/download/bobshell.sh | bash" >&2; exit 1; }
         ;;
     vertex)
         [[ -z "${GCLOUD_PROJECT:-}" ]] && { echo "Error: GCLOUD_PROJECT not set" >&2; exit 1; }
@@ -65,13 +62,21 @@ esac
 GH_API="https://api.github.com/repos/${REPO}"
 GH_HEADERS=(-H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json")
 
-echo "📋 PR #${PR_NUMBER} in ${REPO} — ${AI_PROVIDER}/${AI_MODEL}"
+echo "📋 PR #${PR_NUMBER} in ${REPO} — ${AI_PROVIDER}"
 
 # ── Fetch PR ─────────────────────────────────────────────────────────
-PR_JSON=$(curl -sf "${GH_HEADERS[@]}" "${GH_API}/pulls/${PR_NUMBER}")
-PR_DIFF=$(curl -sf -H "Authorization: token ${GITHUB_TOKEN}" \
+PR_JSON=$(curl -s --fail-with-body "${GH_HEADERS[@]}" "${GH_API}/pulls/${PR_NUMBER}") || {
+    echo "Error: failed to fetch PR metadata:" >&2
+    echo "$PR_JSON" >&2
+    exit 1
+}
+PR_DIFF=$(curl -s --fail-with-body -H "Authorization: token ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github.v3.diff" \
-    "${GH_API}/pulls/${PR_NUMBER}")
+    "${GH_API}/pulls/${PR_NUMBER}") || {
+    echo "Error: failed to fetch PR diff:" >&2
+    echo "$PR_DIFF" >&2
+    exit 1
+}
 
 PR_TITLE=$(jq -r '.title' <<< "$PR_JSON")
 PR_BODY=$(jq -r '.body // ""' <<< "$PR_JSON")
@@ -86,7 +91,7 @@ if [[ ${#PR_DIFF} -gt $MAX_DIFF_CHARS ]]; then
 fi
 
 # ── Build prompt ─────────────────────────────────────────────────────
-SYSTEM="You are an expert code reviewer. Review the pull request diff.
+REVIEW_INSTRUCTIONS="You are an expert code reviewer. Review the pull request diff below.
 
 Focus on: correctness (bugs, logic errors, edge cases), security (vulnerabilities, leaks),
 performance (unnecessary allocations, algorithmic complexity), maintainability (naming,
@@ -94,9 +99,10 @@ complexity, missing tests), style (consistency).
 
 Be concise and actionable. Use markdown. Quote relevant code for each issue.
 If the PR looks good, say so briefly — don't invent problems.
-Do NOT repeat the full diff back."
+Do NOT repeat the full diff back.
+Do NOT use any tools — just analyze the diff and respond with your review."
 
-USER_MSG="## PR #${PR_NUMBER}: ${PR_TITLE}
+REVIEW_PROMPT="## PR #${PR_NUMBER}: ${PR_TITLE}
 
 ### Description
 ${PR_BODY}
@@ -112,21 +118,14 @@ echo "🧠 Requesting review..."
 
 # ── Call AI ──────────────────────────────────────────────────────────
 call_bob() {
-    local payload
-    payload=$(jq -n \
-        --arg model "$AI_MODEL" \
-        --arg system "$SYSTEM" \
-        --arg user "$USER_MSG" \
-        '{model: $model, max_tokens: 4096,
-          messages: [{role: "system", content: $system},
-                     {role: "user", content: $user}]}')
+    local bob_args=(--chat-mode ask --yolo --hide-intermediary-output)
+    [[ -n "${AI_MODEL:-}" ]] && bob_args+=(-m "$AI_MODEL")
 
-    curl -sf \
-        -H "Authorization: Bearer ${BOBSHELL_API_KEY}" \
-        -H "Content-Type: application/json" \
-        -d "$payload" \
-        "${BOB_API_BASE_URL}/v1/chat/completions" \
-        | jq -r '.choices[0].message.content'
+    local full_prompt="${REVIEW_INSTRUCTIONS}
+
+${REVIEW_PROMPT}"
+
+    bob "${bob_args[@]}" "$full_prompt" 2>/dev/null
 }
 
 call_vertex() {
@@ -137,38 +136,47 @@ call_vertex() {
 
     local payload
     payload=$(jq -n \
-        --arg model "$AI_MODEL" \
-        --arg system "$SYSTEM" \
-        --arg user "$USER_MSG" \
+        --arg system "$REVIEW_INSTRUCTIONS" \
+        --arg user "$REVIEW_PROMPT" \
         '{"anthropic_version": "vertex-2023-10-16",
           "max_tokens": 4096,
           "system": $system,
           "messages": [{role: "user", content: $user}]}')
 
-    curl -sf \
+    local raw
+    raw=$(curl -s --fail-with-body \
         -H "Authorization: Bearer ${token}" \
         -H "Content-Type: application/json" \
         -d "$payload" \
-        "$endpoint" \
-        | jq -r '.content[0].text'
+        "$endpoint") || {
+        echo "Error: Vertex API call failed:" >&2
+        echo "$raw" >&2
+        return 1
+    }
+    jq -r '.content[0].text' <<< "$raw"
 }
 
 call_openai() {
     local payload
     payload=$(jq -n \
         --arg model "$AI_MODEL" \
-        --arg system "$SYSTEM" \
-        --arg user "$USER_MSG" \
+        --arg system "$REVIEW_INSTRUCTIONS" \
+        --arg user "$REVIEW_PROMPT" \
         '{model: $model, max_tokens: 4096,
           messages: [{role: "system", content: $system},
                      {role: "user", content: $user}]}')
 
-    curl -sf \
+    local raw
+    raw=$(curl -s --fail-with-body \
         -H "Authorization: Bearer ${AI_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "$payload" \
-        "https://api.openai.com/v1/chat/completions" \
-        | jq -r '.choices[0].message.content'
+        "https://api.openai.com/v1/chat/completions") || {
+        echo "Error: OpenAI API call failed:" >&2
+        echo "$raw" >&2
+        return 1
+    }
+    jq -r '.choices[0].message.content' <<< "$raw"
 }
 
 AI_RESPONSE=$(call_${AI_PROVIDER})
@@ -178,7 +186,7 @@ AI_RESPONSE=$(call_${AI_PROVIDER})
 echo "✅ Review generated (${#AI_RESPONSE} chars)"
 
 # ── Post review ──────────────────────────────────────────────────────
-REVIEW_BODY="## 🤖 AI Review (${AI_MODEL})
+REVIEW_BODY="## 🤖 AI Review
 
 ${AI_RESPONSE}
 
@@ -187,14 +195,18 @@ ${AI_RESPONSE}
 
 echo "📤 Posting review..."
 
-REVIEW_URL=$(jq -n \
+REVIEW_RESULT=$(jq -n \
     --arg body "$REVIEW_BODY" \
     --arg event "$REVIEW_EVENT" \
     '{body: $body, event: $event}' \
-    | curl -sf "${GH_HEADERS[@]}" \
+    | curl -s --fail-with-body "${GH_HEADERS[@]}" \
         -H "Content-Type: application/json" \
         -d @- \
-        "${GH_API}/pulls/${PR_NUMBER}/reviews" \
-    | jq -r '.html_url')
+        "${GH_API}/pulls/${PR_NUMBER}/reviews") || {
+    echo "Error: failed to post review:" >&2
+    echo "$REVIEW_RESULT" >&2
+    exit 1
+}
+REVIEW_URL=$(jq -r '.html_url' <<< "$REVIEW_RESULT")
 
 echo "🎉 Done → ${REVIEW_URL}"
