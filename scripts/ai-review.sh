@@ -86,6 +86,14 @@ PR_TITLE=$(jq -r '.title' <<< "$PR_JSON")
 PR_BODY=$(jq -r '.body // ""' <<< "$PR_JSON")
 COMMIT_SHA=$(jq -r '.head.sha' <<< "$PR_JSON")
 
+# Fetch full file list for the PR (diff may be truncated)
+PR_FILES=$(curl -s --fail-with-body "${GH_HEADERS[@]}" \
+    "${GH_API}/pulls/${PR_NUMBER}/files?per_page=100" \
+    | jq -r '.[].filename') || {
+    echo "Warning: could not fetch file list" >&2
+    PR_FILES=""
+}
+
 echo "   ${PR_TITLE}"
 echo "   HEAD: ${COMMIT_SHA:0:8}"
 
@@ -109,6 +117,8 @@ CRITICAL RULES:
   If the diff does not clearly show the problem, do NOT report it.
 - Fewer high-confidence comments are far better than many speculative ones.
 - If the PR looks good, say so briefly — do not invent problems to justify your existence.
+- Do NOT claim files, tests, or CI are missing just because they are not in the diff.
+  The diff only shows changed files. The file list below shows ALL files in the PR.
 - Do NOT use any tools — just analyze the diff and respond.
 
 IMPORTANT: You MUST respond with ONLY a JSON object (no markdown fences, no extra text).
@@ -144,6 +154,9 @@ REVIEW_PROMPT="## PR #${PR_NUMBER}: ${PR_TITLE}
 
 ### Description
 ${PR_BODY}
+
+### Files in this PR
+${PR_FILES}
 
 ### Diff${TRUNCATION_NOTE}
 \`\`\`diff
