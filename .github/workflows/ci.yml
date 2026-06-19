@@ -38,8 +38,13 @@ jobs:
 
       - name: Configure Podman for Testcontainers
         run: |
-          systemctl --user start podman.socket || true
-          echo "DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock" >> "$GITHUB_ENV"
+          socket_path="/run/user/$(id -u)/podman/podman.sock"
+          # Start the Podman socket; fall back to podman system service if systemctl fails
+          systemctl --user start podman.socket \
+            || podman system service --time=0 "unix://$socket_path" &
+          # Wait up to 30 s for the socket file to actually appear
+          timeout 30 bash -c "until [ -S '$socket_path' ]; do sleep 1; done"
+          echo "DOCKER_HOST=unix://$socket_path" >> "$GITHUB_ENV"
           echo "TESTCONTAINERS_RYUK_DISABLED=true" >> "$GITHUB_ENV"
 
       - name: Run integration tests
