@@ -279,8 +279,10 @@ AI_RESPONSE=$(call_${AI_PROVIDER})
 [[ -z "$AI_RESPONSE" || "$AI_RESPONSE" == "null" ]] && { echo "Error: empty AI response" >&2; exit 1; }
 
 # ── Parse AI response ───────────────────────────────────────────────
-# Log directory for debugging
+# Log directory for debugging (restricted permissions, auto-cleaned)
 LOG_DIR=$(mktemp -d /tmp/ai-review-XXXXXX)
+chmod 700 "$LOG_DIR"
+trap 'rm -rf "$LOG_DIR"' EXIT
 echo "📁 Debug logs: ${LOG_DIR}"
 
 # Save raw AI response
