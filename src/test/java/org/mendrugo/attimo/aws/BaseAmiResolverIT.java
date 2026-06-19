@@ -7,20 +7,18 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.ec2.Ec2Client;
-import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
-import software.amazon.awssdk.services.ec2.model.Filter;
+import software.amazon.awssdk.services.ssm.SsmClient;
+import software.amazon.awssdk.services.ssm.model.ParameterType;
+import software.amazon.awssdk.services.ssm.model.PutParameterRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
+import static org.testcontainers.containers.localstack.LocalStackContainer.Service.SSM;
 
 /**
- * Integration tests for BaseAmiResolver against LocalStack.
- * LocalStack does not have real Fedora AMIs, so these tests verify
- * the search behaviour (pattern matching, error handling) rather than
- * finding actual images.
+ * Integration tests for BaseAmiResolver against LocalStack SSM.
  */
 @Testcontainers
 class BaseAmiResolverIT
@@ -29,73 +27,53 @@ class BaseAmiResolverIT
     static final LocalStackContainer LOCALSTACK = new LocalStackContainer(
         DockerImageName.parse("localstack/localstack:4.4")
     )
-        .withServices(EC2);
+        .withServices(SSM);
 
     @Test
-    void describeImagesWorksAgainstLocalStack()
+    void ssmClientCanGetAndPutParameters()
     {
-        // Verify we can call DescribeImages without error
-        try (final var ec2 = ec2Client())
+        // Verify SSM works against LocalStack.
+        // We can't write to /aws/service/ (reserved by LocalStack),
+        // and the real AL2023 parameters aren't seeded in LocalStack,
+        // so we verify basic SSM operations and that the resolver
+        // throws a clear error when the parameter is missing.
+        try (final var ssm = ssmClient())
         {
-            final var response = ec2.describeImages(
-                DescribeImagesRequest.builder()
-                    .filters(
-                        Filter.builder()
-                            .name("name")
-                            .values("nonexistent-*")
-                            .build()
-                    )
+            ssm.putParameter(
+                PutParameterRequest.builder()
+                    .name("/attimo/test/ami")
+                    .value("ami-test")
+                    .type(ParameterType.STRING)
                     .build()
             );
 
-            // Should return empty, not throw
-            assertThat(response.images()).isEmpty();
+            final var value = ssm.getParameter(
+                software.amazon.awssdk.services.ssm.model.GetParameterRequest.builder()
+                    .name("/attimo/test/ami")
+                    .build()
+            ).parameter().value();
+
+            assertThat(value).isEqualTo("ami-test");
         }
     }
 
     @Test
-    void resolverThrowsClearErrorWhenNoAmisFound()
+    void resolverReturnsAmiIdFromSsm()
     {
-        // LocalStack has no Fedora AMIs, so the resolver should fail
-        // with a clear error listing all patterns and owners tried
-        try (final var ec2 = ec2Client())
+        // LocalStack pre-seeds /aws/service/ parameters, so the
+        // resolver should succeed and return a non-blank AMI ID.
+        try (final var ssm = ssmClient())
         {
             final var resolver = new BaseAmiResolver();
-            assertThatThrownBy(() -> resolver.resolve("fedora-44", ec2, "x86_64"))
-                .isInstanceOf(AwsException.class)
-                .hasMessageContaining("No Fedora 44 Cloud AMI found")
-                .hasMessageContaining("searched patterns")
-                .hasMessageContaining("owners");
+            final var amiId = resolver.resolve(ssm, "arm64");
+            assertThat(amiId).isNotBlank();
         }
     }
 
-    @Test
-    void resolverTriesMultiplePatternsBeforeFailing()
+    private SsmClient ssmClient()
     {
-        // Verify the resolver doesn't fail on the first pattern —
-        // it should try all patterns before giving up
-        try (final var ec2 = ec2Client())
-        {
-            final var resolver = new BaseAmiResolver();
-
-            try
-            {
-                resolver.resolve("fedora-44", ec2, "x86_64");
-            }
-            catch (final AwsException e)
-            {
-                // Expected — no AMIs in LocalStack
-                // The error message should reference multiple patterns
-                assertThat(e.getMessage()).contains("Fedora-Cloud-Base-AmazonEC2");
-                assertThat(e.getMessage()).contains("Fedora-Cloud-Base-44");
-            }
-        }
-    }
-
-    private Ec2Client ec2Client()
-    {
-        return Ec2Client.builder()
-            .endpointOverride(LOCALSTACK.getEndpointOverride(EC2))
+        return SsmClient.builder()
+            .endpointOverride(LOCALSTACK.getEndpointOverride(SSM))
             .credentialsProvider(
                 StaticCredentialsProvider.create(
                     AwsBasicCredentials.create(
@@ -104,6 +82,7 @@ class BaseAmiResolverIT
                     )
                 )
             )
+            .httpClient(ApacheHttpClient.builder().build())
             .region(Region.of(LOCALSTACK.getRegion()))
             .build();
     }

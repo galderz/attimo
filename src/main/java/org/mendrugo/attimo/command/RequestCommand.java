@@ -1,5 +1,6 @@
 package org.mendrugo.attimo.command;
 
+import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.BaseAmiResolver;
 import org.mendrugo.attimo.aws.ResourceCleaner;
@@ -8,6 +9,7 @@ import org.mendrugo.attimo.aws.SpotManager;
 import org.mendrugo.attimo.config.AttimoConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.isa.IsaMapping;
+import org.mendrugo.attimo.ssh.OsPackages;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.mendrugo.attimo.ssh.SshProvisioner;
 import org.mendrugo.attimo.ssh.SshSession;
@@ -17,7 +19,6 @@ import org.aesh.command.option.Option;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 
 import java.time.Instant;
-import java.util.List;
 
 @CommandDefinition(
     name = "request"
@@ -32,30 +33,6 @@ public class RequestCommand extends BaseCommand
         , required = true
     )
     String isaFeature;
-
-    // Packages to install on the instance (phase 1: hardcoded jdk-dev template)
-    private static final List<String> JDK_DEV_PACKAGES = List.of(
-        "gcc"
-        , "gcc-c++"
-        , "make"
-        , "autoconf"
-        , "java-25-openjdk-devel"
-        , "java-25-openjdk-javadoc"
-        , "java-25-openjdk-src"
-        , "libcups-devel"
-        , "libX11-devel"
-        , "libXt-devel"
-        , "libXrender-devel"
-        , "libXrandr-devel"
-        , "libXi-devel"
-        , "libXtst-devel"
-        , "alsa-lib-devel"
-        , "fontconfig-devel"
-        , "freetype-devel"
-        , "capstone"
-        , "capstone-devel"
-        , "capstone-tool"
-    );
 
     @Override
     protected CommandResult doExecute() throws Exception
@@ -116,16 +93,16 @@ public class RequestCommand extends BaseCommand
 
         System.out.println("  Best option: " + recommendation.rationale());
 
-        // 3. Resolve base AMI
+        // 3. Resolve base AMI (Amazon Linux 2023 via SSM)
         System.out.println("\n[3/5] Resolving base AMI...");
         final var arch = "aarch64".equals(feature.architecture()) ? "arm64" : "x86_64";
         final var amiResolver = new BaseAmiResolver();
 
         final Ec2Client ec2 = factory.ec2(recommendation.region());
         final String amiId;
-        try
+        try (final var ssm = factory.ssm(recommendation.region()))
         {
-            amiId = amiResolver.resolve("fedora-44", ec2, arch);
+            amiId = amiResolver.resolve(ssm, arch);
         }
         catch (final Exception e)
         {
@@ -192,7 +169,9 @@ public class RequestCommand extends BaseCommand
         // 5. Provision + SSH
         System.out.println("\n[5/5] Provisioning and connecting...");
 
-        final var sshSession = new SshSession(publicIp);
+        final var sshUser = BaseAmiResolver.SSH_USER;
+        final var keyFile = Environment.sshKeyFile();
+        final var sshSession = new SshSession(publicIp, sshUser, keyFile);
         if (!sshSession.waitForSsh(300))
         {
             System.err.println("Error: SSH not reachable after 5 minutes.");
@@ -201,9 +180,22 @@ public class RequestCommand extends BaseCommand
             return CommandResult.valueOf(1);
         }
 
-        // Provision packages (phase 1: hardcoded jdk-dev)
-        final var provisioner = new SshProvisioner(publicIp);
-        provisioner.installPackages(JDK_DEV_PACKAGES);
+        // Provision packages
+        final var provisioner = new SshProvisioner(publicIp, sshUser, keyFile);
+
+        // Install Corretto 25 (not in default AL2023 repos)
+        System.out.println("  Installing Amazon Corretto 25...");
+        for (final var cmd : OsPackages.CORRETTO_25_INSTALL_COMMANDS)
+        {
+            final var rc = provisioner.run(cmd);
+            if (rc != 0)
+            {
+                System.err.println("  Warning: Corretto 25 install failed (exit " + rc + ").");
+                break;
+            }
+        }
+
+        provisioner.installPackages(OsPackages.JDK_DEV_PACKAGES);
 
         // Connect
         final var exitCode = sshSession.connect();

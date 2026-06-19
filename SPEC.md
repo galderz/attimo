@@ -432,16 +432,13 @@ User-overridable at `~/.config/attimo/isa-mappings/`. Resolution order: built-in
 ```yaml
 name: jdk-dev
 description: OpenJDK build + test environment
-base-ami: fedora-44
+base-ami: al2023  # Amazon Linux 2023 (available in all AWS regions via SSM)
 packages:
   - gcc
   - gcc-c++
   - make
   - autoconf
-  - java-25-openjdk-devel
-  - java-25-openjdk-javadoc
-  - java-25-openjdk-src
-  - libcups-devel
+  - cups-devel
   - libX11-devel
   - libXt-devel
   - libXrender-devel
@@ -453,7 +450,11 @@ packages:
   - freetype-devel
   - capstone
   - capstone-devel
-  - capstone-tool
+boot-jdk:
+  # Amazon Corretto 25 from yum.corretto.aws (not in default AL2023 repos)
+  - rpm --import https://yum.corretto.aws/corretto.key
+  - curl -Lo /etc/yum.repos.d/corretto.repo https://yum.corretto.aws/corretto.repo
+  - dnf install -y java-25-amazon-corretto-devel
 tools:
   - jtreg
 ```
@@ -553,7 +554,7 @@ ato request --isa avx512 --template jdk-dev
 │
 ├─ [AmiManager] AMI for 'jdk-dev' on x86_64 in eu-west-2?
 │  ├─ No → Build AMI:
-│  │  ├─ Launch t3.medium on-demand from Fedora base AMI
+│  │  ├─ Launch t3.medium on-demand from Amazon Linux 2023 base AMI
 │  │  ├─ SSH in, install packages + tools
 │  │  ├─ CreateImage → ami-abc123
 │  │  ├─ Terminate build instance
@@ -691,7 +692,7 @@ The TUI (launched with bare `ato` command) provides an interactive view similar 
 │ Templates:                                                     │
 │   Name          Description                    AMI             │
 │ > jdk-dev       OpenJDK build + test env       ami-abc123      │
-│   minimal       Base Fedora, no tools          not built       │
+│   minimal       Base AL2023, no tools          not built       │
 │                                                                │
 │ ISA Mappings:                                                  │
 │   avx512, avx2, amx, sve, sve2, neon, lse, bf16               │
@@ -884,6 +885,6 @@ jobs:
 
 ## Open Questions
 
-1. ~~**Base AMI resolution**~~: **Resolved** — Auto-resolve `base-ami: fedora-44` to the official Fedora 44 Cloud AMI via `DescribeImages` (filter by owner + name pattern). The tool handles per-region AMI ID differences transparently. Direct AMI ID support (`base-ami: ami-abc123`) can be added later but is not needed for v1.
+1. ~~**Base AMI resolution**~~: **Resolved** — Uses Amazon Linux 2023 via SSM Parameter Store lookup (`/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-<arch>`). Works in every AWS region including opt-in regions. SSH user is `ec2-user`. Boot JDK is Amazon Corretto 25 (from `yum.corretto.aws` repo). Capstone is available in AL2023 repos.
 2. ~~**SSH client**~~: **Resolved** — Use the system `ssh` command for interactive sessions (launched via `ProcessBuilder`). This gives users their familiar terminal, respects their `.ssh/config`, and avoids bundling an SSH library. A background thread polls the EC2 API to detect spot termination; on interruption the tool kills the `ssh` subprocess, launches a replacement instance, and starts a new `ssh` process. **Future alternative**: a Java SSH library (Apache MINA SSHD) could replace the system `ssh` for tighter lifecycle control, multiplexed monitoring, and environments where `ssh` is not installed.
 3. ~~**Spot request method**~~: **Resolved** — Use the modern `RunInstances` with `InstanceMarketOptions` (single API call). The legacy `RequestSpotInstances` API is not needed.

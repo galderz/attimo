@@ -28,12 +28,12 @@ class SshSessionTest
     }
 
     @Test
-    void defaultUserIsFedora()
+    void defaultUserIsEc2User()
     {
         final var session = new SshSession("1.2.3.4");
         final var cmd = session.buildSshCommand();
 
-        assertThat(cmd.getLast()).startsWith("fedora@");
+        assertThat(cmd.getLast()).startsWith("ec2-user@");
     }
 
     @Test
