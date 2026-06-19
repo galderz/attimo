@@ -279,11 +279,49 @@ AI_RESPONSE=$(call_${AI_PROVIDER})
 [[ -z "$AI_RESPONSE" || "$AI_RESPONSE" == "null" ]] && { echo "Error: empty AI response" >&2; exit 1; }
 
 # ── Parse AI response ───────────────────────────────────────────────
-# Strip markdown fences if the model wraps the JSON anyway
-AI_JSON=$(sed -E '/^```(json)?$/d' <<< "$AI_RESPONSE")
+# Log directory for debugging
+LOG_DIR=$(mktemp -d /tmp/ai-review-XXXXXX)
+echo "📁 Debug logs: ${LOG_DIR}"
+
+# Save raw AI response
+echo "$AI_RESPONSE" > "${LOG_DIR}/01-raw-response.txt"
+
+# Strip ANSI escape codes
+AI_CLEAN=$(sed 's/\x1b\[[0-9;]*m//g' <<< "$AI_RESPONSE")
+echo "$AI_CLEAN" > "${LOG_DIR}/02-ansi-stripped.txt"
+
+# Extract JSON from response (handles raw JSON, markdown fences, preamble text)
+AI_JSON=$(echo "$AI_CLEAN" | python3 -c '
+import sys, json
+text = sys.stdin.read().strip()
+# Try raw text as JSON first
+try:
+    json.loads(text)
+    print(text)
+    sys.exit(0)
+except ValueError:
+    pass
+# Extract outermost { ... } from preamble/fences
+first = text.find("{")
+last = text.rfind("}")
+if first != -1 and last > first:
+    candidate = text[first:last+1]
+    try:
+        json.loads(candidate)
+        print(candidate)
+        sys.exit(0)
+    except ValueError:
+        pass
+# Give up - return raw text for fallback handling
+print(text)
+')
+echo "$AI_JSON" > "${LOG_DIR}/03-extracted-json.txt"
 
 if ! jq empty <<< "$AI_JSON" 2>/dev/null; then
+    # Log the parse error
+    jq empty <<< "$AI_JSON" 2> "${LOG_DIR}/04-jq-error.txt" || true
     echo "⚠️  AI response is not valid JSON, posting as plain comment" >&2
+    echo "   See ${LOG_DIR} for debug files" >&2
     # Fallback: post the raw response as a single review comment
     REVIEW_BODY="${AI_RESPONSE}"
 
