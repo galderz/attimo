@@ -285,12 +285,7 @@ AI_JSON=$(sed -E '/^```(json)?$/d' <<< "$AI_RESPONSE")
 if ! jq empty <<< "$AI_JSON" 2>/dev/null; then
     echo "⚠️  AI response is not valid JSON, posting as plain comment" >&2
     # Fallback: post the raw response as a single review comment
-    REVIEW_BODY="## 🤖 AI Review
-
-${AI_RESPONSE}
-
----
-*Automated review by \`ai-review.sh\` — not a substitute for human review.*"
+    REVIEW_BODY="${AI_RESPONSE}"
 
     REVIEW_RESULT=$(jq -n \
         --arg body "$REVIEW_BODY" \
@@ -315,12 +310,7 @@ COMMENT_COUNT=$(jq '.comments | length' <<< "$AI_JSON")
 echo "✅ Review: ${COMMENT_COUNT} inline comment(s)"
 
 # ── Build review payload ─────────────────────────────────────────────
-REVIEW_SUMMARY="## 🤖 AI Review
-
-${SUMMARY}
-
----
-*Automated review by \`ai-review.sh\` — ${COMMENT_COUNT} inline comment(s) — not a substitute for human review.*"
+REVIEW_SUMMARY="${SUMMARY}"
 
 # Build the GitHub review API payload with inline comments
 REVIEW_PAYLOAD=$(jq -n \
