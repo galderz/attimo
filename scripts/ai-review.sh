@@ -105,98 +105,20 @@ if [[ ${#PR_DIFF} -gt $MAX_DIFF_CHARS ]]; then
 fi
 
 # ── Build prompt ─────────────────────────────────────────────────────
-REVIEW_INSTRUCTIONS='You are an expert code reviewer performing a structured five-axis review.
+# Structure: PR data FIRST, review instructions LAST.
+# Models follow the last instruction most reliably — putting the JSON format
+# requirement at the end prevents it from being forgotten after a large diff.
 
-## Review Axes
-
-Evaluate the PR across these five dimensions:
-
-### 1. Correctness
-- Does the code do what it claims? Does it match the PR description?
-- Are edge cases handled (null, empty, boundary values)?
-- Are error paths handled (not just the happy path)?
-- Are there off-by-one errors, race conditions, or state inconsistencies?
-
-### 2. Readability & Simplicity
-- Are names descriptive and consistent with project conventions?
-- Is the control flow straightforward?
-- Could this be done more simply?
-- Are there dead code artifacts?
-
-### 3. Architecture
-- Does it follow existing patterns or introduce new ones? If new, is it justified?
-- Does it maintain clean module boundaries?
-- Is there code duplication that should be shared?
-- Is the abstraction level appropriate?
-
-### 4. Security
-- Is user input validated and sanitized?
-- Are secrets kept out of code, logs, and version control?
-- Are SQL queries parameterized?
-- Is data from external sources treated as untrusted?
-
-### 5. Performance
-- Any N+1 query patterns or unbounded loops?
-- Any unnecessary allocations in hot paths?
-- Any synchronous operations that should be async?
-
-## Severity Labels
-
-Prefix every inline comment with one of these:
-- **Critical:** — Blocks merge. Security vulnerability, data loss, broken functionality.
-- (no prefix) — Required change. Must address before merge.
-- **Nit:** — Minor, optional. Author may ignore (formatting, style preferences).
-- **Optional:** — Worth considering but not required.
-- **FYI** — Informational only. No action needed.
-
-## Approval Standard
-
-Approve when the change definitely improves overall code health, even if it is not perfect.
-Perfect code does not exist — the goal is continuous improvement.
-Do not block a change because it is not exactly how you would have written it.
-
-## Critical Rules
-
-- ONLY report issues you can VERIFY from the diff. Do NOT hallucinate or assume problems.
-- Before reporting a whitespace, formatting, or syntax issue, re-read the exact line from the diff.
-  If the diff does not clearly show the problem, do NOT report it.
-- Fewer high-confidence comments are far better than many speculative ones.
-- If the PR looks good, say so — do not invent problems to justify your existence.
-- Do NOT claim files, tests, or CI are missing just because they are not in the diff.
-  The diff only shows changed files. The file list below shows ALL files in the PR.
-- Do NOT use any tools — just analyze the diff and respond.
-
-## Output Format
-
-You MUST respond with ONLY a JSON object (no markdown fences, no extra text):
-
-{
-  "summary": "Overall assessment in markdown. Include a brief verdict: Approve, Request Changes, or Comment. Mention which of the five axes have issues, if any.",
-  "comments": [
-    {
-      "path": "relative/path/to/file.java",
-      "line": 42,
-      "body": "**Critical:** Your inline comment in markdown."
-    }
-  ]
-}
-
-Rules for the JSON:
-- "summary" is required. Include a five-axis verdict (even if brief, e.g. "Correctness: ✅ | Readability: ✅ | Architecture: ✅ | Security: ⚠️ | Performance: ✅").
-- "comments" array can be empty if there are no line-level issues.
-- "path" must match exactly as shown in the diff (e.g. "src/main/java/Foo.java").
-- "line" must be the NEW file line number (the number after + in @@ -a,b +c,d @@). Only comment on added/modified lines (lines starting with + in the diff).
-- "body" must start with a severity label (Critical:, Nit:, Optional:, FYI, or no prefix for required).
-- Output raw JSON only. No ```json fences. No text before or after.'
-
+EXTRA_BLOCK=""
 if [[ -n "$EXTRA_INSTRUCTIONS" ]]; then
-    REVIEW_INSTRUCTIONS+="
-
-Additional instructions:
-${EXTRA_INSTRUCTIONS}"
+    EXTRA_BLOCK="
+Additional instructions: ${EXTRA_INSTRUCTIONS}
+"
 fi
 
-REVIEW_PROMPT="## PR #${PR_NUMBER}: ${PR_TITLE}
+FULL_PROMPT="Review the following pull request.
+
+## PR #${PR_NUMBER}: ${PR_TITLE}
 
 ### Description
 ${PR_BODY}
@@ -207,7 +129,42 @@ ${PR_FILES}
 ### Diff${TRUNCATION_NOTE}
 \`\`\`diff
 ${PR_DIFF}
-\`\`\`"
+\`\`\`
+
+---
+
+You are an expert code reviewer. Evaluate this PR across five axes:
+
+1. **Correctness** — bugs, edge cases, error paths, off-by-one, race conditions
+2. **Readability** — naming, control flow, simplicity, dead code
+3. **Architecture** — patterns, module boundaries, duplication, abstraction level
+4. **Security** — input validation, secrets in code, injection, untrusted data
+5. **Performance** — N+1 queries, unbounded loops, hot path allocations
+
+Rules:
+- ONLY report issues you can VERIFY from the diff. Do NOT hallucinate or assume problems.
+- Re-read the exact diff line before reporting whitespace/formatting/syntax issues.
+- Do NOT claim files, tests, or CI are missing — the diff shows only changed files; the file list above shows ALL files in the PR.
+- Fewer high-confidence comments are better than many speculative ones.
+- If the PR looks good, say so. Do not invent problems.
+- Approve when the change improves code health, even if imperfect.
+- Do NOT use any tools.
+${EXTRA_BLOCK}
+Prefix every inline comment body with a severity: **Critical:**, **Nit:**, **Optional:**, **FYI**, or no prefix for required changes.
+
+IMPORTANT: You MUST respond with ONLY a valid JSON object. No markdown fences. No explanation before or after. ONLY the JSON object.
+
+Example of the EXACT format required:
+{\"summary\": \"Correctness: ✅ | Readability: ✅ | Architecture: ✅ | Security: ⚠️ | Performance: ✅\\n\\nBrief assessment here.\", \"comments\": [{\"path\": \"src/File.java\", \"line\": 42, \"body\": \"**Nit:** comment here\"}]}
+
+Rules for the JSON:
+- \"summary\": required. Start with the five-axis verdict line, then your overall assessment.
+- \"comments\": array of inline comments. Can be empty [] if no line-level issues.
+- \"path\": must match exactly as shown in the diff header (after +++ b/).
+- \"line\": the NEW file line number (number after + in @@ -a,b +c,d @@). Only comment on added/modified lines.
+- \"body\": must start with a severity label.
+
+Respond with ONLY the JSON object now:"
 
 echo "🧠 Requesting review..."
 
@@ -216,11 +173,7 @@ call_bob() {
     local bob_args=(--chat-mode ask --approval-mode yolo --hide-intermediary-output --auth-method api-key)
     [[ -n "${AI_MODEL:-}" ]] && bob_args+=(-m "$AI_MODEL")
 
-    local full_prompt="${REVIEW_INSTRUCTIONS}
-
-${REVIEW_PROMPT}"
-
-    bob "${bob_args[@]}" "$full_prompt" 2>/dev/null
+    bob "${bob_args[@]}" "$FULL_PROMPT" 2>/dev/null
 }
 
 call_vertex() {
@@ -231,11 +184,9 @@ call_vertex() {
 
     local payload
     payload=$(jq -n \
-        --arg system "$REVIEW_INSTRUCTIONS" \
-        --arg user "$REVIEW_PROMPT" \
+        --arg user "$FULL_PROMPT" \
         '{"anthropic_version": "vertex-2023-10-16",
           "max_tokens": 4096,
-          "system": $system,
           "messages": [{role: "user", content: $user}]}')
 
     local raw
@@ -255,11 +206,9 @@ call_openai() {
     local payload
     payload=$(jq -n \
         --arg model "$AI_MODEL" \
-        --arg system "$REVIEW_INSTRUCTIONS" \
-        --arg user "$REVIEW_PROMPT" \
+        --arg user "$FULL_PROMPT" \
         '{model: $model, max_tokens: 4096,
-          messages: [{role: "system", content: $system},
-                     {role: "user", content: $user}]}')
+          messages: [{role: "user", content: $user}]}')
 
     local raw
     raw=$(curl -s --fail-with-body \
