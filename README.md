@@ -51,14 +51,17 @@ sudo apt install awscli          # Ubuntu/Debian
 brew install awscli              # macOS
 nix-env -iA nixpkgs.awscli2     # Nix
 
-# Configure credentials
-aws configure
-# Enter: Access Key ID, Secret Access Key, default region, output format
+# Login to AWS
+aws login
 ```
 
 **Option B: Environment variables**
 
 ```bash
+# Configure credentials
+aws configure
+
+# Enter: Access Key ID, Secret Access Key, default region, output format
 export AWS_ACCESS_KEY_ID=AKIA...
 export AWS_SECRET_ACCESS_KEY=...
 export AWS_DEFAULT_REGION=eu-west-1
