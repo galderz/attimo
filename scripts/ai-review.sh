@@ -150,6 +150,8 @@ Rules:
 - If the PR looks good, say so. Do not invent problems.
 - Approve when the change improves code health, even if imperfect.
 - Do NOT use any tools.
+- Lines starting with `diff --git`, `---`, `+++`, or `@@` are diff metadata, not source code. Never quote them as code, and never treat a +++ path as an annotation or identifier.
+- When citing a specific annotation or syntax problem, quote the EXACT line verbatim from the diff (preceded by its leading + or space character).
 ${EXTRA_BLOCK}
 Prefix every inline comment with a severity: **Critical:**, **Nit:**, **Optional:**, **FYI**, or no prefix for required changes.
 
