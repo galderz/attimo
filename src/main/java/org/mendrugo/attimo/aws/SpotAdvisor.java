@@ -248,22 +248,32 @@ public class SpotAdvisor
         );
     }
 
+    private static final List<String> ALL_SIZES = List.of(
+        "large", "xlarge", "2xlarge", "4xlarge"
+        , "8xlarge", "12xlarge", "16xlarge"
+    );
+
     private int sizeIndex(final String instanceType)
     {
-        final var allSizes = List.of(
-            "large", "xlarge", "2xlarge", "4xlarge"
-            , "8xlarge", "12xlarge", "16xlarge"
-        );
-
         final var parts = instanceType.split("\\.");
         if (parts.length < 2)
         {
-            return 0;
+            throw new IllegalArgumentException(
+                "Malformed instance type (expected family.size): " + instanceType
+            );
         }
 
         final var size = parts[1];
-        final int index = allSizes.indexOf(size);
-        return index >= 0 ? index : 0;
+        final int index = ALL_SIZES.indexOf(size);
+        if (index < 0)
+        {
+            throw new IllegalArgumentException(
+                "Unknown instance size '" + size + "' in " + instanceType
+                    + ". Known sizes: " + ALL_SIZES
+            );
+        }
+
+        return index;
     }
 
     record PricedCandidate(

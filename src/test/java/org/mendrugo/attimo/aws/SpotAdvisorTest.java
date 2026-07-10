@@ -6,6 +6,7 @@ import org.mendrugo.attimo.isa.IsaFeature;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SpotAdvisorTest
 {
@@ -136,6 +137,35 @@ class SpotAdvisorTest
         assertThat(result.rationale()).contains("c7i.xlarge");
         assertThat(result.rationale()).contains("$0.0670");
         assertThat(result.rationale()).contains("eu-west-1a");
+    }
+
+    @Test
+    void rejectsMalformedInstanceType()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        final var candidates = List.of(
+            new SpotAdvisor.PricedCandidate("c7i", "eu-west-1", "eu-west-1a", 0.10)
+        );
+
+        assertThatThrownBy(() -> advisor.selectBest(candidates, "eu-west-1"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Malformed instance type");
+    }
+
+    @Test
+    void rejectsUnknownInstanceSize()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        final var candidates = List.of(
+            new SpotAdvisor.PricedCandidate("c7i.128xlarge", "eu-west-1", "eu-west-1a", 0.10)
+        );
+
+        assertThatThrownBy(() -> advisor.selectBest(candidates, "eu-west-1"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Unknown instance size")
+            .hasMessageContaining("128xlarge");
     }
 
     @Test
