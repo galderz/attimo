@@ -104,10 +104,9 @@ if [[ ${#PR_DIFF} -gt $MAX_DIFF_CHARS ]]; then
     echo "⚠️  Diff truncated"
 fi
 
-# ── Build prompt ─────────────────────────────────────────────────────
-# Structure: PR data FIRST, review instructions LAST.
-# Models follow the last instruction most reliably — putting the JSON format
-# requirement at the end prevents it from being forgotten after a large diff.
+# ── Build prompts ────────────────────────────────────────────────────
+# Two-pass approach: Pass 1 gets a high-quality natural review, Pass 2
+# converts it to structured JSON with accurate per-line comments.
 
 EXTRA_BLOCK=""
 if [[ -n "$EXTRA_INSTRUCTIONS" ]]; then
@@ -116,9 +115,7 @@ Additional instructions: ${EXTRA_INSTRUCTIONS}
 "
 fi
 
-FULL_PROMPT="Review the following pull request.
-
-## PR #${PR_NUMBER}: ${PR_TITLE}
+PR_CONTEXT="## PR #${PR_NUMBER}: ${PR_TITLE}
 
 ### Description
 ${PR_BODY}
@@ -129,7 +126,11 @@ ${PR_FILES}
 ### Diff${TRUNCATION_NOTE}
 \`\`\`diff
 ${PR_DIFF}
-\`\`\`
+\`\`\`"
+
+PASS1_PROMPT="Review the following pull request.
+
+${PR_CONTEXT}
 
 ---
 
@@ -150,33 +151,25 @@ Rules:
 - Approve when the change improves code health, even if imperfect.
 - Do NOT use any tools.
 ${EXTRA_BLOCK}
-Prefix every inline comment body with a severity: **Critical:**, **Nit:**, **Optional:**, **FYI**, or no prefix for required changes.
+Prefix every inline comment with a severity: **Critical:**, **Nit:**, **Optional:**, **FYI**, or no prefix for required changes.
 
-IMPORTANT: You MUST respond with ONLY a valid JSON object. No markdown fences. No explanation before or after. ONLY the JSON object.
+Start your review with a five-axis verdict line using this format:
+Correctness: <verdict> | Readability: <verdict> | Architecture: <verdict> | Security: <verdict> | Performance: <verdict>
+where <verdict> is one of: ✅ ⚠️ ❌
 
-Example of the EXACT format required:
-{\"summary\": \"Correctness: ✅ | Readability: ✅ | Architecture: ✅ | Security: ⚠️ | Performance: ✅\\n\\nBrief assessment here.\", \"comments\": [{\"path\": \"src/File.java\", \"line\": 42, \"body\": \"**Nit:** comment here\"}]}
-
-Rules for the JSON:
-- \"summary\": required. Start with the five-axis verdict line, then your overall assessment.
-- \"comments\": array of inline comments. Can be empty [] if no line-level issues.
-- \"path\": must match exactly as shown in the diff header (after +++ b/).
-- \"line\": the NEW file line number (number after + in @@ -a,b +c,d @@). Only comment on added/modified lines.
-- \"body\": must start with a severity label.
-
-Respond with ONLY the JSON object now:"
-
-echo "🧠 Requesting review..."
+Then give your assessment. When you reference specific lines, always state the exact file path (as shown after +++ b/ in the diff) and the NEW file line number (the number after + in the @@ hunk header). Format line references as: \`path/to/file.ext:42\`."
 
 # ── Call AI ──────────────────────────────────────────────────────────
 call_bob() {
+    local prompt="$1"
     local bob_args=(--chat-mode ask --approval-mode yolo --hide-intermediary-output --auth-method api-key)
     [[ -n "${AI_MODEL:-}" ]] && bob_args+=(-m "$AI_MODEL")
 
-    bob "${bob_args[@]}" "$FULL_PROMPT" 2>/dev/null
+    bob "${bob_args[@]}" "$prompt" 2>/dev/null
 }
 
 call_vertex() {
+    local prompt="$1"
     local token
     token=$(gcloud auth print-access-token)
 
@@ -184,7 +177,7 @@ call_vertex() {
 
     local payload
     payload=$(jq -n \
-        --arg user "$FULL_PROMPT" \
+        --arg user "$prompt" \
         '{"anthropic_version": "vertex-2023-10-16",
           "max_tokens": 4096,
           "messages": [{role: "user", content: $user}]}')
@@ -203,10 +196,11 @@ call_vertex() {
 }
 
 call_openai() {
+    local prompt="$1"
     local payload
     payload=$(jq -n \
         --arg model "$AI_MODEL" \
-        --arg user "$FULL_PROMPT" \
+        --arg user "$prompt" \
         '{model: $model, max_tokens: 4096,
           messages: [{role: "user", content: $user}]}')
 
@@ -223,22 +217,57 @@ call_openai() {
     jq -r '.choices[0].message.content' <<< "$raw"
 }
 
-AI_RESPONSE=$(call_${AI_PROVIDER})
+# ── Pass 1: Review ──────────────────────────────────────────────────
+echo "🧠 Pass 1/2: Generating review..."
 
-[[ -z "$AI_RESPONSE" || "$AI_RESPONSE" == "null" ]] && { echo "Error: empty AI response" >&2; exit 1; }
+PASS1_REVIEW=$(call_${AI_PROVIDER} "$PASS1_PROMPT")
 
-# ── Parse AI response ───────────────────────────────────────────────
-# Log directory for debugging (restricted permissions, AI response only — no secrets/PII)
+[[ -z "$PASS1_REVIEW" || "$PASS1_REVIEW" == "null" ]] && { echo "Error: empty AI response from pass 1" >&2; exit 1; }
+
+echo "✅ Pass 1 complete"
+
+# ── Pass 2: Format as JSON ──────────────────────────────────────────
+PASS2_PROMPT="Convert the code review below into a JSON object. This is a formatting task — do not add, remove, or modify any review findings.
+
+### Code Review
+${PASS1_REVIEW}
+
+### Diff (for line number verification)${TRUNCATION_NOTE}
+\`\`\`diff
+${PR_DIFF}
+\`\`\`
+
+Output ONLY a valid JSON object with this exact structure:
+{\"summary\": \"<the five-axis verdict line and overall assessment>\", \"comments\": [{\"path\": \"<file path>\", \"line\": <NEW file line number>, \"body\": \"<comment text>\"}]}
+
+Rules:
+- \"summary\": required. Include the five-axis verdict line and the overall assessment from the review.
+- \"comments\": array of inline comments from the review. Use an empty array [] if the review has no line-specific comments.
+- \"path\": must exactly match a path from the diff headers (the text after +++ b/).
+- \"line\": must be the NEW file line number — the line's position in the new version of the file. Verify each line number against the diff's @@ hunk headers. Only reference added or modified lines (lines starting with + in the diff).
+- \"body\": include the severity prefix from the review (**Critical:**, **Nit:**, etc.).
+- Output ONLY the JSON object. No markdown fences. No explanation. No text before or after."
+
+echo "🧠 Pass 2/2: Formatting as JSON..."
+
+PASS2_RESPONSE=$(call_${AI_PROVIDER} "$PASS2_PROMPT")
+
+[[ -z "$PASS2_RESPONSE" || "$PASS2_RESPONSE" == "null" ]] && {
+    echo "⚠️  Empty response from pass 2, falling back to plain comment" >&2
+    PASS2_RESPONSE=""
+}
+
+# ── Parse pass 2 response ──────────────────────────────────────────
 LOG_DIR=$(mktemp -d /tmp/ai-review-XXXXXX)
 chmod 700 "$LOG_DIR"
 echo "📁 Debug logs: ${LOG_DIR}"
 
-# Save raw AI response
-echo "$AI_RESPONSE" > "${LOG_DIR}/01-raw-response.txt"
+echo "$PASS1_REVIEW" > "${LOG_DIR}/01-pass1-response.txt"
+echo "$PASS2_RESPONSE" > "${LOG_DIR}/02-pass2-raw.txt"
 
 # Strip ANSI escape codes
-AI_CLEAN=$(sed 's/\x1b\[[0-9;]*m//g' <<< "$AI_RESPONSE")
-echo "$AI_CLEAN" > "${LOG_DIR}/02-ansi-stripped.txt"
+AI_CLEAN=$(sed 's/\x1b\[[0-9;]*m//g' <<< "$PASS2_RESPONSE")
+echo "$AI_CLEAN" > "${LOG_DIR}/03-pass2-stripped.txt"
 
 # Extract JSON from response (handles raw JSON, markdown fences, preamble text)
 AI_JSON=$(echo "$AI_CLEAN" | python3 -c '
@@ -265,15 +294,14 @@ if first != -1 and last > first:
 # Give up - return raw text for fallback handling
 print(text)
 ')
-echo "$AI_JSON" > "${LOG_DIR}/03-extracted-json.txt"
+echo "$AI_JSON" > "${LOG_DIR}/04-extracted-json.txt"
 
 if ! jq empty <<< "$AI_JSON" 2>/dev/null; then
-    # Log the parse error
-    jq empty <<< "$AI_JSON" 2> "${LOG_DIR}/04-jq-error.txt" || true
-    echo "⚠️  AI response is not valid JSON, posting as plain comment" >&2
+    jq empty <<< "$AI_JSON" 2> "${LOG_DIR}/05-jq-error.txt" || true
+    echo "⚠️  Pass 2 response is not valid JSON, posting pass 1 review as plain comment" >&2
     echo "   See ${LOG_DIR} for debug files" >&2
-    # Fallback: post the raw response as a single review comment
-    REVIEW_BODY="${AI_RESPONSE}"
+    # Fallback: post the pass 1 markdown review (high quality, just not structured)
+    REVIEW_BODY="${PASS1_REVIEW}"
 
     REVIEW_RESULT=$(jq -n \
         --arg body "$REVIEW_BODY" \
