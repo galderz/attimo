@@ -3,6 +3,7 @@ package org.mendrugo.attimo.command;
 import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.BaseAmiResolver;
+import org.mendrugo.attimo.aws.InstanceSize;
 import org.mendrugo.attimo.aws.ResourceCleaner;
 import org.mendrugo.attimo.aws.SpotAdvisor;
 import org.mendrugo.attimo.aws.SpotManager;
@@ -33,6 +34,14 @@ public class RequestCommand extends BaseCommand
         , required = true
     )
     String isaFeature;
+
+    @Option(
+        name = "size"
+        , description = "Instance size: micro (2-4 vCPUs), small (~10 min build)"
+            + ", medium (~5 min build, default), large (~2 min build)"
+        , defaultValue = "medium"
+    )
+    String size;
 
     @Override
     protected CommandResult doExecute() throws Exception
@@ -77,12 +86,29 @@ public class RequestCommand extends BaseCommand
         System.out.println("  " + feature.description() + " (" + feature.architecture() + ")");
         System.out.println("  Candidate families: " + String.join(", ", feature.families()));
 
+        // Parse instance size
+        final InstanceSize instanceSize;
+        try
+        {
+            instanceSize = InstanceSize.fromLabel(size);
+        }
+        catch (final IllegalArgumentException e)
+        {
+            System.err.println("Error: " + e.getMessage());
+            return CommandResult.valueOf(1);
+        }
+
         // 2. Find best spot option
-        System.out.println("\n[2/5] Querying spot prices across region group...");
+        System.out.println("\n[2/5] Querying spot prices across region group"
+            + " (size: " + instanceSize.label() + ")...");
 
         final var factory = new AwsClientFactory();
         final var advisor = new SpotAdvisor(region -> factory.ec2(region));
-        final var recommendation = advisor.recommend(feature, preferredRegion);
+        final var recommendation = advisor.recommend(
+            feature
+            , preferredRegion
+            , instanceSize
+        );
 
         if (recommendation == null)
         {

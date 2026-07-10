@@ -46,7 +46,8 @@ ato
 
 # CLI commands
 ato init                           # One-time setup: AWS auth, region, SSH key
-ato request --isa avx512           # Find cheapest spot, launch, provision, SSH in
+ato request --isa avx512           # Find best spot (default: medium size), launch, provision, SSH in
+ato request --isa avx512 --size large  # Use a larger instance (~2 min build)
 ato request --isa sve --template jdk-dev  # With custom template
 ato status                         # Show running instance (region, IP, uptime, cost)
 ato connect                        # SSH into existing running instance
@@ -192,6 +193,13 @@ public class RequestCommand extends BaseCommand
         , required = true
     )
     String isaFeature;
+
+    @Option(
+        name = "size"
+        , description = "Instance size: micro, small, medium (default), large"
+        , defaultValue = "medium"
+    )
+    String size;
 
     @Option(
         name = "template"
@@ -543,10 +551,23 @@ public enum RegionGroup {
 }
 ```
 
+### Instance Sizing
+
+The `--size` option controls the instance size tier, balancing cost vs. build speed:
+
+| Size | AWS Sizes | vCPUs | Build Time Target | Use Case |
+|------|-----------|-------|-------------------|----------|
+| `micro` | large, xlarge | 2–4 | N/A | Cheapest; smoke tests, verification |
+| `small` | 2xlarge, 4xlarge | 8–16 | ~10 min | Development, full builds |
+| `medium` | 4xlarge, 8xlarge | 16–32 | ~5 min | Iterative development (default) |
+| `large` | 8xlarge, 12xlarge, 16xlarge | 32–64 | ~2 min | Fast tier testing, jtreg runs |
+
+The default size is `medium`. Within each tier, the SpotAdvisor searches for the cheapest spot price across the allowed AWS sizes and region group.
+
 ### Instance Lifecycle
 
 ```
-ato request --isa avx512 --template jdk-dev
+ato request --isa avx512 --template jdk-dev --size medium
 │
 ├─ [SpotAdvisor] Resolve ISA → instance types
 ├─ [SpotAdvisor] Query pricing across region group

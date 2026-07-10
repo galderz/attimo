@@ -20,13 +20,8 @@ import java.util.function.Function;
  */
 public class SpotAdvisor
 {
-    // Instance sizes to consider, from smallest to largest
-    private static final String[] SIZES = {
-        "large"
-        , "xlarge"
-        , "2xlarge"
-        , "4xlarge"
-    };
+    // Default instance size tier
+    private static final InstanceSize DEFAULT_SIZE = InstanceSize.DEFAULT;
 
     // Proximity preference: if a closer region is within this percentage
     // of the cheapest, prefer the closer region
@@ -53,13 +48,33 @@ public class SpotAdvisor
      * @param preferredRegion the user's preferred region
      * @return the best recommendation, or null if no spot instances are available
      */
+    /**
+     * Find the best spot instance using the default size (medium).
+     */
     public SpotRecommendation recommend(
         final IsaFeature feature
         , final String preferredRegion
     )
     {
+        return recommend(feature, preferredRegion, DEFAULT_SIZE);
+    }
+
+    /**
+     * Find the best spot instance for the given ISA feature and size tier.
+     *
+     * @param feature         the ISA feature defining candidate instance families
+     * @param preferredRegion the user's preferred region
+     * @param size            the instance size tier controlling vCPU/RAM
+     * @return the best recommendation, or null if no spot instances are available
+     */
+    public SpotRecommendation recommend(
+        final IsaFeature feature
+        , final String preferredRegion
+        , final InstanceSize size
+    )
+    {
         final var regionGroup = RegionGroup.forRegion(preferredRegion);
-        final var candidateTypes = expandToInstanceTypes(feature.families());
+        final var candidateTypes = expandToInstanceTypes(feature.families(), size);
 
         if (candidateTypes.isEmpty())
         {
@@ -100,17 +115,28 @@ public class SpotAdvisor
     }
 
     /**
-     * Expand instance families to specific instance types.
-     * E.g., "c7i" → ["c7i.large", "c7i.xlarge", "c7i.2xlarge", "c7i.4xlarge"]
+     * Expand instance families to specific instance types using the default size.
      */
     List<String> expandToInstanceTypes(final List<String> families)
+    {
+        return expandToInstanceTypes(families, DEFAULT_SIZE);
+    }
+
+    /**
+     * Expand instance families to specific instance types for a given size tier.
+     * E.g., "c7i" with MEDIUM → ["c7i.4xlarge", "c7i.8xlarge"]
+     */
+    List<String> expandToInstanceTypes(
+        final List<String> families
+        , final InstanceSize size
+    )
     {
         final var types = new ArrayList<String>();
         for (final String family : families)
         {
-            for (final String size : SIZES)
+            for (final String awsSize : size.awsSizes())
             {
-                types.add(family + "." + size);
+                types.add(family + "." + awsSize);
             }
         }
 
@@ -224,6 +250,11 @@ public class SpotAdvisor
 
     private int sizeIndex(final String instanceType)
     {
+        final var allSizes = List.of(
+            "large", "xlarge", "2xlarge", "4xlarge"
+            , "8xlarge", "12xlarge", "16xlarge"
+        );
+
         final var parts = instanceType.split("\\.");
         if (parts.length < 2)
         {
@@ -231,15 +262,8 @@ public class SpotAdvisor
         }
 
         final var size = parts[1];
-        for (int i = 0; i < SIZES.length; i++)
-        {
-            if (SIZES[i].equals(size))
-            {
-                return i;
-            }
-        }
-
-        return 0;
+        final int index = allSizes.indexOf(size);
+        return index >= 0 ? index : 0;
     }
 
     record PricedCandidate(

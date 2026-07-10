@@ -10,20 +10,47 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SpotAdvisorTest
 {
     @Test
-    void expandsFamiliesToInstanceTypes()
+    void expandsFamiliesToInstanceTypesWithDefaultSize()
     {
         final var advisor = new SpotAdvisor(region -> null);
         final var types = advisor.expandToInstanceTypes(List.of("c7i", "m7i"));
 
+        // Default size is MEDIUM: 4xlarge, 8xlarge
         assertThat(types).contains(
-            "c7i.large"
-            , "c7i.xlarge"
-            , "c7i.2xlarge"
-            , "c7i.4xlarge"
-            , "m7i.large"
-            , "m7i.xlarge"
+            "c7i.4xlarge"
+            , "c7i.8xlarge"
+            , "m7i.4xlarge"
+            , "m7i.8xlarge"
         );
-        assertThat(types).hasSize(8); // 2 families × 4 sizes
+        assertThat(types).hasSize(4); // 2 families × 2 sizes
+    }
+
+    @Test
+    void expandsFamiliesToInstanceTypesWithMicroSize()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+        final var types = advisor.expandToInstanceTypes(
+            List.of("c7i")
+            , InstanceSize.MICRO
+        );
+
+        assertThat(types).containsExactly("c7i.large", "c7i.xlarge");
+    }
+
+    @Test
+    void expandsFamiliesToInstanceTypesWithLargeSize()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+        final var types = advisor.expandToInstanceTypes(
+            List.of("c7i")
+            , InstanceSize.LARGE
+        );
+
+        assertThat(types).containsExactly(
+            "c7i.8xlarge"
+            , "c7i.12xlarge"
+            , "c7i.16xlarge"
+        );
     }
 
     @Test
