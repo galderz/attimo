@@ -6,24 +6,52 @@ import org.mendrugo.attimo.isa.IsaFeature;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SpotAdvisorTest
 {
     @Test
-    void expandsFamiliesToInstanceTypes()
+    void expandsFamiliesToInstanceTypesWithDefaultSize()
     {
         final var advisor = new SpotAdvisor(region -> null);
         final var types = advisor.expandToInstanceTypes(List.of("c7i", "m7i"));
 
+        // Default size is MEDIUM: 4xlarge, 8xlarge
         assertThat(types).contains(
-            "c7i.large"
-            , "c7i.xlarge"
-            , "c7i.2xlarge"
-            , "c7i.4xlarge"
-            , "m7i.large"
-            , "m7i.xlarge"
+            "c7i.4xlarge"
+            , "c7i.8xlarge"
+            , "m7i.4xlarge"
+            , "m7i.8xlarge"
         );
-        assertThat(types).hasSize(8); // 2 families × 4 sizes
+        assertThat(types).hasSize(4); // 2 families × 2 sizes
+    }
+
+    @Test
+    void expandsFamiliesToInstanceTypesWithMicroSize()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+        final var types = advisor.expandToInstanceTypes(
+            List.of("c7i")
+            , InstanceSize.MICRO
+        );
+
+        assertThat(types).containsExactly("c7i.large", "c7i.xlarge");
+    }
+
+    @Test
+    void expandsFamiliesToInstanceTypesWithLargeSize()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+        final var types = advisor.expandToInstanceTypes(
+            List.of("c7i")
+            , InstanceSize.LARGE
+        );
+
+        assertThat(types).containsExactly(
+            "c7i.8xlarge"
+            , "c7i.12xlarge"
+            , "c7i.16xlarge"
+        );
     }
 
     @Test
@@ -109,6 +137,35 @@ class SpotAdvisorTest
         assertThat(result.rationale()).contains("c7i.xlarge");
         assertThat(result.rationale()).contains("$0.0670");
         assertThat(result.rationale()).contains("eu-west-1a");
+    }
+
+    @Test
+    void rejectsMalformedInstanceType()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        final var candidates = List.of(
+            new SpotAdvisor.PricedCandidate("c7i", "eu-west-1", "eu-west-1a", 0.10)
+        );
+
+        assertThatThrownBy(() -> advisor.selectBest(candidates, "eu-west-1"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Malformed instance type");
+    }
+
+    @Test
+    void rejectsUnknownInstanceSize()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        final var candidates = List.of(
+            new SpotAdvisor.PricedCandidate("c7i.128xlarge", "eu-west-1", "eu-west-1a", 0.10)
+        );
+
+        assertThatThrownBy(() -> advisor.selectBest(candidates, "eu-west-1"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Unknown instance size")
+            .hasMessageContaining("128xlarge");
     }
 
     @Test

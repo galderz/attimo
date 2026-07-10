@@ -1,7 +1,7 @@
 # Attimo — Progress & Backlog
 
-**Last updated:** 2026-06-18
-**Last session:** Switched to Amazon Linux 2023 + Corretto 25, simplified AMI resolution
+**Last updated:** 2026-07-10
+**Last session:** Added --size option for instance sizing tiers (micro/small/medium/large)
 
 ## How to Resume
 
@@ -50,6 +50,12 @@ If you're a new agent session picking up this project:
 | 13 | ResourceCleaner + DestroyCommand | `71790dc` |
 | 14 | StatusCommand + ConnectCommand | `a2dbe76` |
 
+### Instance Sizing
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| — | InstanceSize enum + SpotAdvisor size-aware selection + RequestCommand --size option | pending |
+
 ### Bug Fixes from Real AWS Testing
 
 | Fix | Description | Commit |
@@ -67,7 +73,8 @@ If you're a new agent session picking up this project:
 
 ### What Works End-to-End (tested on real AWS)
 - `ato init` — validates credentials (including `aws login` / SSO), sets region + SSH key
-- `ato request --isa avx512` — finds cheapest spot, launches, provisions jdk-dev packages, SSHs in
+- `ato request --isa avx512` — finds best spot (default: medium size), launches, provisions jdk-dev packages, SSHs in
+- `ato request --isa avx512 --size large` — uses larger instances for faster builds
 - `ato status` — shows instance details, uptime, cost
 - `ato connect` — reconnects to running instance
 - `ato destroy` — cleans up all resources, scans for orphans if state is lost
