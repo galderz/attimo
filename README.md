@@ -95,7 +95,7 @@ Configuration is saved to `~/.config/attimo/config.yaml` with owner-only permiss
 ### Request a spot instance
 
 ```bash
-ato request --isa avx512
+ato request --isa avx512 --size micro
 ```
 
 This will:
@@ -129,6 +129,19 @@ When you exit the SSH session, attimo asks whether to keep the instance running 
 | `rng` | aarch64 | Hardware RNG (Graviton3+) | c7g, m7g, r7g, c8g, m8g |
 
 ISA mappings can be overridden by placing YAML files in `~/.config/attimo/isa-mappings/`.
+
+### Instance sizes
+
+Control the instance size with `--size <value>` (default: `medium`):
+
+| Size | vCPUs | OpenJDK build time | AWS suffixes | Best for |
+|------|-------|--------------------|--------------|----------|
+| `micro` | 2–4 | ~30 min | `large`, `xlarge` | Smoke tests — cheapest way to verify the ISA works |
+| `small` | 8–16 | ~10 min | `2xlarge`, `4xlarge` | Light development, quick iteration |
+| `medium` | 16–32 | ~5 min | `4xlarge`, `8xlarge` | Day-to-day OpenJDK hacking (default) |
+| `large` | 32–64 | ~2 min | `8xlarge`, `12xlarge`, `16xlarge` | Full build + jtreg runs, CI-like throughput |
+
+Tip: start with `--size micro` to confirm the instance launches and the ISA feature is present before spending more on a larger machine.
 
 ### Check instance status
 
@@ -267,7 +280,7 @@ ssh-public-key: ~/.ssh/id_ed25519.pub
 | Command | Description |
 |---------|-------------|
 | `ato init` | One-time setup: AWS credentials, region, SSH key |
-| `ato request --isa <feature>` | Request a spot instance with specific CPU ISA |
+| `ato request --isa <feature> [--size <size>]` | Request a spot instance with specific CPU ISA (size: micro/small/medium/large) |
 | `ato status` | Show active instance status, uptime, cost |
 | `ato connect` | SSH into the active instance |
 | `ato destroy` | Tear down instance and all AWS resources |
