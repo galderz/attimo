@@ -12,7 +12,6 @@
 #   bob (default):
 #     bob CLI installed
 #     BOBSHELL_API_KEY  — Bob API key
-#     AI_MODEL          — Model override via bob's -m flag (optional)
 #
 #   vertex:
 #     GCLOUD_PROJECT    — Google Cloud project ID
@@ -41,6 +40,7 @@ REPO=$(git remote get-url origin | sed -E 's#.*github\.com[:/]##; s#\.git$##; s#
 AI_PROVIDER="${AI_PROVIDER:-bob}"
 REVIEW_EVENT="${REVIEW_EVENT:-COMMENT}"
 MAX_DIFF_CHARS=80000
+MAX_BODY_CHARS=65536
 
 case "$AI_PROVIDER" in
     bob)
@@ -150,7 +150,7 @@ Rules:
 - If the PR looks good, say so. Do not invent problems.
 - Approve when the change improves code health, even if imperfect.
 - Do NOT use any tools.
-- Lines starting with `diff --git`, `---`, `+++`, or `@@` are diff metadata, not source code. Never quote them as code, and never treat a +++ path as an annotation or identifier.
+- Lines starting with \`diff --git\`, \`---\`, \`+++\`, or \`@@\` are diff metadata, not source code. Never quote them as code, and never treat a +++ path as an annotation or identifier.
 - When citing a specific annotation or syntax problem, quote the EXACT line verbatim from the diff (preceded by its leading + or space character).
 ${EXTRA_BLOCK}
 Prefix every inline comment with a severity: **Critical:**, **Nit:**, **Optional:**, **FYI**, or no prefix for required changes.
@@ -164,10 +164,19 @@ Then give your assessment. When you reference specific lines, always state the e
 # ── Call AI ──────────────────────────────────────────────────────────
 call_bob() {
     local prompt="$1"
-    local bob_args=(--chat-mode ask --approval-mode yolo --hide-intermediary-output --auth-method api-key)
-    [[ -n "${AI_MODEL:-}" ]] && bob_args+=(-m "$AI_MODEL")
+    local bob_args=(run --trust -f json)
 
-    bob "${bob_args[@]}" "$prompt" 2>/dev/null
+    local errfile
+    errfile=$(mktemp)
+    local raw
+    raw=$(bob "${bob_args[@]}" "$prompt" 2>"$errfile") || {
+        echo "Error: bob CLI call failed:" >&2
+        cat "$errfile" >&2
+        rm -f "$errfile"
+        return 1
+    }
+    rm -f "$errfile"
+    jq -r '.last_message' <<< "$raw"
 }
 
 call_vertex() {
@@ -222,7 +231,10 @@ call_openai() {
 # ── Pass 1: Review ──────────────────────────────────────────────────
 echo "🧠 Pass 1/2: Generating review..."
 
-PASS1_REVIEW=$(call_${AI_PROVIDER} "$PASS1_PROMPT")
+PASS1_REVIEW=$(call_${AI_PROVIDER} "$PASS1_PROMPT") || {
+    echo "Error: AI call failed (pass 1)" >&2
+    exit 1
+}
 
 [[ -z "$PASS1_REVIEW" || "$PASS1_REVIEW" == "null" ]] && { echo "Error: empty AI response from pass 1" >&2; exit 1; }
 
@@ -252,7 +264,10 @@ Rules:
 
 echo "🧠 Pass 2/2: Formatting as JSON..."
 
-PASS2_RESPONSE=$(call_${AI_PROVIDER} "$PASS2_PROMPT")
+PASS2_RESPONSE=$(call_${AI_PROVIDER} "$PASS2_PROMPT") || {
+    echo "Error: AI call failed (pass 2)" >&2
+    exit 1
+}
 
 [[ -z "$PASS2_RESPONSE" || "$PASS2_RESPONSE" == "null" ]] && {
     echo "⚠️  Empty response from pass 2, falling back to plain comment" >&2
@@ -304,6 +319,10 @@ if ! jq empty <<< "$AI_JSON" 2>/dev/null; then
     echo "   See ${LOG_DIR} for debug files" >&2
     # Fallback: post the pass 1 markdown review (high quality, just not structured)
     REVIEW_BODY="${PASS1_REVIEW}"
+    if [[ ${#REVIEW_BODY} -gt $MAX_BODY_CHARS ]]; then
+        REVIEW_BODY="${REVIEW_BODY:0:$MAX_BODY_CHARS}"$'\n\n⚠️ *Review truncated (GitHub 65 KB limit)*'
+        echo "⚠️  Review body truncated to ${MAX_BODY_CHARS} chars"
+    fi
 
     REVIEW_RESULT=$(jq -n \
         --arg body "$REVIEW_BODY" \
@@ -329,6 +348,10 @@ echo "✅ Review: ${COMMENT_COUNT} inline comment(s)"
 
 # ── Build review payload ─────────────────────────────────────────────
 REVIEW_SUMMARY="${SUMMARY}"
+if [[ ${#REVIEW_SUMMARY} -gt $MAX_BODY_CHARS ]]; then
+    REVIEW_SUMMARY="${REVIEW_SUMMARY:0:$MAX_BODY_CHARS}"$'\n\n⚠️ *Review truncated (GitHub 65 KB limit)*'
+    echo "⚠️  Review summary truncated to ${MAX_BODY_CHARS} chars"
+fi
 
 # Build the GitHub review API payload with inline comments
 REVIEW_PAYLOAD=$(jq -n \
