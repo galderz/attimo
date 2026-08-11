@@ -16,16 +16,6 @@ class SshKeyManagerTest
     private static final String TEST_CLOUD = "aws";
 
     @Test
-    void existsReturnsFalseWhenNoKeys()
-    {
-        // Default Environment paths won't have test keys
-        // This test verifies the method doesn't throw
-        final var result = SshKeyManager.exists(TEST_CLOUD);
-        // Result depends on whether keys exist in ~/.config/attimo/aws/ssh/
-        assertThat(result).isIn(true, false);
-    }
-
-    @Test
     @EnabledOnOs(OS.LINUX)
     void ensureKeyPairCreatesKeys()
     {
