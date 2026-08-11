@@ -25,7 +25,6 @@ public class AwsGroupCommand extends BaseCommand
     @Override
     protected CommandResult doExecute()
     {
-        System.out.println("AWS cloud commands. Use 'ato aws --help' for available commands.");
         return CommandResult.SUCCESS;
     }
 }
