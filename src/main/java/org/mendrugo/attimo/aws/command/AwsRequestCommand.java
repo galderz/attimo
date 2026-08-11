@@ -1,12 +1,14 @@
-package org.mendrugo.attimo.command;
+package org.mendrugo.attimo.aws.command;
 
 import org.mendrugo.attimo.Environment;
+import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.BaseAmiResolver;
 import org.mendrugo.attimo.aws.InstanceSize;
 import org.mendrugo.attimo.aws.ResourceCleaner;
 import org.mendrugo.attimo.aws.SpotAdvisor;
 import org.mendrugo.attimo.aws.SpotManager;
+import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.AttimoConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.isa.IsaMapping;
@@ -26,7 +28,7 @@ import java.time.Instant;
     , description = "Request a spot instance with specific CPU ISA features"
     , generateHelp = true
 )
-public class RequestCommand extends BaseCommand
+public class AwsRequestCommand extends BaseCommand
 {
     @Option(
         name = "isa"
@@ -47,26 +49,26 @@ public class RequestCommand extends BaseCommand
     protected CommandResult doExecute() throws Exception
     {
         // Validate init
-        if (!InitCommand.hasBeenInitialized())
+        if (!AwsInitCommand.hasBeenInitialized())
         {
-            System.err.println("Error: attimo has not been initialized. Run 'ato init' first.");
+            System.err.println("Error: AWS has not been initialized. Run 'ato aws init' first.");
             return CommandResult.valueOf(1);
         }
 
         // Check for existing active instance
-        final var existingState = InstanceState.load();
+        final var existingState = InstanceState.load(Aws.CLOUD);
         if (existingState.hasActiveInstance())
         {
             System.err.println("Error: an instance is already active (" + existingState.getInstanceId() + ").");
-            System.err.println("Use 'ato connect' to reconnect or 'ato destroy' to tear it down first.");
+            System.err.println("Use 'ato aws connect' to reconnect or 'ato aws destroy' to tear it down first.");
             return CommandResult.valueOf(1);
         }
 
-        final var config = AttimoConfig.load();
+        final var config = AttimoConfig.load(Aws.CLOUD);
         final var preferredRegion = config.getPreferredRegion();
         if (preferredRegion.isBlank())
         {
-            System.err.println("Error: no preferred region configured. Run 'ato init' first.");
+            System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");
             return CommandResult.valueOf(1);
         }
 
@@ -147,7 +149,7 @@ public class RequestCommand extends BaseCommand
         try
         {
             sgId = spotManager.createSecurityGroup();
-            final var pubKey = SshKeyManager.publicKeyContent();
+            final var pubKey = SshKeyManager.publicKeyContent(Aws.CLOUD);
             keyPairName = spotManager.importKeyPair(pubKey);
             instanceId = spotManager.launchSpotInstance(
                 amiId
@@ -190,18 +192,18 @@ public class RequestCommand extends BaseCommand
         state.setSecurityGroupId(sgId);
         state.setKeyPairName(keyPairName);
         state.setSessionId(spotManager.sessionId());
-        state.save();
+        state.save(Aws.CLOUD);
 
         // 5. Provision + SSH
         System.out.println("\n[5/5] Provisioning and connecting...");
 
         final var sshUser = BaseAmiResolver.SSH_USER;
-        final var keyFile = Environment.sshKeyFile();
+        final var keyFile = Environment.sshKeyFile(Aws.CLOUD);
         final var sshSession = new SshSession(publicIp, sshUser, keyFile);
         if (!sshSession.waitForSsh(300))
         {
             System.err.println("Error: SSH not reachable after 5 minutes.");
-            System.err.println("Instance is running at " + publicIp + ". Use 'ato connect' to retry.");
+            System.err.println("Instance is running at " + publicIp + ". Use 'ato aws connect' to retry.");
             ec2.close();
             return CommandResult.valueOf(1);
         }
@@ -244,7 +246,7 @@ public class RequestCommand extends BaseCommand
         final var console = System.console();
         if (console == null)
         {
-            System.out.println("\nInstance is still running. Use 'ato destroy' to tear it down.");
+            System.out.println("\nInstance is still running. Use 'ato aws destroy' to tear it down.");
             return;
         }
 
@@ -253,13 +255,13 @@ public class RequestCommand extends BaseCommand
 
         if (answer.equalsIgnoreCase("y"))
         {
-            System.out.println("Instance kept running. Reconnect with 'ato connect'.");
+            System.out.println("Instance kept running. Reconnect with 'ato aws connect'.");
         }
         else
         {
             System.out.println("Destroying instance...");
             final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state);
+            final var errors = cleaner.cleanAll(state, Aws.CLOUD);
 
             if (errors.isEmpty())
             {
@@ -272,7 +274,7 @@ public class RequestCommand extends BaseCommand
                 {
                     System.err.println("  - " + error);
                 }
-                System.err.println("Run 'ato destroy' to retry.");
+                System.err.println("Run 'ato aws destroy' to retry.");
             }
         }
     }

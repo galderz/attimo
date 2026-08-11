@@ -28,9 +28,12 @@ public class SshProvisioner
         this.privateKeyPath = privateKeyPath;
     }
 
-    public SshProvisioner(final String host)
+    public SshProvisioner(
+        final String host
+        , final String cloud
+    )
     {
-        this(host, "ec2-user", Environment.sshKeyFile());
+        this(host, "ec2-user", Environment.sshKeyFile(cloud));
     }
 
     /**

@@ -35,9 +35,19 @@ public class SshSession
         this.privateKeyPath = privateKeyPath;
     }
 
-    public SshSession(final String host)
+    /**
+     * Create an SSH session using the default user and the cloud provider's
+     * managed SSH key.
+     *
+     * @param host the host to connect to
+     * @param cloud the cloud provider identifier for SSH key path
+     */
+    public SshSession(
+        final String host
+        , final String cloud
+    )
     {
-        this(host, DEFAULT_USER, Environment.sshKeyFile());
+        this(host, DEFAULT_USER, Environment.sshKeyFile(cloud));
     }
 
     /**

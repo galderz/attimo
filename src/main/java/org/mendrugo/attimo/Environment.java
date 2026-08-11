@@ -4,7 +4,8 @@ import java.nio.file.Path;
 
 /**
  * Resolves filesystem paths following XDG conventions.
- * Configuration at ~/.config/attimo/, cache at ~/.cache/attimo/.
+ * Configuration at ~/.config/attimo/{cloud}/, cache at ~/.cache/attimo/{cloud}/.
+ * Each cloud provider gets its own subdirectory for config, state, and SSH keys.
  */
 public final class Environment
 {
@@ -15,7 +16,10 @@ public final class Environment
         return Path.of(System.getProperty("user.home"));
     }
 
-    public static Path configDir()
+    /**
+     * Root config dir: ~/.config/attimo/
+     */
+    public static Path configRoot()
     {
         final var xdgConfig = System.getenv("XDG_CONFIG_HOME");
         if (xdgConfig != null && !xdgConfig.isBlank())
@@ -26,7 +30,18 @@ public final class Environment
         return home().resolve(".config").resolve("attimo");
     }
 
-    public static Path cacheDir()
+    /**
+     * Cloud-specific config dir: ~/.config/attimo/{cloud}/
+     */
+    public static Path configDir(final String cloud)
+    {
+        return configRoot().resolve(cloud);
+    }
+
+    /**
+     * Root cache dir: ~/.cache/attimo/
+     */
+    public static Path cacheRoot()
     {
         final var xdgCache = System.getenv("XDG_CACHE_HOME");
         if (xdgCache != null && !xdgCache.isBlank())
@@ -37,28 +52,36 @@ public final class Environment
         return home().resolve(".cache").resolve("attimo");
     }
 
-    public static Path configFile()
+    /**
+     * Cloud-specific cache dir: ~/.cache/attimo/{cloud}/
+     */
+    public static Path cacheDir(final String cloud)
     {
-        return configDir().resolve("config.yaml");
+        return cacheRoot().resolve(cloud);
     }
 
-    public static Path stateFile()
+    public static Path configFile(final String cloud)
     {
-        return configDir().resolve("state.yaml");
+        return configDir(cloud).resolve("config.yaml");
     }
 
-    public static Path sshDir()
+    public static Path stateFile(final String cloud)
     {
-        return configDir().resolve("ssh");
+        return configDir(cloud).resolve("state.yaml");
     }
 
-    public static Path sshKeyFile()
+    public static Path sshDir(final String cloud)
     {
-        return sshDir().resolve("id_ed25519");
+        return configDir(cloud).resolve("ssh");
     }
 
-    public static Path sshPubKeyFile()
+    public static Path sshKeyFile(final String cloud)
     {
-        return sshDir().resolve("id_ed25519.pub");
+        return sshDir(cloud).resolve("id_ed25519");
+    }
+
+    public static Path sshPubKeyFile(final String cloud)
+    {
+        return sshDir(cloud).resolve("id_ed25519.pub");
     }
 }

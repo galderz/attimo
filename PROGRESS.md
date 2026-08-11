@@ -1,7 +1,7 @@
 # Attimo — Progress & Backlog
 
 **Last updated:** 2026-07-10
-**Last session:** Added --size option for instance sizing tiers (micro/small/medium/large)
+**Last session:** Rearchitected CLI for multi-cloud support (ato aws ... subcommand pattern)
 
 ## How to Resume
 
@@ -56,6 +56,12 @@ If you're a new agent session picking up this project:
 |------|-------------|--------|
 | — | InstanceSize enum + SpotAdvisor size-aware selection + RequestCommand --size option | pending |
 
+### Multi-Cloud Architecture
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| — | Rearchitect CLI for per-cloud subcommands (ato aws ...), cloud-aware config/state/SSH paths, move commands to aws/command/ | `c2c2421` |
+
 ### Bug Fixes from Real AWS Testing
 
 | Fix | Description | Commit |
@@ -72,12 +78,12 @@ If you're a new agent session picking up this project:
 ## Current State
 
 ### What Works End-to-End (tested on real AWS)
-- `ato init` — validates credentials (including `aws login` / SSO), sets region + SSH key
-- `ato request --isa avx512` — finds best spot (default: medium size), launches, provisions jdk-dev packages, SSHs in
-- `ato request --isa avx512 --size large` — uses larger instances for faster builds
-- `ato status` — shows instance details, uptime, cost
-- `ato connect` — reconnects to running instance
-- `ato destroy` — cleans up all resources, scans for orphans if state is lost
+- `ato aws init` — validates credentials (including `aws login` / SSO), sets region + SSH key
+- `ato aws request --isa avx512` — finds best spot (default: medium size), launches, provisions jdk-dev packages, SSHs in
+- `ato aws request --isa avx512 --size large` — uses larger instances for faster builds
+- `ato aws status` — shows instance details, uptime, cost
+- `ato aws connect` — reconnects to running instance
+- `ato aws destroy` — cleans up all resources, scans for orphans if state is lost
 - User successfully built OpenJDK and ran commands on a spot instance
 - Works in all AWS regions including opt-in regions (eu-central-2, etc.)
 
@@ -99,13 +105,14 @@ If you're a new agent session picking up this project:
 - **SG deletion retry** — up to 6 retries with 10s delay (AWS needs time to release ENI after termination)
 - **Orphan resource scan** — tag-based search across all regions in group, gracefully skips opt-in regions
 - **Test keys generated programmatically** — never stored in source, ephemeral ed25519 via Java KeyPairGenerator
+- **Multi-cloud subcommand architecture** — all cloud commands under `ato <cloud> ...`, cloud-specific config at `~/.config/attimo/<cloud>/`, shared ISA/SSH/config infrastructure, no new Maven modules needed per cloud
 
 ## Next Tasks
 
 ### Phase 5: AMI Caching (from PLAN.md)
 - [ ] **Task 15: AmiManager** — build, lookup, cleanup AMIs
-- [ ] **Task 16: Integrate AMI caching** into RequestCommand + DestroyCommand
-- [ ] **Task 17: BuildAmiCommand** — `ato build-ami --template <name>`
+- [ ] **Task 16: Integrate AMI caching** into AwsRequestCommand + AwsDestroyCommand
+- [ ] **Task 17: BuildAmiCommand** — `ato aws build-ami --template <name>`
 
 ### Phase 6: Spot Interruption Recovery
 - [ ] **Task 18:** Background thread monitoring + automatic replacement
@@ -144,15 +151,26 @@ Items discovered during implementation that aren't in the original plan:
 ### Package Structure
 ```
 org.mendrugo.attimo/
-├── aws/          # AWS interaction (SDK clients, spot logic, AMI, cleanup)
-├── command/      # CLI commands (Aesh framework)
-├── config/       # Configuration (YAML files, region groups)
-├── isa/          # CPU ISA feature mapping
-├── ssh/          # SSH key management, sessions, provisioning
+├── aws/          # AWS cloud provider
+│   ├── command/  # AWS CLI commands (ato aws init/request/status/connect/destroy)
+│   └── ...       # SDK clients, spot logic, AMI, cleanup
+├── command/      # Shared CLI base (BaseCommand)
+├── config/       # Configuration (cloud-aware YAML, region groups)
+├── isa/          # CPU ISA feature mapping (shared across clouds)
+├── ssh/          # SSH key management, sessions, provisioning (shared)
 ├── cost/         # (planned) Cost tracking
 ├── tui/          # (planned) TUI components
 └── tool/         # (planned) Tool/template system
 ```
+
+### Multi-Cloud Architecture
+- All cloud commands are under `ato <cloud> <command>` (e.g., `ato aws init`)
+- Cloud-specific config stored at `~/.config/attimo/<cloud>/`
+- Cloud-specific state stored at `~/.config/attimo/<cloud>/state.yaml`
+- Cloud-specific SSH keys at `~/.config/attimo/<cloud>/ssh/`
+- ISA mappings are shared at `~/.config/attimo/isa-mappings/`
+- To add a new cloud: create a `@GroupCommandDefinition` + commands in `<cloud>/command/`
+- No new Maven modules needed
 
 ### Code Style
 - **Allman braces** — `{` on its own line

@@ -1,6 +1,6 @@
 # Attimo
 
-AWS spot instance manager for OpenJDK engineers. Request spot instances with specific CPU ISA features (AVX-512, SVE, AMX, etc.) for building and testing OpenJDK on architectures not available locally.
+Cloud spot instance manager for OpenJDK engineers. Request spot instances with specific CPU ISA features (AVX-512, SVE, AMX, etc.) for building and testing OpenJDK on architectures not available locally.
 
 Built with [Quarkus](https://quarkus.io/), Java 25.
 
@@ -13,13 +13,21 @@ You're an OpenJDK engineer and you need to:
 - Run jtreg tests on a platform you don't have on your desk
 - Disassemble generated code with Capstone on a specific architecture
 
-AWS spot instances give access to these platforms at minimal cost. Attimo handles the lifecycle — finding the cheapest spot instance across nearby regions, launching it, provisioning build tools, connecting via SSH, and tearing everything down when you're done.
+Cloud spot instances give access to these platforms at minimal cost. Attimo handles the lifecycle — finding the cheapest spot instance across nearby regions, launching it, provisioning build tools, connecting via SSH, and tearing everything down when you're done.
+
+## Supported Clouds
+
+| Cloud | Command Prefix | Status |
+|-------|---------------|--------|
+| **AWS** | `ato aws ...` | ✅ Fully supported |
+
+Additional cloud providers can be added alongside the existing code. Each cloud gets its own subcommand group and configuration directory.
 
 ## Requirements
 
 - **Java 25** — to build and run attimo
 - **Maven 3.9+** — to build
-- **AWS account** — with credentials configured (see [Setup](#setup))
+- **Cloud account** — with credentials configured (see [Setup](#setup))
 - **ssh** — the system SSH client (always available on Linux and macOS)
 
 ## Building
@@ -34,7 +42,7 @@ The runnable JAR is at `target/quarkus-app/quarkus-run.jar`. You can create an a
 alias ato='java -jar /path/to/attimo/target/quarkus-app/quarkus-run.jar'
 ```
 
-## Setup
+## Setup (AWS)
 
 ### 1. Configure AWS credentials
 
@@ -75,10 +83,10 @@ aws sso login
 
 If you don't have an access key, create one at https://console.aws.amazon.com/iam → Security credentials → Access keys.
 
-### 2. Run `ato init`
+### 2. Run `ato aws init`
 
 ```bash
-ato init
+ato aws init
 ```
 
 This will:
@@ -86,16 +94,18 @@ This will:
 1. **Validate your AWS credentials** — calls STS GetCallerIdentity to verify access
    - If credentials are missing, offers platform-specific install instructions and the option to enter an access key directly
 2. **Set your preferred region** — the region closest to you (e.g., `eu-west-1`). Attimo also checks nearby regions for better spot prices
-3. **Configure your SSH key** — generates a managed ed25519 key pair at `~/.config/attimo/ssh/` and asks for the path to your personal SSH public key
+3. **Configure your SSH key** — generates a managed ed25519 key pair at `~/.config/attimo/aws/ssh/` and asks for the path to your personal SSH public key
 
-Configuration is saved to `~/.config/attimo/config.yaml` with owner-only permissions.
+Configuration is saved to `~/.config/attimo/aws/config.yaml` with owner-only permissions.
 
 ## Usage
+
+All cloud commands are nested under the cloud subcommand. For AWS: `ato aws <command>`.
 
 ### Request a spot instance
 
 ```bash
-ato request --isa avx512 --size micro
+ato aws request --isa avx512 --size micro
 ```
 
 This will:
@@ -103,7 +113,7 @@ This will:
 1. Resolve `avx512` to candidate instance families (c5, c6i, c7i, m5, m6i, m7i, etc.)
 2. Query spot pricing across your region group (e.g., all European regions)
 3. Select the best option balancing cost, instance size, and proximity
-4. Resolve the Fedora 44 Cloud AMI for the target architecture
+4. Resolve the Amazon Linux 2023 AMI for the target architecture
 5. Create a security group (SSH-only) and import your SSH key
 6. Launch a spot instance
 7. Wait for the instance to be ready
@@ -146,7 +156,7 @@ Tip: start with `--size micro` to confirm the instance launches and the ISA feat
 ### Check instance status
 
 ```bash
-ato status
+ato aws status
 ```
 
 Shows: instance type, region, IP address, uptime, running cost, and whether the instance is still alive.
@@ -154,7 +164,7 @@ Shows: instance type, region, IP address, uptime, running cost, and whether the 
 ### Reconnect to a running instance
 
 ```bash
-ato connect
+ato aws connect
 ```
 
 If your laptop restarts or your terminal closes, use this to SSH back into the running instance.
@@ -162,7 +172,7 @@ If your laptop restarts or your terminal closes, use this to SSH back into the r
 ### Destroy the instance
 
 ```bash
-ato destroy
+ato aws destroy
 ```
 
 Tears down everything:
@@ -178,7 +188,7 @@ Tears down everything:
 
 ```bash
 # 1. Request a spot instance with AVX-512 support
-ato request --isa avx512
+ato aws request --isa avx512
 
 # 2. On the instance, clone and build OpenJDK
 git clone https://github.com/openjdk/jdk.git
@@ -229,7 +239,7 @@ Example output:
 
 ## Region Groups
 
-Your preferred region (set during `ato init`) determines which regions are searched for spot pricing:
+Your preferred region (set during `ato aws init`) determines which regions are searched for spot pricing:
 
 | Group | Regions |
 |-------|---------|
@@ -246,15 +256,15 @@ Your preferred region (set during `ato init`) determines which regions are searc
 
 ## Pre-installed Software
 
-Instances are provisioned with a Fedora 44 base image and the following packages:
+Instances are provisioned with an Amazon Linux 2023 base image and the following packages:
 
 **Build tools:** gcc, gcc-c++, make, autoconf
 
-**Java:** java-25-openjdk-devel, java-25-openjdk-javadoc, java-25-openjdk-src
+**Java:** Amazon Corretto 25
 
-**OpenJDK build dependencies:** libcups-devel, libX11-devel, libXt-devel, libXrender-devel, libXrandr-devel, libXi-devel, libXtst-devel, alsa-lib-devel, fontconfig-devel, freetype-devel
+**OpenJDK build dependencies:** cups-devel, libX11-devel, libXt-devel, libXrender-devel, libXrandr-devel, libXi-devel, libXtst-devel, alsa-lib-devel, fontconfig-devel, freetype-devel
 
-**Disassembly:** capstone, capstone-devel, capstone-tool
+**Disassembly:** capstone, capstone-devel
 
 ## Configuration
 
@@ -262,11 +272,13 @@ Instances are provisioned with a Fedora 44 base image and the following packages
 
 | Path | Purpose |
 |------|---------|
-| `~/.config/attimo/config.yaml` | Preferred region, SSH key path |
-| `~/.config/attimo/state.yaml` | Active instance tracking (auto-managed) |
-| `~/.config/attimo/ssh/id_ed25519` | Managed SSH private key |
-| `~/.config/attimo/ssh/id_ed25519.pub` | Managed SSH public key |
-| `~/.config/attimo/isa-mappings/*.yaml` | User ISA mapping overrides |
+| `~/.config/attimo/aws/config.yaml` | AWS preferred region, SSH key path |
+| `~/.config/attimo/aws/state.yaml` | AWS active instance tracking (auto-managed) |
+| `~/.config/attimo/aws/ssh/id_ed25519` | AWS managed SSH private key |
+| `~/.config/attimo/aws/ssh/id_ed25519.pub` | AWS managed SSH public key |
+| `~/.config/attimo/isa-mappings/*.yaml` | User ISA mapping overrides (shared across clouds) |
+
+Each cloud provider stores its configuration under `~/.config/attimo/<cloud>/`.
 
 ### config.yaml
 
@@ -279,13 +291,14 @@ ssh-public-key: ~/.ssh/id_ed25519.pub
 
 | Command | Description |
 |---------|-------------|
-| `ato init` | One-time setup: AWS credentials, region, SSH key |
-| `ato request --isa <feature> [--size <size>]` | Request a spot instance with specific CPU ISA (size: micro/small/medium/large) |
-| `ato status` | Show active instance status, uptime, cost |
-| `ato connect` | SSH into the active instance |
-| `ato destroy` | Tear down instance and all AWS resources |
+| `ato aws init` | One-time setup: AWS credentials, region, SSH key |
+| `ato aws request --isa <feature> [--size <size>]` | Request a spot instance with specific CPU ISA (size: micro/small/medium/large) |
+| `ato aws status` | Show active instance status, uptime, cost |
+| `ato aws connect` | SSH into the active instance |
+| `ato aws destroy` | Tear down instance and all AWS resources |
 | `ato --version` | Show version info |
-| `ato --help` | Show help |
+| `ato --help` | Show help (lists available cloud subcommands) |
+| `ato aws --help` | Show AWS-specific commands |
 
 ## Security
 
@@ -293,18 +306,18 @@ ssh-public-key: ~/.ssh/id_ed25519.pub
 - **SSH keys:** attimo generates a dedicated passphraseless ed25519 key pair for instance access. Your personal SSH key (if configured) is also available.
 - **Security groups** allow SSH (port 22) from any IP (`0.0.0.0/0`). For production use, consider restricting this to your IP.
 - **All AWS resources** are tagged with `attimo:managed=true` and a session ID for identification and cleanup.
-- **`ato destroy`** verifies no resources remain after cleanup.
+- **`ato aws destroy`** verifies no resources remain after cleanup.
 
-## AWS Costs
+## Cloud Costs
 
 Attimo uses spot instances which are significantly cheaper than on-demand:
 
 - **Spot pricing** varies by instance type and region. Typical x86_64 instances (c7i.xlarge) cost $0.05-$0.10/hr as spot
 - **AArch64 Graviton instances** are often even cheaper
-- **`ato destroy`** cleans up everything — no ongoing cost after destruction
-- **`ato status`** shows your current running cost
+- **`ato aws destroy`** cleans up everything — no ongoing cost after destruction
+- **`ato aws status`** shows your current running cost
 
-Spot instances can be interrupted by AWS with 2 minutes notice. If this happens, you'll need to run `ato request` again. Automatic spot interruption recovery is planned for a future version.
+Spot instances can be interrupted by AWS with 2 minutes notice. If this happens, you'll need to run `ato aws request` again. Automatic spot interruption recovery is planned for a future version.
 
 ## Development
 
@@ -338,41 +351,58 @@ brew install podman               # macOS
 src/main/java/org/mendrugo/attimo/
 ├── Attimo.java                    # Entry point
 ├── BuildInfo.java                 # Version info
-├── Environment.java               # XDG path resolution
+├── Environment.java               # XDG path resolution (cloud-aware)
 ├── aws/                           # AWS interaction
 │   ├── AwsClientFactory.java      # SDK client creation
-│   ├── BaseAmiResolver.java       # Fedora AMI lookup
+│   ├── BaseAmiResolver.java       # Amazon Linux 2023 AMI lookup
+│   ├── InstanceSize.java          # Instance size tiers
 │   ├── ResourceCleaner.java       # Teardown all resources
 │   ├── SpotAdvisor.java           # Pricing + selection
-│   └── SpotManager.java           # Instance lifecycle
-├── command/                       # CLI commands (Aesh)
-│   ├── BaseCommand.java
-│   ├── ConnectCommand.java
-│   ├── DestroyCommand.java
-│   ├── InitCommand.java
-│   ├── RequestCommand.java
-│   └── StatusCommand.java
+│   ├── SpotManager.java           # Instance lifecycle
+│   └── command/                   # AWS CLI commands
+│       ├── AwsGroupCommand.java   # 'aws' subcommand group
+│       ├── AwsInitCommand.java
+│       ├── AwsRequestCommand.java
+│       ├── AwsStatusCommand.java
+│       ├── AwsConnectCommand.java
+│       └── AwsDestroyCommand.java
+├── command/                       # Shared CLI base
+│   └── BaseCommand.java
 ├── config/                        # Configuration
 │   ├── AttimoConfig.java
 │   ├── InstanceState.java
 │   └── RegionGroup.java
-├── isa/                           # CPU ISA feature mapping
+├── isa/                           # CPU ISA feature mapping (shared)
 │   ├── IsaFeature.java
 │   └── IsaMapping.java
-└── ssh/                           # SSH management
+└── ssh/                           # SSH management (shared)
+    ├── OsPackages.java
     ├── SshKeyManager.java
     ├── SshProvisioner.java
     └── SshSession.java
 ```
 
+### Adding a new cloud provider
+
+To add support for a new cloud provider (e.g., GCP):
+
+1. Create a `@GroupCommandDefinition` class at `aws/command/` → `gcp/command/GcpGroupCommand.java`
+2. Implement cloud-specific commands (init, request, status, connect, destroy)
+3. Register the group command in `Attimo.AttimoCommand.groupCommands`
+4. Use `Environment.configDir("gcp")` for cloud-specific configuration paths
+5. Reuse shared code: `BaseCommand`, `IsaMapping`, `SshSession`, `SshKeyManager`, `AttimoConfig`, `InstanceState`
+
+No new Maven modules are needed — cloud provider code lives alongside existing code.
+
 ## Roadmap
 
 - [ ] **AMI caching** — build a custom AMI on first request, reuse for instant subsequent launches
 - [ ] **Spot interruption recovery** — automatically request a replacement instance when AWS reclaims the spot
-- [ ] **Cost tracking** — `ato cost` command, running cost display in status and on destroy
+- [ ] **Cost tracking** — `ato aws cost` command, running cost display in status and on destroy
 - [ ] **TUI** — interactive terminal UI (like incus-spawn) for managing instances
 - [ ] **Template system** — YAML-defined image templates with custom packages and tools
-- [ ] **`ato build-ami`** — pre-build AMIs without launching a spot instance
+- [ ] **`ato aws build-ami`** — pre-build AMIs without launching a spot instance
+- [ ] **Additional cloud providers** — GCP, Azure, etc.
 
 ## License
 

@@ -9,38 +9,38 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Manages a dedicated SSH key pair for spot instance access.
- * Key pair at ~/.config/attimo/ssh/id_ed25519.
+ * Manages a dedicated SSH key pair for cloud instance access.
+ * Key pair at ~/.config/attimo/{cloud}/ssh/id_ed25519.
  * Borrowed from incus-spawn's SshKeyManager pattern.
  */
 public final class SshKeyManager
 {
     private SshKeyManager() {}
 
-    public static boolean exists()
+    public static boolean exists(final String cloud)
     {
-        return Files.exists(Environment.sshKeyFile())
-            && Files.exists(Environment.sshPubKeyFile());
+        return Files.exists(Environment.sshKeyFile(cloud))
+            && Files.exists(Environment.sshPubKeyFile(cloud));
     }
 
     /**
      * Generate an ed25519 key pair if one does not already exist.
      */
-    public static void ensureKeyPairExists()
+    public static void ensureKeyPairExists(final String cloud)
     {
-        if (exists())
+        if (exists(cloud))
         {
             return;
         }
 
         try
         {
-            Files.createDirectories(Environment.sshDir());
+            Files.createDirectories(Environment.sshDir(cloud));
 
             final var pb = new ProcessBuilder(
                 "ssh-keygen"
                 , "-t", "ed25519"
-                , "-f", Environment.sshKeyFile().toString()
+                , "-f", Environment.sshKeyFile(cloud).toString()
                 , "-N", ""
                 , "-C", "attimo managed key"
             );
@@ -60,15 +60,15 @@ public final class SshKeyManager
             }
 
             Files.setPosixFilePermissions(
-                Environment.sshKeyFile()
+                Environment.sshKeyFile(cloud)
                 , PosixFilePermissions.fromString("rw-------")
             );
             Files.setPosixFilePermissions(
-                Environment.sshPubKeyFile()
+                Environment.sshPubKeyFile(cloud)
                 , PosixFilePermissions.fromString("rw-r--r--")
             );
 
-            System.out.println("  SSH key pair generated at " + Environment.sshDir());
+            System.out.println("  SSH key pair generated at " + Environment.sshDir(cloud));
         }
         catch (final IOException | InterruptedException e)
         {
@@ -79,11 +79,11 @@ public final class SshKeyManager
     /**
      * Read the managed public key content.
      */
-    public static String publicKeyContent()
+    public static String publicKeyContent(final String cloud)
     {
         try
         {
-            return Files.readString(Environment.sshPubKeyFile()).strip();
+            return Files.readString(Environment.sshPubKeyFile(cloud)).strip();
         }
         catch (final IOException e)
         {

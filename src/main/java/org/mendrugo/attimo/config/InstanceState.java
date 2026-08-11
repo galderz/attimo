@@ -108,9 +108,12 @@ public class InstanceState
 
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
-    public static InstanceState load()
+    /**
+     * Load state for a specific cloud provider.
+     */
+    public static InstanceState load(final String cloud)
     {
-        final Path stateFile = Environment.stateFile();
+        final Path stateFile = Environment.stateFile(cloud);
         if (!Files.exists(stateFile))
         {
             return new InstanceState();
@@ -127,9 +130,12 @@ public class InstanceState
         }
     }
 
-    public void save()
+    /**
+     * Save state for a specific cloud provider.
+     */
+    public void save(final String cloud)
     {
-        final Path stateFile = Environment.stateFile();
+        final Path stateFile = Environment.stateFile(cloud);
         try
         {
             Files.createDirectories(stateFile.getParent());
@@ -151,11 +157,14 @@ public class InstanceState
         }
     }
 
-    public static void clear()
+    /**
+     * Clear state for a specific cloud provider.
+     */
+    public static void clear(final String cloud)
     {
         try
         {
-            Files.deleteIfExists(Environment.stateFile());
+            Files.deleteIfExists(Environment.stateFile(cloud));
         }
         catch (final IOException e)
         {

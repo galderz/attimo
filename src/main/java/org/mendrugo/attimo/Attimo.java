@@ -1,11 +1,7 @@
 package org.mendrugo.attimo;
 
+import org.mendrugo.attimo.aws.command.AwsGroupCommand;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.command.ConnectCommand;
-import org.mendrugo.attimo.command.DestroyCommand;
-import org.mendrugo.attimo.command.InitCommand;
-import org.mendrugo.attimo.command.RequestCommand;
-import org.mendrugo.attimo.command.StatusCommand;
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
 import org.aesh.AeshRuntimeRunner;
@@ -44,13 +40,9 @@ public class Attimo implements QuarkusApplication
 
     @CommandDefinition(
         name = "attimo"
-        , description = "AWS spot instance manager for OpenJDK engineers"
+        , description = "Cloud spot instance manager for OpenJDK engineers"
         , groupCommands = {
-            InitCommand.class
-            , RequestCommand.class
-            , StatusCommand.class
-            , ConnectCommand.class
-            , DestroyCommand.class
+            AwsGroupCommand.class
         }
         , generateHelp = true
     )

@@ -51,7 +51,7 @@ class ResourceCleanerIT
             state.setKeyPairName(keyName);
 
             final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state);
+            final var errors = cleaner.cleanAll(state, "aws");
 
             assertThat(errors).isEmpty();
 
@@ -73,7 +73,7 @@ class ResourceCleanerIT
             state.setKeyPairName("attimo-nonexistent");
 
             final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state);
+            final var errors = cleaner.cleanAll(state, "aws");
 
             // Should report errors but not crash
             assertThat(errors).isNotEmpty();
