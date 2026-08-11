@@ -1,6 +1,5 @@
 package org.mendrugo.attimo.aws.command;
 
-import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.aesh.command.CommandResult;
 import org.aesh.command.GroupCommandDefinition;
