@@ -36,9 +36,8 @@ public class SshSession
     }
 
     /**
-     * Create an SSH session using the default user and the AWS cloud SSH key.
-     * This convenience constructor is used by commands that already know
-     * the cloud provider (e.g., AwsConnectCommand).
+     * Create an SSH session using the default user and the cloud provider's
+     * managed SSH key.
      *
      * @param host the host to connect to
      * @param cloud the cloud provider identifier for SSH key path
