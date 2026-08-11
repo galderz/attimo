@@ -1,6 +1,7 @@
 package org.mendrugo.attimo.aws.command;
 
 import org.mendrugo.attimo.Environment;
+import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.AttimoConfig;
@@ -21,14 +22,12 @@ import java.nio.file.Path;
 )
 public class AwsInitCommand extends BaseCommand
 {
-    private static final String CLOUD = AwsGroupCommand.CLOUD;
-
     /**
      * Check if init has been run by looking for the config file.
      */
     public static boolean hasBeenInitialized()
     {
-        return Files.exists(Environment.configFile(CLOUD));
+        return Files.exists(Environment.configFile(Aws.CLOUD));
     }
 
     @Override
@@ -36,7 +35,7 @@ public class AwsInitCommand extends BaseCommand
     {
         System.out.println("=== attimo aws init ===\n");
 
-        final var config = AttimoConfig.load(CLOUD);
+        final var config = AttimoConfig.load(Aws.CLOUD);
         final var console = System.console();
 
         if (!checkAwsCredentials(console, config))
@@ -47,7 +46,7 @@ public class AwsInitCommand extends BaseCommand
         setupRegion(console, config);
         setupSshKey(console, config);
 
-        config.save(CLOUD);
+        config.save(Aws.CLOUD);
 
         System.out.println("\n=== Init complete! ===");
         System.out.println("Next steps:");
@@ -245,7 +244,7 @@ public class AwsInitCommand extends BaseCommand
         System.out.println("\n[3/3] Configuring SSH key...");
 
         // Generate managed key pair
-        if (SshKeyManager.exists(CLOUD))
+        if (SshKeyManager.exists(Aws.CLOUD))
         {
             System.out.println("  Managed SSH key pair already exists.");
         }
@@ -253,7 +252,7 @@ public class AwsInitCommand extends BaseCommand
         {
             try
             {
-                SshKeyManager.ensureKeyPairExists(CLOUD);
+                SshKeyManager.ensureKeyPairExists(Aws.CLOUD);
             }
             catch (final Exception e)
             {

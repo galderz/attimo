@@ -1,6 +1,7 @@
 package org.mendrugo.attimo.aws.command;
 
 import org.mendrugo.attimo.Environment;
+import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.BaseAmiResolver;
 import org.mendrugo.attimo.aws.InstanceSize;
@@ -29,8 +30,6 @@ import java.time.Instant;
 )
 public class AwsRequestCommand extends BaseCommand
 {
-    private static final String CLOUD = AwsGroupCommand.CLOUD;
-
     @Option(
         name = "isa"
         , description = "CPU ISA feature (e.g. avx512, sve, aarch64)"
@@ -57,7 +56,7 @@ public class AwsRequestCommand extends BaseCommand
         }
 
         // Check for existing active instance
-        final var existingState = InstanceState.load(CLOUD);
+        final var existingState = InstanceState.load(Aws.CLOUD);
         if (existingState.hasActiveInstance())
         {
             System.err.println("Error: an instance is already active (" + existingState.getInstanceId() + ").");
@@ -65,7 +64,7 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.valueOf(1);
         }
 
-        final var config = AttimoConfig.load(CLOUD);
+        final var config = AttimoConfig.load(Aws.CLOUD);
         final var preferredRegion = config.getPreferredRegion();
         if (preferredRegion.isBlank())
         {
@@ -150,7 +149,7 @@ public class AwsRequestCommand extends BaseCommand
         try
         {
             sgId = spotManager.createSecurityGroup();
-            final var pubKey = SshKeyManager.publicKeyContent(CLOUD);
+            final var pubKey = SshKeyManager.publicKeyContent(Aws.CLOUD);
             keyPairName = spotManager.importKeyPair(pubKey);
             instanceId = spotManager.launchSpotInstance(
                 amiId
@@ -193,13 +192,13 @@ public class AwsRequestCommand extends BaseCommand
         state.setSecurityGroupId(sgId);
         state.setKeyPairName(keyPairName);
         state.setSessionId(spotManager.sessionId());
-        state.save(CLOUD);
+        state.save(Aws.CLOUD);
 
         // 5. Provision + SSH
         System.out.println("\n[5/5] Provisioning and connecting...");
 
         final var sshUser = BaseAmiResolver.SSH_USER;
-        final var keyFile = Environment.sshKeyFile(CLOUD);
+        final var keyFile = Environment.sshKeyFile(Aws.CLOUD);
         final var sshSession = new SshSession(publicIp, sshUser, keyFile);
         if (!sshSession.waitForSsh(300))
         {
@@ -262,7 +261,7 @@ public class AwsRequestCommand extends BaseCommand
         {
             System.out.println("Destroying instance...");
             final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state, CLOUD);
+            final var errors = cleaner.cleanAll(state, Aws.CLOUD);
 
             if (errors.isEmpty())
             {

@@ -1,5 +1,6 @@
 package org.mendrugo.attimo.aws.command;
 
+import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.ssh.SshSession;
@@ -13,12 +14,10 @@ import org.aesh.command.CommandResult;
 )
 public class AwsConnectCommand extends BaseCommand
 {
-    private static final String CLOUD = AwsGroupCommand.CLOUD;
-
     @Override
     protected CommandResult doExecute() throws Exception
     {
-        final var state = InstanceState.load(CLOUD);
+        final var state = InstanceState.load(Aws.CLOUD);
 
         if (!state.hasActiveInstance())
         {
@@ -30,7 +29,7 @@ public class AwsConnectCommand extends BaseCommand
             + " in " + state.getRegion()
             + " (" + state.getPublicIp() + ")...");
 
-        final var session = new SshSession(state.getPublicIp(), CLOUD);
+        final var session = new SshSession(state.getPublicIp(), Aws.CLOUD);
         final var exitCode = session.connect();
 
         return exitCode == 0 ? CommandResult.SUCCESS : CommandResult.valueOf(exitCode);

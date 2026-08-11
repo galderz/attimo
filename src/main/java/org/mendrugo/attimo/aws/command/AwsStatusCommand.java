@@ -1,5 +1,6 @@
 package org.mendrugo.attimo.aws.command;
 
+import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.SpotManager;
 import org.mendrugo.attimo.command.BaseCommand;
@@ -17,12 +18,10 @@ import java.time.Instant;
 )
 public class AwsStatusCommand extends BaseCommand
 {
-    private static final String CLOUD = AwsGroupCommand.CLOUD;
-
     @Override
     protected CommandResult doExecute() throws Exception
     {
-        final var state = InstanceState.load(CLOUD);
+        final var state = InstanceState.load(Aws.CLOUD);
 
         if (!state.hasActiveInstance())
         {

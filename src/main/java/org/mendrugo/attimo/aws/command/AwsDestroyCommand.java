@@ -1,5 +1,6 @@
 package org.mendrugo.attimo.aws.command;
 
+import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.ResourceCleaner;
 import org.mendrugo.attimo.command.BaseCommand;
@@ -15,12 +16,10 @@ import org.aesh.command.CommandResult;
 )
 public class AwsDestroyCommand extends BaseCommand
 {
-    private static final String CLOUD = AwsGroupCommand.CLOUD;
-
     @Override
     protected CommandResult doExecute() throws Exception
     {
-        final var state = InstanceState.load(CLOUD);
+        final var state = InstanceState.load(Aws.CLOUD);
 
         if (state.hasActiveInstance())
         {
@@ -44,7 +43,7 @@ public class AwsDestroyCommand extends BaseCommand
         try (final var ec2 = factory.ec2(state.getRegion()))
         {
             final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state, CLOUD);
+            final var errors = cleaner.cleanAll(state, Aws.CLOUD);
 
             if (errors.isEmpty())
             {
@@ -69,7 +68,7 @@ public class AwsDestroyCommand extends BaseCommand
         System.out.println("No active instance in state file.");
         System.out.println("Scanning for orphaned attimo resources...\n");
 
-        final var config = AttimoConfig.load(CLOUD);
+        final var config = AttimoConfig.load(Aws.CLOUD);
         final var preferredRegion = config.getPreferredRegion();
 
         if (preferredRegion.isBlank())
@@ -122,7 +121,7 @@ public class AwsDestroyCommand extends BaseCommand
         }
 
         // Clear any stale state file
-        InstanceState.clear(CLOUD);
+        InstanceState.clear(Aws.CLOUD);
         return CommandResult.SUCCESS;
     }
 }

@@ -1,5 +1,6 @@
 package org.mendrugo.attimo.aws.command;
 
+import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.aesh.command.CommandResult;
 import org.aesh.command.GroupCommandDefinition;
@@ -22,11 +23,6 @@ import org.aesh.command.GroupCommandDefinition;
 )
 public class AwsGroupCommand extends BaseCommand
 {
-    /**
-     * The cloud identifier used for config/state paths.
-     */
-    public static final String CLOUD = "aws";
-
     @Override
     protected CommandResult doExecute()
     {
