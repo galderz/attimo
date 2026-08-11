@@ -1,7 +1,8 @@
-package org.mendrugo.attimo.command;
+package org.mendrugo.attimo.aws.command;
 
 import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.aws.AwsClientFactory;
+import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.AttimoConfig;
 import org.mendrugo.attimo.config.RegionGroup;
 import org.mendrugo.attimo.ssh.SshKeyManager;
@@ -18,22 +19,24 @@ import java.nio.file.Path;
     , description = "One-time setup: validate AWS auth, set region, configure SSH key"
     , generateHelp = true
 )
-public class InitCommand extends BaseCommand
+public class AwsInitCommand extends BaseCommand
 {
+    private static final String CLOUD = AwsGroupCommand.CLOUD;
+
     /**
      * Check if init has been run by looking for the config file.
      */
     public static boolean hasBeenInitialized()
     {
-        return Files.exists(Environment.configFile());
+        return Files.exists(Environment.configFile(CLOUD));
     }
 
     @Override
     protected CommandResult doExecute() throws Exception
     {
-        System.out.println("=== attimo init ===\n");
+        System.out.println("=== attimo aws init ===\n");
 
-        final var config = AttimoConfig.load();
+        final var config = AttimoConfig.load(CLOUD);
         final var console = System.console();
 
         if (!checkAwsCredentials(console, config))
@@ -44,12 +47,12 @@ public class InitCommand extends BaseCommand
         setupRegion(console, config);
         setupSshKey(console, config);
 
-        config.save();
+        config.save(CLOUD);
 
         System.out.println("\n=== Init complete! ===");
         System.out.println("Next steps:");
-        System.out.println("  ato request --isa avx512    # Request a spot instance");
-        System.out.println("  ato status                  # Check instance status");
+        System.out.println("  ato aws request --isa avx512    # Request a spot instance");
+        System.out.println("  ato aws status                  # Check instance status");
         return CommandResult.SUCCESS;
     }
 
@@ -101,7 +104,7 @@ public class InitCommand extends BaseCommand
         if (console == null)
         {
             System.err.println("  Error: no console available for interactive setup.");
-            System.err.println("  Configure AWS credentials manually and re-run 'ato init'.");
+            System.err.println("  Configure AWS credentials manually and re-run 'ato aws init'.");
             return false;
         }
 
@@ -110,7 +113,7 @@ public class InitCommand extends BaseCommand
 
         if (choice.equalsIgnoreCase("a"))
         {
-            System.out.println("  Install the AWS CLI, run 'aws configure', then re-run 'ato init'.");
+            System.out.println("  Install the AWS CLI, run 'aws configure', then re-run 'ato aws init'.");
             return false;
         }
 
@@ -123,7 +126,7 @@ public class InitCommand extends BaseCommand
         final var accessKey = console.readLine().strip();
         if (accessKey.isBlank())
         {
-            System.out.println("  Skipped. Configure AWS credentials and re-run 'ato init'.");
+            System.out.println("  Skipped. Configure AWS credentials and re-run 'ato aws init'.");
             return false;
         }
 
@@ -131,7 +134,7 @@ public class InitCommand extends BaseCommand
         final var secretKey = new String(console.readPassword()).strip();
         if (secretKey.isBlank())
         {
-            System.out.println("  Skipped. Configure AWS credentials and re-run 'ato init'.");
+            System.out.println("  Skipped. Configure AWS credentials and re-run 'ato aws init'.");
             return false;
         }
 
@@ -242,7 +245,7 @@ public class InitCommand extends BaseCommand
         System.out.println("\n[3/3] Configuring SSH key...");
 
         // Generate managed key pair
-        if (SshKeyManager.exists())
+        if (SshKeyManager.exists(CLOUD))
         {
             System.out.println("  Managed SSH key pair already exists.");
         }
@@ -250,7 +253,7 @@ public class InitCommand extends BaseCommand
         {
             try
             {
-                SshKeyManager.ensureKeyPairExists();
+                SshKeyManager.ensureKeyPairExists(CLOUD);
             }
             catch (final Exception e)
             {

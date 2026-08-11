@@ -1,7 +1,8 @@
-package org.mendrugo.attimo.command;
+package org.mendrugo.attimo.aws.command;
 
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.ResourceCleaner;
+import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.AttimoConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.aesh.command.CommandDefinition;
@@ -12,12 +13,14 @@ import org.aesh.command.CommandResult;
     , description = "Tear down the active spot instance and all associated resources"
     , generateHelp = true
 )
-public class DestroyCommand extends BaseCommand
+public class AwsDestroyCommand extends BaseCommand
 {
+    private static final String CLOUD = AwsGroupCommand.CLOUD;
+
     @Override
     protected CommandResult doExecute() throws Exception
     {
-        final var state = InstanceState.load();
+        final var state = InstanceState.load(CLOUD);
 
         if (state.hasActiveInstance())
         {
@@ -41,7 +44,7 @@ public class DestroyCommand extends BaseCommand
         try (final var ec2 = factory.ec2(state.getRegion()))
         {
             final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state);
+            final var errors = cleaner.cleanAll(state, CLOUD);
 
             if (errors.isEmpty())
             {
@@ -55,7 +58,7 @@ public class DestroyCommand extends BaseCommand
                 {
                     System.err.println("  - " + error);
                 }
-                System.err.println("Run 'ato destroy' again to retry.");
+                System.err.println("Run 'ato aws destroy' again to retry.");
                 return CommandResult.valueOf(1);
             }
         }
@@ -66,12 +69,12 @@ public class DestroyCommand extends BaseCommand
         System.out.println("No active instance in state file.");
         System.out.println("Scanning for orphaned attimo resources...\n");
 
-        final var config = AttimoConfig.load();
+        final var config = AttimoConfig.load(CLOUD);
         final var preferredRegion = config.getPreferredRegion();
 
         if (preferredRegion.isBlank())
         {
-            System.err.println("Error: no preferred region configured. Run 'ato init' first.");
+            System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");
             return CommandResult.valueOf(1);
         }
 
@@ -119,7 +122,7 @@ public class DestroyCommand extends BaseCommand
         }
 
         // Clear any stale state file
-        InstanceState.clear();
+        InstanceState.clear(CLOUD);
         return CommandResult.SUCCESS;
     }
 }

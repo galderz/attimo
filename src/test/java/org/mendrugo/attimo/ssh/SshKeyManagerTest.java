@@ -13,13 +13,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SshKeyManagerTest
 {
+    private static final String TEST_CLOUD = "aws";
+
     @Test
     void existsReturnsFalseWhenNoKeys()
     {
         // Default Environment paths won't have test keys
         // This test verifies the method doesn't throw
-        final var result = SshKeyManager.exists();
-        // Result depends on whether keys exist in ~/.config/attimo/ssh/
+        final var result = SshKeyManager.exists(TEST_CLOUD);
+        // Result depends on whether keys exist in ~/.config/attimo/aws/ssh/
         assertThat(result).isIn(true, false);
     }
 
@@ -28,10 +30,10 @@ class SshKeyManagerTest
     void ensureKeyPairCreatesKeys()
     {
         // Only test if ssh-keygen is available and keys don't exist yet
-        if (SshKeyManager.exists())
+        if (SshKeyManager.exists(TEST_CLOUD))
         {
             // Keys already exist, just verify we can read the public key
-            final var pubKey = SshKeyManager.publicKeyContent();
+            final var pubKey = SshKeyManager.publicKeyContent(TEST_CLOUD);
             assertThat(pubKey).isNotBlank();
             assertThat(pubKey).contains("ssh-ed25519");
         }

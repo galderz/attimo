@@ -30,7 +30,7 @@ class SshSessionTest
     @Test
     void defaultUserIsEc2User()
     {
-        final var session = new SshSession("1.2.3.4");
+        final var session = new SshSession("1.2.3.4", "aws");
         final var cmd = session.buildSshCommand();
 
         assertThat(cmd.getLast()).startsWith("ec2-user@");
@@ -39,7 +39,7 @@ class SshSessionTest
     @Test
     void suppressesHostKeyWarnings()
     {
-        final var session = new SshSession("1.2.3.4");
+        final var session = new SshSession("1.2.3.4", "aws");
         final var cmd = session.buildSshCommand();
 
         assertThat(cmd).contains("LogLevel=ERROR");
@@ -49,7 +49,7 @@ class SshSessionTest
     @Test
     void setsServerAliveForConnectionMonitoring()
     {
-        final var session = new SshSession("1.2.3.4");
+        final var session = new SshSession("1.2.3.4", "aws");
         final var cmd = session.buildSshCommand();
 
         assertThat(cmd).contains("ServerAliveInterval=30");

@@ -37,9 +37,13 @@ public class ResourceCleaner
      * State file is only cleared if all resources are successfully removed.
      *
      * @param state the active instance state
+     * @param cloud the cloud provider identifier for state file paths
      * @return list of errors (empty if all steps succeeded)
      */
-    public List<String> cleanAll(final InstanceState state)
+    public List<String> cleanAll(
+        final InstanceState state
+        , final String cloud
+    )
     {
         errors.clear();
 
@@ -50,12 +54,12 @@ public class ResourceCleaner
 
         if (errors.isEmpty())
         {
-            InstanceState.clear();
+            InstanceState.clear(cloud);
         }
         else
         {
-            // Keep state file so 'ato destroy' can retry
-            System.err.println("  State file kept for retry. Run 'ato destroy' to finish cleanup.");
+            // Keep state file so 'ato <cloud> destroy' can retry
+            System.err.println("  State file kept for retry. Run 'ato " + cloud + " destroy' to finish cleanup.");
         }
 
         return List.copyOf(errors);

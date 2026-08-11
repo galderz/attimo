@@ -1,7 +1,8 @@
-package org.mendrugo.attimo.command;
+package org.mendrugo.attimo.aws.command;
 
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.SpotManager;
+import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -14,12 +15,14 @@ import java.time.Instant;
     , description = "Show the status of the active spot instance"
     , generateHelp = true
 )
-public class StatusCommand extends BaseCommand
+public class AwsStatusCommand extends BaseCommand
 {
+    private static final String CLOUD = AwsGroupCommand.CLOUD;
+
     @Override
     protected CommandResult doExecute() throws Exception
     {
-        final var state = InstanceState.load();
+        final var state = InstanceState.load(CLOUD);
 
         if (!state.hasActiveInstance())
         {
@@ -76,7 +79,7 @@ public class StatusCommand extends BaseCommand
                 else
                 {
                     System.out.println("Status:    \u001B[31m● Not running\u001B[0m (may have been terminated)");
-                    System.out.println("Run 'ato destroy' to clean up resources.");
+                    System.out.println("Run 'ato aws destroy' to clean up resources.");
                 }
             }
         }

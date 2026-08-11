@@ -81,7 +81,7 @@ public class IsaMapping
 
     private void loadUserOverrides()
     {
-        final Path userDir = Environment.configDir().resolve("isa-mappings");
+        final Path userDir = Environment.configRoot().resolve("isa-mappings");
         if (!Files.isDirectory(userDir))
         {
             return;

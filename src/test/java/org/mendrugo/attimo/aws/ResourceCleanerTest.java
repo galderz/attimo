@@ -39,7 +39,7 @@ class ResourceCleanerTest
 
         final var state = createTestState();
         final var cleaner = new ResourceCleaner(ec2);
-        final var errors = cleaner.cleanAll(state);
+        final var errors = cleaner.cleanAll(state, "aws");
 
         assertThat(errors).isEmpty();
         verify(ec2).terminateInstances(any(TerminateInstancesRequest.class));
@@ -60,7 +60,7 @@ class ResourceCleanerTest
 
         final var state = createTestState();
         final var cleaner = new ResourceCleaner(ec2);
-        final var errors = cleaner.cleanAll(state);
+        final var errors = cleaner.cleanAll(state, "aws");
 
         // Should still have tried to delete key pair even though SG deletion failed
         assertThat(errors).hasSize(1);
@@ -80,7 +80,7 @@ class ResourceCleanerTest
 
         final var state = createTestState();
         final var cleaner = new ResourceCleaner(ec2);
-        final var errors = cleaner.cleanAll(state);
+        final var errors = cleaner.cleanAll(state, "aws");
 
         // State should NOT be cleared when there are errors
         assertThat(errors).isNotEmpty();
@@ -93,7 +93,7 @@ class ResourceCleanerTest
     {
         final var state = new org.mendrugo.attimo.config.InstanceState();
         final var cleaner = new ResourceCleaner(ec2);
-        final var errors = cleaner.cleanAll(state);
+        final var errors = cleaner.cleanAll(state, "aws");
 
         assertThat(errors).isEmpty();
     }

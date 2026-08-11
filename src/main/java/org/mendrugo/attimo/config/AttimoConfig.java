@@ -48,9 +48,12 @@ public class AttimoConfig
         this.sshPublicKey = sshPublicKey == null ? "" : sshPublicKey;
     }
 
-    public static AttimoConfig load()
+    /**
+     * Load config for a specific cloud provider.
+     */
+    public static AttimoConfig load(final String cloud)
     {
-        final Path configFile = Environment.configFile();
+        final Path configFile = Environment.configFile(cloud);
         if (!Files.exists(configFile))
         {
             return new AttimoConfig();
@@ -67,9 +70,12 @@ public class AttimoConfig
         }
     }
 
-    public void save()
+    /**
+     * Save config for a specific cloud provider.
+     */
+    public void save(final String cloud)
     {
-        final Path configFile = Environment.configFile();
+        final Path configFile = Environment.configFile(cloud);
         try
         {
             Files.createDirectories(configFile.getParent());

@@ -35,9 +35,20 @@ public class SshSession
         this.privateKeyPath = privateKeyPath;
     }
 
-    public SshSession(final String host)
+    /**
+     * Create an SSH session using the default user and the AWS cloud SSH key.
+     * This convenience constructor is used by commands that already know
+     * the cloud provider (e.g., AwsConnectCommand).
+     *
+     * @param host the host to connect to
+     * @param cloud the cloud provider identifier for SSH key path
+     */
+    public SshSession(
+        final String host
+        , final String cloud
+    )
     {
-        this(host, DEFAULT_USER, Environment.sshKeyFile());
+        this(host, DEFAULT_USER, Environment.sshKeyFile(cloud));
     }
 
     /**
