@@ -55,8 +55,8 @@ Choose one of these methods:
 ```bash
 # Install the AWS CLI
 sudo dnf install awscli2        # Fedora
-sudo apt install awscli          # Ubuntu/Debian
-brew install awscli              # macOS
+sudo apt install awscli         # Ubuntu/Debian
+brew install awscli             # macOS
 nix-env -iA nixpkgs.awscli2     # Nix
 
 # Login to AWS
