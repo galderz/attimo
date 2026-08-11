@@ -2,7 +2,15 @@
 
 ## Overview
 
-Prioritise the shortest path to: `ato request --isa avx512` → SSH into a spot instance → build OpenJDK → run a jtreg test. Everything else (TUI, cost tracking, AMI caching, spot interruption recovery) comes after this core path works end-to-end.
+Prioritise the shortest path to: `ato aws request --isa avx512` → SSH into a spot instance → build OpenJDK → run a jtreg test. Everything else (TUI, cost tracking, AMI caching, spot interruption recovery) comes after this core path works end-to-end.
+
+### Multi-Cloud Architecture
+
+All cloud commands are grouped under per-cloud subcommands (e.g., `ato aws ...`).
+Cloud-specific configuration is stored under `~/.config/attimo/{cloud}/`.
+Shared code (ISA mappings, SSH utilities, config/state models) lives in common packages.
+AWS-specific commands live in `org.mendrugo.attimo.aws.command`.
+Adding a new cloud provider requires no new Maven modules.
 
 ## Dependency Graph
 

@@ -1,19 +1,22 @@
-# Spec: Attimo — AWS Spot Instance Manager for OpenJDK Engineers
+# Spec: Attimo — Cloud Spot Instance Manager for OpenJDK Engineers
 
 ## Objective
 
-Attimo (`ato`) is a CLI+TUI tool for OpenJDK software engineers who need to validate, verify, and test OpenJDK behaviour on platforms with specific CPU ISA characteristics that are not available locally. AWS spot instances provide access to diverse architectures (x86_64 with AVX-512, AArch64 with SVE/SVE2, etc.) at minimal cost.
+Attimo (`ato`) is a CLI+TUI tool for OpenJDK software engineers who need to validate, verify, and test OpenJDK behaviour on platforms with specific CPU ISA characteristics that are not available locally. Cloud spot instances provide access to diverse architectures (x86_64 with AVX-512, AArch64 with SVE/SVE2, etc.) at minimal cost.
 
-The tool manages the full lifecycle of AWS spot instances: finding the cheapest option across nearby regions, launching, provisioning, connecting via SSH, handling spot interruptions transparently, and tearing down all resources on completion — leaving zero cost footprint by default.
+The tool manages the full lifecycle of cloud spot instances: finding the cheapest option across nearby regions, launching, provisioning, connecting via SSH, handling spot interruptions transparently, and tearing down all resources on completion — leaving zero cost footprint by default.
+
+The architecture supports multiple cloud providers (AWS, GCP, Azure, etc.) through a per-cloud subcommand structure. Each cloud provider's commands are grouped under `ato <cloud> ...` (e.g., `ato aws init`, `ato aws request`). Cloud-specific configuration is stored separately under `~/.config/attimo/<cloud>/`.
 
 **Primary user:** An OpenJDK engineer sitting at their workstation who needs a remote machine with specific CPU features for a few hours.
 
 **Success criteria:**
-- Engineer can go from `ato request --isa avx512` to a working SSH session in under 3 minutes (with cached AMI)
+- Engineer can go from `ato aws request --isa avx512` to a working SSH session in under 3 minutes (with cached AMI)
 - Spot interruptions are handled transparently — new instance launched, user notified and reconnected
-- `ato destroy` leaves zero AWS resources running or costing money
-- All unit tests run without any AWS interaction (no cost to run tests)
+- `ato aws destroy` leaves zero cloud resources running or costing money
+- All unit tests run without any cloud interaction (no cost to run tests)
 - CI runs on every PR and push to main
+- Adding a new cloud provider requires no new Maven modules
 
 ## Tech Stack
 
@@ -33,7 +36,7 @@ The tool manages the full lifecycle of AWS spot instances: finding the cheapest 
 # Build
 mvn package
 
-# Run unit tests (no AWS needed)
+# Run unit tests (no cloud interaction needed)
 mvn test
 
 # Run integration tests (LocalStack via Testcontainers)
@@ -44,17 +47,22 @@ java -jar target/attimo-*.jar
 # or after install:
 ato
 
-# CLI commands
-ato init                           # One-time setup: AWS auth, region, SSH key
-ato request --isa avx512           # Find best spot (default: medium size), launch, provision, SSH in
-ato request --isa avx512 --size large  # Use a larger instance (~2 min build)
-ato request --isa sve --template jdk-dev  # With custom template
-ato status                         # Show running instance (region, IP, uptime, cost)
-ato connect                        # SSH into existing running instance
-ato destroy                        # Tear down instance + all resources
-ato destroy --keep-ami             # Tear down but keep the AMI for reuse
-ato build-ami --template jdk-dev   # Pre-build an AMI without launching a spot instance
-ato cost                           # Show current/total cost information
+# Global commands
+ato --version                      # Show version info
+ato --help                         # List available cloud subcommands
+
+# AWS CLI commands (all under 'ato aws')
+ato aws --help                     # Show AWS-specific commands
+ato aws init                       # One-time setup: AWS auth, region, SSH key
+ato aws request --isa avx512       # Find best spot (default: medium size), launch, provision, SSH in
+ato aws request --isa avx512 --size large  # Use a larger instance (~2 min build)
+ato aws request --isa sve --template jdk-dev  # With custom template
+ato aws status                     # Show running instance (region, IP, uptime, cost)
+ato aws connect                    # SSH into existing running instance
+ato aws destroy                    # Tear down instance + all resources
+ato aws destroy --keep-ami         # Tear down but keep the AMI for reuse
+ato aws build-ami --template jdk-dev   # Pre-build an AMI without launching a spot instance
+ato aws cost                       # Show current/total cost information
 ```
 
 ## Project Structure
@@ -65,45 +73,47 @@ src/
 │   ├── java/org/mendrugo/attimo/
 │   │   ├── Attimo.java                    # @QuarkusMain entry point
 │   │   ├── BuildInfo.java                 # Version/git SHA info
-│   │   ├── Environment.java               # XDG paths, home dir
-│   │   ├── RuntimeServices.java           # CDI service locator
-│   │   ├── command/                        # CLI commands (Aesh)
-│   │   │   ├── BaseCommand.java           # Command base class
-│   │   │   ├── InitCommand.java           # One-time setup
-│   │   │   ├── RequestCommand.java        # Request spot instance
-│   │   │   ├── StatusCommand.java         # Show instance status
-│   │   │   ├── ConnectCommand.java        # SSH reconnect
-│   │   │   ├── DestroyCommand.java        # Tear down resources
-│   │   │   ├── BuildAmiCommand.java       # Pre-build AMI
-│   │   │   ├── CostCommand.java           # Cost information
-│   │   │   ├── ListCommand.java           # TUI main view
-│   │   │   └── CompletionCommand.java     # Shell completions
-│   │   ├── config/                         # Configuration
-│   │   │   ├── AttimoConfig.java          # Global config (~/.config/attimo/config.yaml)
+│   │   ├── Environment.java               # XDG paths, cloud-aware (~/.config/attimo/{cloud}/)
+│   │   ├── command/                        # Shared CLI base
+│   │   │   └── BaseCommand.java           # Command base class
+│   │   ├── config/                         # Configuration (cloud-aware)
+│   │   │   ├── AttimoConfig.java          # Per-cloud config (~/.config/attimo/{cloud}/config.yaml)
+│   │   │   ├── InstanceState.java         # Per-cloud state (~/.config/attimo/{cloud}/state.yaml)
 │   │   │   ├── ImageDef.java              # Template image definitions
-│   │   │   └── RegionGroup.java           # Geographic region groupings
-│   │   ├── aws/                            # AWS interaction layer
+│   │   │   └── RegionGroup.java           # Geographic region groupings (AWS)
+│   │   ├── aws/                            # AWS cloud provider
 │   │   │   ├── AwsClientFactory.java      # SDK client creation + credential validation
 │   │   │   ├── SpotAdvisor.java           # Spot pricing analysis + instance selection
 │   │   │   ├── SpotManager.java           # Instance lifecycle (launch, monitor, terminate)
 │   │   │   ├── AmiManager.java            # AMI build, cache, cleanup
 │   │   │   ├── ResourceCleaner.java       # Teardown of all AWS resources
-│   │   │   └── AwsException.java          # Typed AWS error wrapper
-│   │   ├── isa/                            # CPU ISA feature mapping
-│   │   │   ├── IsaMapping.java            # Static YAML + dynamic AWS hybrid lookup
+│   │   │   ├── AwsException.java          # Typed AWS error wrapper
+│   │   │   ├── InstanceSize.java          # AWS instance size tiers
+│   │   │   ├── BaseAmiResolver.java       # Amazon Linux 2023 AMI via SSM
+│   │   │   ├── SpotRecommendation.java    # Spot selection result
+│   │   │   └── command/                   # AWS CLI commands (under 'ato aws')
+│   │   │       ├── AwsGroupCommand.java   # 'aws' subcommand group
+│   │   │       ├── AwsInitCommand.java    # ato aws init
+│   │   │       ├── AwsRequestCommand.java # ato aws request
+│   │   │       ├── AwsStatusCommand.java  # ato aws status
+│   │   │       ├── AwsConnectCommand.java # ato aws connect
+│   │   │       └── AwsDestroyCommand.java # ato aws destroy
+│   │   ├── isa/                            # CPU ISA feature mapping (shared across clouds)
+│   │   │   ├── IsaMapping.java            # Static YAML + dynamic hybrid lookup
 │   │   │   └── IsaFeature.java            # ISA feature model
-│   │   ├── ssh/                            # SSH management
-│   │   │   ├── SshKeyManager.java         # Key pair management (borrowed from incus-spawn)
+│   │   ├── ssh/                            # SSH management (shared across clouds)
+│   │   │   ├── SshKeyManager.java         # Key pair management (cloud-aware paths)
 │   │   │   ├── SshSession.java            # SSH connection + reconnection
-│   │   │   └── SshProvisioner.java        # Run provisioning commands over SSH
-│   │   ├── tool/                           # Tool/template system (borrowed from incus-spawn)
+│   │   │   ├── SshProvisioner.java        # Run provisioning commands over SSH
+│   │   │   └── OsPackages.java            # Package lists for provisioning
+│   │   ├── tool/                           # Tool/template system (planned)
 │   │   │   ├── ToolDef.java               # Tool definition model
 │   │   │   ├── ToolDefLoader.java         # YAML tool loader with resolution order
 │   │   │   └── ToolSetup.java             # Tool installation interface
-│   │   ├── cost/                           # Cost tracking
+│   │   ├── cost/                           # Cost tracking (planned)
 │   │   │   ├── CostTracker.java           # Ongoing cost calculation
 │   │   │   └── SpotPriceHistory.java      # Historical spot price analysis
-│   │   └── tui/                            # TUI components
+│   │   └── tui/                            # TUI components (planned)
 │   │       ├── BackgroundTask.java         # Async task model
 │   │       └── BackgroundTaskManager.java  # Task lifecycle
 │   └── resources/
@@ -120,23 +130,20 @@ src/
 │   │   ├── aws/
 │   │   │   ├── SpotAdvisorTest.java       # Pricing logic with mocked AWS responses
 │   │   │   ├── SpotManagerTest.java        # Lifecycle with mocked EC2 client
-│   │   │   ├── AmiManagerTest.java         # AMI build/cleanup with mocks
-│   │   │   └── ResourceCleanerTest.java    # Teardown completeness verification
+│   │   │   ├── ResourceCleanerTest.java    # Teardown completeness verification
+│   │   │   ├── InstanceSizeTest.java       # Instance size tier tests
+│   │   │   ├── BaseAmiResolverTest.java    # AMI resolution via SSM
+│   │   │   └── AwsClientFactoryTest.java   # Credential validation
 │   │   ├── isa/
-│   │   │   ├── IsaMappingTest.java         # Static + dynamic ISA resolution
-│   │   │   └── IsaFeatureTest.java         # Feature parsing
+│   │   │   └── IsaMappingTest.java         # Static + dynamic ISA resolution
 │   │   ├── config/
 │   │   │   ├── AttimoConfigTest.java       # Config load/save/validation
-│   │   │   ├── ImageDefTest.java           # Template parsing
 │   │   │   └── RegionGroupTest.java        # Region adjacency logic
-│   │   ├── cost/
-│   │   │   ├── CostTrackerTest.java        # Cost calculation accuracy
-│   │   │   └── SpotPriceHistoryTest.java   # Price analysis with mock data
 │   │   ├── ssh/
-│   │   │   └── SshKeyManagerTest.java      # Key generation, config management
-│   │   └── tool/
-│   │       ├── ToolDefTest.java            # Tool definition parsing
-│   │       └── ToolDefLoaderTest.java       # Resolution order
+│   │   │   ├── SshKeyManagerTest.java      # Key generation, config management
+│   │   │   ├── SshSessionTest.java         # SSH command construction
+│   │   │   └── OsPackagesTest.java         # Package list tests
+│   │   └── TestKeys.java                   # Ephemeral test key generation
 │   └── resources/
 │       └── isa-mappings/                   # Test ISA mapping fixtures
 docs/
@@ -180,12 +187,13 @@ public record SpotRecommendation(
 {}
 
 // Commands extend BaseCommand (Aesh pattern)
+// Cloud-specific commands live under aws/command/
 @CommandDefinition(
     name = "request"
     , description = "Request a spot instance with specific CPU ISA features"
     , generateHelp = true
 )
-public class RequestCommand extends BaseCommand
+public class AwsRequestCommand extends BaseCommand
 {
     @Option(
         name = "isa"
@@ -367,20 +375,26 @@ class SpotAdvisorTest
 
 ## Configuration
 
-### Global Config (`~/.config/attimo/config.yaml`)
+### Per-Cloud Config (`~/.config/attimo/{cloud}/config.yaml`)
+
+Each cloud provider stores its configuration in a separate subdirectory.
+For AWS: `~/.config/attimo/aws/config.yaml`.
 
 ```yaml
-# Set during 'ato init'
+# Set during 'ato aws init'
 preferred-region: eu-west-1
 ssh-public-key: ~/.ssh/id_ed25519.pub
 ```
 
 AWS credentials are NOT stored by attimo — they are managed entirely by the AWS SDK default credential chain (`~/.aws/credentials`, env vars, SSO).
 
-### SSH Key (`~/.config/attimo/ssh/`)
+### SSH Key (`~/.config/attimo/{cloud}/ssh/`)
+
+Each cloud provider has its own managed SSH key pair.
+For AWS: `~/.config/attimo/aws/ssh/`.
 
 ```
-~/.config/attimo/ssh/
+~/.config/attimo/aws/ssh/
     id_ed25519          # Managed private key (mode 600, no passphrase)
     id_ed25519.pub      # Managed public key
 ```
@@ -567,7 +581,7 @@ The default size is `medium`. Within each tier, the SpotAdvisor searches for the
 ### Instance Lifecycle
 
 ```
-ato request --isa avx512 --template jdk-dev --size medium
+ato aws request --isa avx512 --template jdk-dev --size medium
 │
 ├─ [SpotAdvisor] Resolve ISA → instance types
 ├─ [SpotAdvisor] Query pricing across region group
@@ -600,11 +614,11 @@ ato request --isa avx512 --template jdk-dev --size medium
 │
 └─ User exits SSH (types 'exit'):
    └─ "Keep instance running? (y/N)"
-      ├─ N → ato destroy (automatic)
-      └─ Y → Instance stays up, reconnect with 'ato connect'
+      ├─ N → ato aws destroy (automatic)
+      └─ Y → Instance stays up, reconnect with `ato aws connect`
 ```
 
-### Resource Cleanup (`ato destroy`)
+### Resource Cleanup (`ato aws destroy`)
 
 `ResourceCleaner` ensures zero cost residue:
 
@@ -635,10 +649,10 @@ This enables `ResourceCleaner` to find orphaned resources (e.g., after a crash) 
 
 - AMIs are named `attimo-<template>-<arch>-<timestamp>` (e.g., `attimo-jdk-dev-x86_64-20260605`)
 - AMIs are region-specific; if the best spot price is in a different region from the AMI, the AMI is copied cross-region
-- On `ato destroy`, user is prompted: "AMI 'attimo-jdk-dev-x86_64' exists. Keep for future use? (y/N)"
+- On `ato aws destroy`, user is prompted: "AMI 'attimo-jdk-dev-x86_64' exists. Keep for future use? (y/N)"
   - Default **No**: deregister AMI + delete snapshot (zero ongoing cost)
   - **Yes**: keep for reuse in future sessions
-- `ato build-ami` pre-builds an AMI without launching a spot instance
+- `ato aws build-ami` pre-builds an AMI without launching a spot instance
 
 ### SSH Provisioning (AMI Build Time)
 
@@ -656,7 +670,7 @@ Provisioning runs over SSH during AMI build. The flow:
 
 - **Ongoing**: `(current_time - launch_time) × spot_price_per_hour`
 - **Total session**: sum of all instance run times × their spot prices, plus any AMI build instance time
-- Displayed in `ato status` and on `ato destroy`
+- Displayed in `ato aws status` and on `ato aws destroy`
 - AMI storage cost noted if AMI is kept (~$0.05/GB/month)
 
 ### Spot Interruption Handling
@@ -672,9 +686,10 @@ On interruption:
 3. User is notified: "✓ New instance ready in eu-west-2 (c7i.xlarge). Reconnecting..."
 4. SSH session is re-established
 
-### State File (`~/.config/attimo/state.yaml`)
+### State File (`~/.config/attimo/{cloud}/state.yaml`)
 
-Tracks the active instance for reconnection after local restarts:
+Each cloud provider tracks its active instance separately.
+For AWS: `~/.config/attimo/aws/state.yaml`.
 
 ```yaml
 active-instance:
@@ -693,7 +708,7 @@ active-instance:
   session-id: 550e8400-e29b-41d4-a716-446655440000
 ```
 
-This file is updated on launch, cleared on destroy. `ato status` and `ato connect` read it to find the active instance.
+This file is updated on launch, cleared on destroy. `ato aws status` and `ato aws connect` read it to find the active instance.
 
 ## TUI Design
 
@@ -882,20 +897,20 @@ jobs:
 
 ### Never do:
 - Store AWS credentials in attimo's config files
-- Leave AWS resources running after `ato destroy`
+- Leave AWS resources running after `ato aws destroy`
 - Run tests that make real AWS API calls
 - Commit AWS account IDs, keys, or secrets
 - Remove failing tests without understanding why they fail
 
 ## Success Criteria
 
-1. **`ato init`** validates AWS credentials and guides setup for all platforms (Fedora, Ubuntu, macOS, NixOS)
-2. **`ato request --isa avx512`** launches a spot instance and drops the user into an SSH session within 3 minutes (with cached AMI)
-3. **`ato request --isa sve`** finds AArch64 Graviton3 instances and launches correctly
+1. **`ato aws init`** validates AWS credentials and guides setup for all platforms (Fedora, Ubuntu, macOS, NixOS)
+2. **`ato aws request --isa avx512`** launches a spot instance and drops the user into an SSH session within 3 minutes (with cached AMI)
+3. **`ato aws request --isa sve`** finds AArch64 Graviton3 instances and launches correctly
 4. **Spot interruption**: tool detects termination, launches replacement, reconnects — all automatic
-5. **`ato destroy`** removes all AWS resources; `ato destroy --keep-ami` preserves only the AMI
-6. **`ato status`** shows instance details, uptime, and cost
-7. **`ato connect`** reconnects to a running instance after local restart
+5. **`ato aws destroy`** removes all AWS resources; `ato destroy --keep-ami` preserves only the AMI
+6. **`ato aws status`** shows instance details, uptime, and cost
+7. **`ato aws connect`** reconnects to a running instance after local restart
 8. **Region fallback**: when preferred region has no capacity, adjacent regions are checked
 9. **Cost display**: ongoing cost shown in TUI and on destroy, total session cost on final teardown
 10. **`mvn test`** passes with zero AWS interaction — all AWS calls are mocked
