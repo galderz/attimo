@@ -1,7 +1,7 @@
 # Attimo — Progress & Backlog
 
-**Last updated:** 2026-07-10
-**Last session:** Rearchitected CLI for multi-cloud support (ato aws ... subcommand pattern)
+**Last updated:** 2026-08-14
+**Last session:** Continent-based region selection + spot capacity retry (issues #11, #15)
 
 ## How to Resume
 
@@ -62,6 +62,16 @@ If you're a new agent session picking up this project:
 |------|-------------|--------|
 | — | Rearchitect CLI for per-cloud subcommands (ato aws ...), cloud-aware config/state/SSH paths, move commands to aws/command/ | `c2c2421` |
 
+### Continent-Based Region Selection + Spot Capacity Retry
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| — | Continent enum (EMEA, Americas, Asia-Pacific) replacing RegionGroup | `5e9b3ae` |
+| — | SpotAdvisor: continent-aware tiered scoring, ranked list return | `0ee62e2` |
+| — | AttimoConfig: continent field with backward compat | `4d53c3e` |
+| — | Commands: continent picker, retry loop on capacity failure, cleanup | `5bc2b08` |
+| — | Remove old RegionGroup | `defcc3b` |
+
 ### Bug Fixes from Real AWS Testing
 
 | Fix | Description | Commit |
@@ -95,7 +105,7 @@ If you're a new agent session picking up this project:
 - **Package manager** — `dnf`
 
 ### Test Counts
-- **60 unit tests** — all pass, no AWS needed
+- **82 unit tests** — all pass, no AWS needed
 - **10 integration tests** — all pass via LocalStack + Podman
 
 ### Key Technical Decisions Made During Implementation
@@ -131,6 +141,7 @@ Items discovered during implementation that aren't in the original plan:
 ### High Priority
 - [ ] **jtreg tool provisioning** — currently jtreg is NOT pre-installed (only dnf packages). Need to add jtreg download + install as part of provisioning. The spec has the jtreg.yaml tool definition but the template system (Task 21) isn't implemented yet. For now, users must install jtreg manually.
 - [x] **SSH user detection** — resolved: using Amazon Linux 2023 (`ec2-user`) exclusively.
+- [x] **Region fallback across continents** — resolved: EMEA/Americas/Asia-Pacific continent model with tiered scoring and automatic retry on capacity failure (issues #11, #15).
 - [ ] **Region read from AWS config** — `ato init` should read the default region from `~/.aws/config` and offer it as the default instead of always suggesting `us-east-1`.
 
 ### Medium Priority
