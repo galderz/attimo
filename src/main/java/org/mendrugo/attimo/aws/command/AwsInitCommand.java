@@ -235,6 +235,7 @@ public class AwsInitCommand extends BaseCommand
         {
             case "2" -> Continent.AMERICAS;
             case "3" -> Continent.ASIA_PACIFIC;
+            // "1" and anything else → EMEA
             default -> Continent.EMEA;
         };
     }
