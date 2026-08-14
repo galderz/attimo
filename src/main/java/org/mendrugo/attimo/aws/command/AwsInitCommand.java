@@ -268,21 +268,6 @@ public class AwsInitCommand extends BaseCommand
         final var input = console.readLine().strip();
         final var region = input.isBlank() ? defaultRegion : input;
 
-        if (!Region.isKnown(region))
-        {
-            System.out.println("  Warning: '" + region + "' is not a recognized region. Saving anyway.");
-        }
-        else
-        {
-            final var actualContinent = Continent.forRegion(region);
-            if (actualContinent != continent)
-            {
-                System.out.println("  Note: '" + region + "' is in " + actualContinent.displayName()
-                    + ", not " + continent.displayName() + ". Using " + actualContinent.displayName()
-                    + " as your continent.");
-            }
-        }
-
         System.out.println("  Region set to: " + region);
         return region;
     }
