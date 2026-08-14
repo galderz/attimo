@@ -2,6 +2,7 @@ package org.mendrugo.attimo.aws.command;
 
 import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.aws.AwsClientFactory;
+import org.mendrugo.attimo.aws.Continent;
 import org.mendrugo.attimo.aws.ResourceCleaner;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.AttimoConfig;
@@ -80,10 +81,10 @@ public class AwsDestroyCommand extends BaseCommand
         final var factory = new AwsClientFactory();
 
         // Scan the preferred region and its continent
-        final var continent = org.mendrugo.attimo.config.Continent.forRegion(preferredRegion);
+        final var continent = Continent.forRegion(preferredRegion);
         var foundAny = false;
 
-        for (final String region : continent.regions())
+        for (final String region : continent.regionCodes())
         {
             try (final var ec2 = factory.ec2(region))
             {

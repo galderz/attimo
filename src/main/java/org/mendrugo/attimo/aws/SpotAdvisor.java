@@ -1,6 +1,6 @@
 package org.mendrugo.attimo.aws;
 
-import org.mendrugo.attimo.config.Continent;
+
 import org.mendrugo.attimo.isa.IsaFeature;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeSpotPriceHistoryRequest;
@@ -94,7 +94,7 @@ public class SpotAdvisor
 
         // Query all regions in home continent
         final var homePrices = queryContinent(
-            homeContinent.regions()
+            homeContinent.regionCodes()
             , candidateTypes
         );
         pricesPerContinent.put(homeContinent, homePrices);
@@ -103,7 +103,7 @@ public class SpotAdvisor
         for (final Continent foreign : homeContinent.others())
         {
             final var foreignPrices = queryContinent(
-                foreign.representatives()
+                foreign.representativeCodes()
                 , candidateTypes
             );
             pricesPerContinent.put(foreign, foreignPrices);

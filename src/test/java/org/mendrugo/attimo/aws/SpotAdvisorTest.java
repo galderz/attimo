@@ -1,7 +1,7 @@
 package org.mendrugo.attimo.aws;
 
 import org.junit.jupiter.api.Test;
-import org.mendrugo.attimo.config.Continent;
+
 import org.mendrugo.attimo.isa.IsaFeature;
 
 import java.util.HashMap;

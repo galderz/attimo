@@ -1,4 +1,4 @@
-package org.mendrugo.attimo.config;
+package org.mendrugo.attimo.aws;
 
 import org.junit.jupiter.api.Test;
 
@@ -13,9 +13,9 @@ class ContinentTest
         final var continent = Continent.forRegion("eu-west-1");
         assertThat(continent).isEqualTo(Continent.EMEA);
         assertThat(continent.regions()).contains(
-            "eu-west-1"
-            , "eu-west-2"
-            , "eu-central-1"
+            Region.EU_WEST_1
+            , Region.EU_WEST_2
+            , Region.EU_CENTRAL_1
         );
     }
 
@@ -59,19 +59,17 @@ class ContinentTest
     }
 
     @Test
-    void isKnownReturnsTrueForValidRegion()
+    void allContinentRegionsAreKnownInRegionEnum()
     {
-        assertThat(Continent.isKnown("eu-west-1")).isTrue();
-        assertThat(Continent.isKnown("us-west-2")).isTrue();
-        assertThat(Continent.isKnown("ap-northeast-1")).isTrue();
-        assertThat(Continent.isKnown("me-south-1")).isTrue();
-        assertThat(Continent.isKnown("af-south-1")).isTrue();
-    }
-
-    @Test
-    void isKnownReturnsFalseForUnknownRegion()
-    {
-        assertThat(Continent.isKnown("xx-unknown-1")).isFalse();
+        for (final Continent continent : Continent.values())
+        {
+            for (final Region region : continent.regions())
+            {
+                assertThat(Region.isKnown(region.code()))
+                    .as("%s should be a known region", region.code())
+                    .isTrue();
+            }
+        }
     }
 
     @Test
