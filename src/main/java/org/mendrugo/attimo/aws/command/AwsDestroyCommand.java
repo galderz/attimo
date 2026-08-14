@@ -79,11 +79,11 @@ public class AwsDestroyCommand extends BaseCommand
 
         final var factory = new AwsClientFactory();
 
-        // Scan the preferred region and its group
-        final var regionGroup = org.mendrugo.attimo.config.RegionGroup.forRegion(preferredRegion);
+        // Scan the preferred region and its continent
+        final var continent = org.mendrugo.attimo.config.Continent.forRegion(preferredRegion);
         var foundAny = false;
 
-        for (final String region : regionGroup.regions())
+        for (final String region : continent.regions())
         {
             try (final var ec2 = factory.ec2(region))
             {

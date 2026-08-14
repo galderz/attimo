@@ -5,7 +5,7 @@ import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.AttimoConfig;
-import org.mendrugo.attimo.config.RegionGroup;
+import org.mendrugo.attimo.config.Continent;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -204,36 +204,87 @@ public class AwsInitCommand extends BaseCommand
             }
         }
 
-        System.out.println("  Choose the AWS region closest to you.");
-        System.out.println("  attimo will also check nearby regions for better spot prices.");
-        System.out.println();
-        System.out.println("  Common regions:");
-        System.out.println("    eu-west-1      (Ireland)");
-        System.out.println("    eu-central-1   (Frankfurt)");
-        System.out.println("    us-east-1      (N. Virginia)");
-        System.out.println("    us-west-2      (Oregon)");
-        System.out.println("    ap-northeast-1 (Tokyo)");
+        // Step 1: Select continent
+        final var continent = selectContinent(console);
+        config.setContinent(continent.name());
+
+        // Step 2: Select region within continent
+        final var region = selectRegion(console, continent);
+        config.setPreferredRegion(region);
+    }
+
+    private Continent selectContinent(final Console console)
+    {
+        System.out.println("  Select your continent:");
+        System.out.println("    1. " + Continent.EMEA.displayName());
+        System.out.println("    2. " + Continent.AMERICAS.displayName());
+        System.out.println("    3. " + Continent.ASIA_PACIFIC.displayName());
         System.out.println();
 
-        if (console != null)
+        if (console == null)
         {
-            System.out.print("  Region [us-east-1]: ");
-            final var input = console.readLine().strip();
-            final var region = input.isBlank() ? "us-east-1" : input;
+            System.out.println("  Defaulting to EMEA (no console available).");
+            return Continent.EMEA;
+        }
 
-            if (!RegionGroup.isKnown(region))
-            {
-                System.out.println("  Warning: '" + region + "' is not a recognized region. Saving anyway.");
-            }
+        System.out.print("  Continent [1]: ");
+        final var input = console.readLine().strip();
 
-            config.setPreferredRegion(region);
-            System.out.println("  Region set to: " + region);
+        return switch (input)
+        {
+            case "2" -> Continent.AMERICAS;
+            case "3" -> Continent.ASIA_PACIFIC;
+            default -> Continent.EMEA;
+        };
+    }
+
+    private String selectRegion(
+        final Console console
+        , final Continent continent
+    )
+    {
+        System.out.println();
+        System.out.println("  Regions in " + continent.displayName() + ":");
+
+        final var regions = continent.regions();
+        for (final String region : regions)
+        {
+            final var desc = Continent.regionDescription(region);
+            final var padding = " ".repeat(Math.max(1, 17 - region.length()));
+            System.out.println("    " + region + padding + "(" + desc + ")");
+        }
+
+        System.out.println();
+
+        final var defaultRegion = regions.getFirst();
+
+        if (console == null)
+        {
+            System.out.println("  Defaulting to " + defaultRegion + " (no console available).");
+            return defaultRegion;
+        }
+
+        System.out.print("  Region [" + defaultRegion + "]: ");
+        final var input = console.readLine().strip();
+        final var region = input.isBlank() ? defaultRegion : input;
+
+        if (!Continent.isKnown(region))
+        {
+            System.out.println("  Warning: '" + region + "' is not a recognized region. Saving anyway.");
         }
         else
         {
-            config.setPreferredRegion("us-east-1");
-            System.out.println("  Defaulting to us-east-1 (no console available).");
+            final var actualContinent = Continent.forRegion(region);
+            if (actualContinent != continent)
+            {
+                System.out.println("  Note: '" + region + "' is in " + actualContinent.displayName()
+                    + ", not " + continent.displayName() + ". Using " + actualContinent.displayName()
+                    + " as your continent.");
+            }
         }
+
+        System.out.println("  Region set to: " + region);
+        return region;
     }
 
     private void setupSshKey(
