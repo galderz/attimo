@@ -1,31 +1,41 @@
 package org.mendrugo.attimo.aws;
 
-import org.mendrugo.attimo.config.RegionGroup;
+import org.mendrugo.attimo.config.Continent;
 import org.mendrugo.attimo.isa.IsaFeature;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeSpotPriceHistoryRequest;
-import software.amazon.awssdk.services.ec2.model.InstanceType;
 import software.amazon.awssdk.services.ec2.model.SpotPrice;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Analyses spot pricing across regions and selects the best instance
- * for a given ISA feature. Balances cost, instance size (larger instances
- * tend to have lower interruption rates), and region proximity.
+ * Analyses spot pricing across continents and selects the best instances
+ * for a given ISA feature. Returns a ranked list of recommendations so
+ * that callers can retry with the next-best option on capacity failure.
+ *
+ * <p>Scoring tiers (lower penalty = higher preference):
+ * <ul>
+ *   <li>Tier 0: user's exact preferred region (0% penalty)</li>
+ *   <li>Tier 1: other regions in the user's continent (+10%)</li>
+ *   <li>Tier 2: cheaper foreign continent (+25%)</li>
+ *   <li>Tier 3: more expensive foreign continent (+40%)</li>
+ * </ul>
  */
 public class SpotAdvisor
 {
     // Default instance size tier
     private static final InstanceSize DEFAULT_SIZE = InstanceSize.DEFAULT;
 
-    // Proximity preference: if a closer region is within this percentage
-    // of the cheapest, prefer the closer region
-    private static final double PROXIMITY_THRESHOLD = 0.15;
+    // Tier penalties for proximity scoring
+    static final double TIER_1_PENALTY = 0.10; // same continent, different region
+    static final double TIER_2_PENALTY = 0.25; // cheaper foreign continent
+    static final double TIER_3_PENALTY = 0.40; // more expensive foreign continent
 
     // Bias toward larger instances (lower interruption rate).
     // Applied as a discount factor to the score of larger instances.
@@ -42,16 +52,9 @@ public class SpotAdvisor
     }
 
     /**
-     * Find the best spot instance for the given ISA feature.
-     *
-     * @param feature        the ISA feature defining candidate instance families
-     * @param preferredRegion the user's preferred region
-     * @return the best recommendation, or null if no spot instances are available
-     */
-    /**
      * Find the best spot instance using the default size (medium).
      */
-    public SpotRecommendation recommend(
+    public List<SpotRecommendation> recommend(
         final IsaFeature feature
         , final String preferredRegion
     )
@@ -60,58 +63,66 @@ public class SpotAdvisor
     }
 
     /**
-     * Find the best spot instance for the given ISA feature and size tier.
+     * Find ranked spot instance options across all continents.
+     *
+     * <p>Queries all regions in the user's home continent plus
+     * representative regions in the other two continents. Returns
+     * a ranked list (best first) so callers can retry on capacity
+     * failure.
      *
      * @param feature         the ISA feature defining candidate instance families
      * @param preferredRegion the user's preferred region
      * @param size            the instance size tier controlling vCPU/RAM
-     * @return the best recommendation, or null if no spot instances are available
+     * @return ranked list of recommendations (best first), empty if none available
      */
-    public SpotRecommendation recommend(
+    public List<SpotRecommendation> recommend(
         final IsaFeature feature
         , final String preferredRegion
         , final InstanceSize size
     )
     {
-        final var regionGroup = RegionGroup.forRegion(preferredRegion);
+        final var homeContinent = Continent.forRegion(preferredRegion);
         final var candidateTypes = expandToInstanceTypes(feature.families(), size);
 
         if (candidateTypes.isEmpty())
         {
-            return null;
+            return List.of();
         }
 
-        final var allPrices = new ArrayList<PricedCandidate>();
+        // Collect prices per continent
+        final var pricesPerContinent = new HashMap<Continent, List<PricedCandidate>>();
 
-        for (final String region : regionGroup.regions())
+        // Query all regions in home continent
+        final var homePrices = queryContinent(
+            homeContinent.regions()
+            , candidateTypes
+        );
+        pricesPerContinent.put(homeContinent, homePrices);
+
+        // Query representative regions in foreign continents
+        for (final Continent foreign : homeContinent.others())
         {
-            try (final var ec2 = ec2Factory.apply(region))
-            {
-                final var prices = querySpotPrices(ec2, candidateTypes, region);
-                allPrices.addAll(prices);
-            }
-            catch (final Exception e)
-            {
-                final var msg = e.getMessage();
-                if (msg != null && (msg.contains("401") || msg.contains("AuthFailure")
-                    || msg.contains("OptInRequired")))
-                {
-                    System.out.println("  Skipping " + region + " (region not enabled in your account)");
-                }
-                else
-                {
-                    System.err.println("  Warning: could not query spot prices in "
-                        + region + ": " + msg);
-                }
-            }
+            final var foreignPrices = queryContinent(
+                foreign.representatives()
+                , candidateTypes
+            );
+            pricesPerContinent.put(foreign, foreignPrices);
         }
 
-        if (allPrices.isEmpty())
-        {
-            return null;
-        }
+        // Determine foreign continent priority (cheaper first)
+        final var foreignContinents = homeContinent.others();
+        final var foreignOrder = rankForeignContinents(
+            foreignContinents
+            , pricesPerContinent
+        );
 
-        return selectBest(allPrices, preferredRegion);
+        // Score all candidates with tiered penalties
+        return scoreAndRank(
+            pricesPerContinent
+            , preferredRegion
+            , homeContinent
+            , foreignOrder
+        );
     }
 
     /**
@@ -141,6 +152,39 @@ public class SpotAdvisor
         }
 
         return types;
+    }
+
+    private List<PricedCandidate> queryContinent(
+        final List<String> regions
+        , final List<String> candidateTypes
+    )
+    {
+        final var allPrices = new ArrayList<PricedCandidate>();
+
+        for (final String region : regions)
+        {
+            try (final var ec2 = ec2Factory.apply(region))
+            {
+                final var prices = querySpotPrices(ec2, candidateTypes, region);
+                allPrices.addAll(prices);
+            }
+            catch (final Exception e)
+            {
+                final var msg = e.getMessage();
+                if (msg != null && (msg.contains("401") || msg.contains("AuthFailure")
+                    || msg.contains("OptInRequired")))
+                {
+                    System.out.println("  Skipping " + region + " (region not enabled in your account)");
+                }
+                else
+                {
+                    System.err.println("  Warning: could not query spot prices in "
+                        + region + ": " + msg);
+                }
+            }
+        }
+
+        return allPrices;
     }
 
     private List<PricedCandidate> querySpotPrices(
@@ -199,53 +243,151 @@ public class SpotAdvisor
         return results;
     }
 
-    SpotRecommendation selectBest(
-        final List<PricedCandidate> candidates
-        , final String preferredRegion
+    /**
+     * Rank foreign continents by median spot price (cheapest first).
+     * A continent with no prices goes last.
+     */
+    List<Continent> rankForeignContinents(
+        final List<Continent> foreignContinents
+        , final Map<Continent, List<PricedCandidate>> pricesPerContinent
     )
     {
-        // Score each candidate: lower is better
+        final var sorted = new ArrayList<>(foreignContinents);
+        sorted.sort(Comparator.comparingDouble(c ->
+            medianPrice(pricesPerContinent.getOrDefault(c, List.of()))
+        ));
+
+        return sorted;
+    }
+
+    /**
+     * Score all candidates with tiered penalties and return a ranked list.
+     */
+    List<SpotRecommendation> scoreAndRank(
+        final Map<Continent, List<PricedCandidate>> pricesPerContinent
+        , final String preferredRegion
+        , final Continent homeContinent
+        , final List<Continent> foreignOrder
+    )
+    {
         final var scored = new ArrayList<ScoredCandidate>();
 
-        for (final var candidate : candidates)
+        for (final var entry : pricesPerContinent.entrySet())
         {
-            double score = candidate.price;
+            final var continent = entry.getKey();
+            final double penalty = tierPenalty(
+                continent
+                , homeContinent
+                , foreignOrder
+            );
 
-            // Size bias: prefer larger instances (lower interruption rate)
-            final int sizeIndex = sizeIndex(candidate.instanceType);
-            score *= (1.0 - sizeIndex * SIZE_BIAS_PER_STEP);
-
-            // Proximity: penalize non-preferred regions slightly
-            if (!candidate.region.equals(preferredRegion))
+            for (final var candidate : entry.getValue())
             {
-                score *= (1.0 + PROXIMITY_THRESHOLD);
-            }
+                double score = candidate.price;
 
-            scored.add(new ScoredCandidate(candidate, score));
+                // Size bias: prefer larger instances (lower interruption rate)
+                final int sizeIdx = sizeIndex(candidate.instanceType);
+                score *= (1.0 - sizeIdx * SIZE_BIAS_PER_STEP);
+
+                // Continent/region proximity penalty
+                if (continent == homeContinent && candidate.region.equals(preferredRegion))
+                {
+                    // Tier 0: no penalty
+                }
+                else if (continent == homeContinent)
+                {
+                    score *= (1.0 + TIER_1_PENALTY);
+                }
+                else
+                {
+                    score *= (1.0 + penalty);
+                }
+
+                scored.add(new ScoredCandidate(candidate, score));
+            }
         }
 
         scored.sort(Comparator.comparingDouble(s -> s.score));
 
-        final var best = scored.getFirst();
-        final var c = best.candidate;
-
-        final var rationale = new StringBuilder();
-        rationale.append(c.instanceType)
-            .append(" in ").append(c.availabilityZone)
-            .append(" @ $").append(String.format("%.4f", c.price)).append("/hr");
-
-        if (!c.region.equals(preferredRegion))
+        final var results = new ArrayList<SpotRecommendation>();
+        for (final var s : scored)
         {
-            rationale.append(" (outside preferred region ").append(preferredRegion).append(")");
+            final var c = s.candidate;
+            final var rationale = buildRationale(c, preferredRegion, homeContinent);
+            results.add(new SpotRecommendation(
+                c.instanceType
+                , c.region
+                , c.availabilityZone
+                , c.price
+                , rationale
+            ));
         }
 
-        return new SpotRecommendation(
-            c.instanceType
-            , c.region
-            , c.availabilityZone
-            , c.price
-            , rationale.toString()
-        );
+        return results;
+    }
+
+    private double tierPenalty(
+        final Continent continent
+        , final Continent homeContinent
+        , final List<Continent> foreignOrder
+    )
+    {
+        if (continent == homeContinent)
+        {
+            return TIER_1_PENALTY;
+        }
+
+        if (!foreignOrder.isEmpty() && foreignOrder.getFirst() == continent)
+        {
+            return TIER_2_PENALTY;
+        }
+
+        return TIER_3_PENALTY;
+    }
+
+    private String buildRationale(
+        final PricedCandidate candidate
+        , final String preferredRegion
+        , final Continent homeContinent
+    )
+    {
+        final var sb = new StringBuilder();
+        sb.append(candidate.instanceType)
+            .append(" in ").append(candidate.availabilityZone)
+            .append(" @ $").append(String.format("%.4f", candidate.price)).append("/hr");
+
+        final var candidateContinent = Continent.forRegion(candidate.region);
+        if (candidateContinent != homeContinent)
+        {
+            sb.append(" (fallback continent: ").append(candidateContinent.displayName()).append(")");
+        }
+        else if (!candidate.region.equals(preferredRegion))
+        {
+            sb.append(" (outside preferred region ").append(preferredRegion).append(")");
+        }
+
+        return sb.toString();
+    }
+
+    static double medianPrice(final List<PricedCandidate> prices)
+    {
+        if (prices.isEmpty())
+        {
+            return Double.MAX_VALUE;
+        }
+
+        final var sorted = prices.stream()
+            .mapToDouble(p -> p.price)
+            .sorted()
+            .toArray();
+
+        final int mid = sorted.length / 2;
+        if (sorted.length % 2 == 0)
+        {
+            return (sorted[mid - 1] + sorted[mid]) / 2.0;
+        }
+
+        return sorted[mid];
     }
 
     private static final List<String> ALL_SIZES = List.of(

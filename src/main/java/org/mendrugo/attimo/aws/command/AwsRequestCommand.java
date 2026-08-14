@@ -106,20 +106,25 @@ public class AwsRequestCommand extends BaseCommand
 
         final var factory = new AwsClientFactory();
         final var advisor = new SpotAdvisor(region -> factory.ec2(region));
-        final var recommendation = advisor.recommend(
+        final var recommendations = advisor.recommend(
             feature
             , preferredRegion
             , instanceSize
         );
 
-        if (recommendation == null)
+        if (recommendations.isEmpty())
         {
             System.err.println("Error: no spot instances available for " + isaFeature
-                + " in the " + preferredRegion + " region group.");
+                + " across all continents.");
             return CommandResult.valueOf(1);
         }
 
+        final var recommendation = recommendations.getFirst();
         System.out.println("  Best option: " + recommendation.rationale());
+        if (recommendations.size() > 1)
+        {
+            System.out.println("  (" + (recommendations.size() - 1) + " fallback options available)");
+        }
 
         // 3. Resolve base AMI (Amazon Linux 2023 via SSM)
         System.out.println("\n[3/5] Resolving base AMI...");
