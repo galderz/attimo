@@ -275,11 +275,6 @@ public class SpotAdvisor
         for (final var entry : pricesPerContinent.entrySet())
         {
             final var continent = entry.getKey();
-            final double penalty = tierPenalty(
-                continent
-                , homeContinent
-                , foreignOrder
-            );
 
             for (final var candidate : entry.getValue())
             {
@@ -300,7 +295,7 @@ public class SpotAdvisor
                 }
                 else
                 {
-                    score *= (1.0 + penalty);
+                    score *= (1.0 + foreignPenalty(continent, foreignOrder));
                 }
 
                 scored.add(new ScoredCandidate(candidate, score));
@@ -326,18 +321,21 @@ public class SpotAdvisor
         return results;
     }
 
-    private double tierPenalty(
-        final Continent continent
-        , final Continent homeContinent
+    /**
+     * Determine the penalty for a foreign continent.
+     * Only called for non-home continents; home continent
+     * scoring is handled directly in {@link #scoreAndRank}.
+     *
+     * @param foreignContinent the foreign continent being scored
+     * @param foreignOrder     foreign continents ranked by median price (cheapest first)
+     * @return TIER_2_PENALTY for the cheapest foreign continent, TIER_3_PENALTY otherwise
+     */
+    private double foreignPenalty(
+        final Continent foreignContinent
         , final List<Continent> foreignOrder
     )
     {
-        if (continent == homeContinent)
-        {
-            return TIER_1_PENALTY;
-        }
-
-        if (!foreignOrder.isEmpty() && foreignOrder.getFirst() == continent)
+        if (!foreignOrder.isEmpty() && foreignOrder.getFirst() == foreignContinent)
         {
             return TIER_2_PENALTY;
         }
