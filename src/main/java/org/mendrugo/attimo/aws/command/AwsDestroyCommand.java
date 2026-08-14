@@ -80,11 +80,15 @@ public class AwsDestroyCommand extends BaseCommand
 
         final var factory = new AwsClientFactory();
 
-        // Scan the preferred region and its continent
+        // Scan representative regions in the user's continent.
+        // These are the 3 highest-volume regions per continent —
+        // most likely to have spot instances launched in them.
+        // This is best-effort (state was lost); with state, destroy
+        // uses the exact region from the state file.
         final var continent = Continent.forRegion(preferredRegion);
         var foundAny = false;
 
-        for (final String region : continent.regionCodes())
+        for (final String region : continent.representativeCodes())
         {
             try (final var ec2 = factory.ec2(region))
             {
