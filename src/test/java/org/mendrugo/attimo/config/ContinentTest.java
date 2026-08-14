@@ -129,22 +129,6 @@ class ContinentTest
     }
 
     @Test
-    void regionDescriptionReturnsLocationForKnownRegions()
-    {
-        assertThat(Continent.regionDescription("eu-west-1")).isEqualTo("Ireland");
-        assertThat(Continent.regionDescription("us-east-1")).isEqualTo("N. Virginia");
-        assertThat(Continent.regionDescription("ap-northeast-1")).isEqualTo("Tokyo");
-        assertThat(Continent.regionDescription("me-south-1")).isEqualTo("Bahrain");
-        assertThat(Continent.regionDescription("af-south-1")).isEqualTo("Cape Town");
-    }
-
-    @Test
-    void regionDescriptionReturnsEmptyForUnknownRegion()
-    {
-        assertThat(Continent.regionDescription("xx-unknown-1")).isEmpty();
-    }
-
-    @Test
     void exactlyThreeContinents()
     {
         assertThat(Continent.values()).hasSize(3);

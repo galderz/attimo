@@ -159,45 +159,6 @@ public enum Continent
         return result;
     }
 
-    /**
-     * Region display info for init command: region code + description.
-     */
-    public static String regionDescription(final String region)
-    {
-        return switch (region)
-        {
-            case "eu-west-1" -> "Ireland";
-            case "eu-west-2" -> "London";
-            case "eu-west-3" -> "Paris";
-            case "eu-central-1" -> "Frankfurt";
-            case "eu-central-2" -> "Zurich";
-            case "eu-north-1" -> "Stockholm";
-            case "eu-south-1" -> "Milan";
-            case "eu-south-2" -> "Spain";
-            case "me-south-1" -> "Bahrain";
-            case "me-central-1" -> "UAE";
-            case "af-south-1" -> "Cape Town";
-            case "us-east-1" -> "N. Virginia";
-            case "us-east-2" -> "Ohio";
-            case "us-west-1" -> "N. California";
-            case "us-west-2" -> "Oregon";
-            case "ca-central-1" -> "Canada (Central)";
-            case "ca-west-1" -> "Canada (Calgary)";
-            case "sa-east-1" -> "São Paulo";
-            case "ap-northeast-1" -> "Tokyo";
-            case "ap-northeast-2" -> "Seoul";
-            case "ap-northeast-3" -> "Osaka";
-            case "ap-southeast-1" -> "Singapore";
-            case "ap-southeast-2" -> "Sydney";
-            case "ap-southeast-3" -> "Jakarta";
-            case "ap-southeast-4" -> "Melbourne";
-            case "ap-southeast-5" -> "Malaysia";
-            case "ap-south-1" -> "Mumbai";
-            case "ap-south-2" -> "Hyderabad";
-            default -> "";
-        };
-    }
-
     private static List<String> allRegions()
     {
         final var all = new ArrayList<String>();
