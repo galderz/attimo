@@ -145,6 +145,7 @@ Items discovered during implementation that aren't in the original plan:
 - [ ] **Region read from AWS config** — `ato init` should read the default region from `~/.aws/config` and offer it as the default instead of always suggesting `us-east-1`.
 
 ### Medium Priority
+- [ ] **SpotAdvisor query parallelization** — currently creates a new Ec2Client per region (up to 17 with continent fallback). Each `UrlConnectionHttpClient` is lightweight but queries are sequential (~0.5s each). Parallelizing with a shared HTTP client or async SDK client would cut wall-clock time from ~8s to ~1s. The `Function<String, Ec2Client>` factory abstraction in SpotAdvisor already supports swapping in a caching/shared-client factory.
 - [ ] **Suppress noisy test output** — unit tests print `Resolved Amazon Linux 2023...`, `Created security group...` etc. to stdout. Consider redirecting System.out in tests or using a logger.
 - [ ] **VPC handling** — current SG creation uses the default VPC. Some accounts may not have a default VPC, which would cause failures.
 - [ ] **Instance type validation** — verify the selected instance type is actually available in the target AZ before launching.
