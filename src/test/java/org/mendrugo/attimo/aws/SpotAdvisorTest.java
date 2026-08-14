@@ -477,4 +477,341 @@ class SpotAdvisorTest
         assertThat(results.getFirst().region()).isEqualTo("us-east-1");
         assertThat(results.getFirst().rationale()).contains("fallback continent");
     }
+
+    // === Tier penalty verification tests ===
+
+    @Test
+    void preferredRegionGetsZeroPenalty()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Single candidate in preferred region — score should equal
+        // raw price adjusted only by size bias, no proximity penalty
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "eu-west-1", "eu-west-1a", 0.10)
+        ));
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , List.of()
+        );
+
+        assertThat(results).hasSize(1);
+        // large is sizeIndex 0 → no size bias. Score = 0.10 * (1.0 - 0*0.03) = 0.10
+        assertThat(results.getFirst().pricePerHour()).isEqualTo(0.10);
+    }
+
+    @Test
+    void sameContinentNonPreferredGetsTier1Penalty()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Two candidates: preferred at $0.10, non-preferred at $0.092
+        // Non-preferred effective: $0.092 * 1.10 = $0.1012 > $0.10
+        // So preferred region should win
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "eu-west-1", "eu-west-1a", 0.10)
+            , new SpotAdvisor.PricedCandidate("c7i.large", "eu-central-1", "eu-central-1a", 0.092)
+        ));
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , List.of()
+        );
+
+        assertThat(results).hasSize(2);
+        assertThat(results.getFirst().region()).isEqualTo("eu-west-1");
+    }
+
+    @Test
+    void sameContinentNonPreferredWinsWhenCheapEnough()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Non-preferred at $0.080, effective: $0.080 * 1.10 = $0.088 < $0.10
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "eu-west-1", "eu-west-1a", 0.10)
+            , new SpotAdvisor.PricedCandidate("c7i.large", "eu-central-1", "eu-central-1a", 0.080)
+        ));
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , List.of()
+        );
+
+        assertThat(results).hasSize(2);
+        assertThat(results.getFirst().region()).isEqualTo("eu-central-1");
+    }
+
+    @Test
+    void emptyForeignOrderGivesTier3ToAllForeignCandidates()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Home at $0.10, foreign at $0.075
+        // With empty foreignOrder, foreign gets tier 3 (+40%): $0.075 * 1.40 = $0.105 > $0.10
+        // So home should win
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "eu-west-1", "eu-west-1a", 0.10)
+        ));
+        prices.put(Continent.AMERICAS, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "us-east-1", "us-east-1a", 0.075)
+        ));
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , List.of()  // empty foreignOrder
+        );
+
+        assertThat(results).hasSize(2);
+        assertThat(results.getFirst().region()).isEqualTo("eu-west-1");
+    }
+
+    @Test
+    void emptyForeignOrderForeignStillWinsWhenMuchCheaper()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Foreign at $0.03, even with tier 3 (+40%): $0.03 * 1.40 = $0.042 < $0.10
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "eu-west-1", "eu-west-1a", 0.10)
+        ));
+        prices.put(Continent.AMERICAS, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "us-east-1", "us-east-1a", 0.03)
+        ));
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , List.of()  // empty foreignOrder
+        );
+
+        assertThat(results).hasSize(2);
+        assertThat(results.getFirst().region()).isEqualTo("us-east-1");
+    }
+
+    @Test
+    void allThreeContinentsCorrectTierAssignment()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Same raw price everywhere — tiers should determine ranking
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "eu-west-1", "eu-west-1a", 0.10)
+            , new SpotAdvisor.PricedCandidate("c7i.large", "eu-central-1", "eu-central-1a", 0.10)
+        ));
+        prices.put(Continent.AMERICAS, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "us-east-1", "us-east-1a", 0.10)
+        ));
+        prices.put(Continent.ASIA_PACIFIC, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "ap-northeast-1", "ap-northeast-1a", 0.10)
+        ));
+
+        // Americas cheaper → tier 2, Asia-Pacific → tier 3
+        final var foreignOrder = List.of(Continent.AMERICAS, Continent.ASIA_PACIFIC);
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , foreignOrder
+        );
+
+        assertThat(results).hasSize(4);
+        // Tier 0 (preferred, 0%): eu-west-1 → score 0.10
+        assertThat(results.get(0).region()).isEqualTo("eu-west-1");
+        // Tier 1 (same continent, +10%): eu-central-1 → score 0.11
+        assertThat(results.get(1).region()).isEqualTo("eu-central-1");
+        // Tier 2 (cheaper foreign, +25%): us-east-1 → score 0.125
+        assertThat(results.get(2).region()).isEqualTo("us-east-1");
+        // Tier 3 (expensive foreign, +40%): ap-northeast-1 → score 0.14
+        assertThat(results.get(3).region()).isEqualTo("ap-northeast-1");
+    }
+
+    @Test
+    void bothForeignContinentsSameMedianPriceFirstGetsTier2()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Both foreign continents have identical median price
+        // rankForeignContinents preserves input order for equal medians
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.AMERICAS, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "us-east-1", "us-east-1a", 0.10)
+        ));
+        prices.put(Continent.ASIA_PACIFIC, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "ap-northeast-1", "ap-northeast-1a", 0.10)
+        ));
+
+        final var foreignOrder = advisor.rankForeignContinents(
+            List.of(Continent.AMERICAS, Continent.ASIA_PACIFIC)
+            , prices
+        );
+
+        // Same median → stable sort preserves input order
+        // Americas first → gets tier 2
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , foreignOrder
+        );
+
+        assertThat(results).hasSize(2);
+        // Americas (tier 2, +25%) → 0.125 < Asia-Pacific (tier 3, +40%) → 0.14
+        assertThat(results.getFirst().region()).isEqualTo("us-east-1");
+    }
+
+    @Test
+    void onlyOneForeignContinentHasDataOtherIsEmpty()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of());
+        prices.put(Continent.AMERICAS, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "us-east-1", "us-east-1a", 0.05)
+        ));
+        prices.put(Continent.ASIA_PACIFIC, List.of());
+
+        final var foreignOrder = advisor.rankForeignContinents(
+            List.of(Continent.AMERICAS, Continent.ASIA_PACIFIC)
+            , prices
+        );
+
+        // Americas has data → ranked first → gets tier 2
+        assertThat(foreignOrder.getFirst()).isEqualTo(Continent.AMERICAS);
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , foreignOrder
+        );
+
+        assertThat(results).hasSize(1);
+        assertThat(results.getFirst().region()).isEqualTo("us-east-1");
+    }
+
+    @Test
+    void homeContinentOnlyPreferredRegionAllTier0()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Multiple candidates all in the preferred region
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "eu-west-1", "eu-west-1a", 0.10)
+            , new SpotAdvisor.PricedCandidate("c7i.xlarge", "eu-west-1", "eu-west-1b", 0.12)
+            , new SpotAdvisor.PricedCandidate("m7i.large", "eu-west-1", "eu-west-1c", 0.11)
+        ));
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , List.of()
+        );
+
+        assertThat(results).hasSize(3);
+        // All in preferred region — no proximity penalty applied
+        // Ranking should be purely by price (with size bias)
+        for (final var r : results)
+        {
+            assertThat(r.region()).isEqualTo("eu-west-1");
+        }
+    }
+
+    @Test
+    void multipleCandidatesInSameForeignContinentGetSameTier()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Two candidates in Americas (tier 2), same type/size
+        // Both should get the same penalty — cheaper raw price wins
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of());
+        prices.put(Continent.AMERICAS, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "us-east-1", "us-east-1a", 0.08)
+            , new SpotAdvisor.PricedCandidate("c7i.large", "us-west-2", "us-west-2a", 0.06)
+        ));
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , List.of(Continent.AMERICAS, Continent.ASIA_PACIFIC)
+        );
+
+        assertThat(results).hasSize(2);
+        // Both tier 2: us-west-2 ($0.06*1.25=0.075) < us-east-1 ($0.08*1.25=0.10)
+        assertThat(results.getFirst().region()).isEqualTo("us-west-2");
+        assertThat(results.get(1).region()).isEqualTo("us-east-1");
+    }
+
+    @Test
+    void tier2ForeignBeatsExpensiveHomeContinent()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Home very expensive, tier 2 foreign much cheaper
+        // Even with +25% penalty, foreign wins
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "eu-west-1", "eu-west-1a", 0.50)
+        ));
+        prices.put(Continent.AMERICAS, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "us-east-1", "us-east-1a", 0.05)
+        ));
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , List.of(Continent.AMERICAS, Continent.ASIA_PACIFIC)
+        );
+
+        // us-east-1: $0.05 * 1.25 = $0.0625 << $0.50
+        assertThat(results.getFirst().region()).isEqualTo("us-east-1");
+    }
+
+    @Test
+    void tier3ForeignBeatsExpensiveHomeContinent()
+    {
+        final var advisor = new SpotAdvisor(region -> null);
+
+        // Home very expensive, only tier 3 foreign available
+        final var prices = new HashMap<Continent, List<SpotAdvisor.PricedCandidate>>();
+        prices.put(Continent.EMEA, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "eu-west-1", "eu-west-1a", 0.50)
+        ));
+        prices.put(Continent.ASIA_PACIFIC, List.of(
+            new SpotAdvisor.PricedCandidate("c7i.large", "ap-northeast-1", "ap-northeast-1a", 0.05)
+        ));
+
+        final var results = advisor.scoreAndRank(
+            prices
+            , "eu-west-1"
+            , Continent.EMEA
+            , List.of(Continent.AMERICAS, Continent.ASIA_PACIFIC)  // Americas first but empty
+        );
+
+        // ap-northeast-1: $0.05 * 1.40 = $0.07 << $0.50
+        assertThat(results.getFirst().region()).isEqualTo("ap-northeast-1");
+    }
 }
