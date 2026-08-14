@@ -150,6 +150,14 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.valueOf(1);
         }
 
+        try (launchResult)
+        {
+            return provisionAndConnect(launchResult);
+        }
+    }
+
+    private CommandResult provisionAndConnect(final LaunchResult launchResult)
+    {
         // Save state for reconnection
         final var state = new InstanceState();
         state.setInstanceId(launchResult.instanceId);
@@ -203,7 +211,7 @@ public class AwsRequestCommand extends BaseCommand
         // Post-SSH: prompt to keep or destroy
         if (exitCode == 0)
         {
-            promptKeepOrDestroy(factory.ec2(launchResult.recommendation.region()), state);
+            promptKeepOrDestroy(launchResult.ec2, state);
         }
 
         return CommandResult.SUCCESS;
@@ -276,6 +284,7 @@ public class AwsRequestCommand extends BaseCommand
                     , keyPairName
                     , spotManager.sessionId()
                     , recommendation
+                    , ec2
                 );
             }
             catch (final Exception e)
@@ -344,6 +353,10 @@ public class AwsRequestCommand extends BaseCommand
         }
     }
 
+    /**
+     * Prompt the user to keep or destroy the instance.
+     * The caller is responsible for closing the Ec2Client.
+     */
     private void promptKeepOrDestroy(
         final Ec2Client ec2
         , final InstanceState state
@@ -353,7 +366,6 @@ public class AwsRequestCommand extends BaseCommand
         if (console == null)
         {
             System.out.println("\nInstance is still running. Use 'ato aws destroy' to tear it down.");
-            ec2.close();
             return;
         }
 
@@ -384,11 +396,9 @@ public class AwsRequestCommand extends BaseCommand
                 System.err.println("Run 'ato aws destroy' to retry.");
             }
         }
-
-        ec2.close();
     }
 
-    private record LaunchResult(
+    record LaunchResult(
         String instanceId
         , String publicIp
         , String amiId
@@ -396,6 +406,13 @@ public class AwsRequestCommand extends BaseCommand
         , String keyPairName
         , String sessionId
         , SpotRecommendation recommendation
-    )
-    {}
+        , Ec2Client ec2
+    ) implements AutoCloseable
+    {
+        @Override
+        public void close()
+        {
+            ec2.close();
+        }
+    }
 }
