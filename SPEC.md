@@ -80,7 +80,7 @@ src/
 │   │   │   ├── AttimoConfig.java          # Per-cloud config (~/.config/attimo/{cloud}/config.yaml)
 │   │   │   ├── InstanceState.java         # Per-cloud state (~/.config/attimo/{cloud}/state.yaml)
 │   │   │   ├── ImageDef.java              # Template image definitions
-│   │   │   └── RegionGroup.java           # Geographic region groupings (AWS)
+│   │   │   └── Continent.java             # EMEA/Americas/Asia-Pacific continent groupings
 │   │   ├── aws/                            # AWS cloud provider
 │   │   │   ├── AwsClientFactory.java      # SDK client creation + credential validation
 │   │   │   ├── SpotAdvisor.java           # Spot pricing analysis + instance selection
@@ -138,7 +138,7 @@ src/
 │   │   │   └── IsaMappingTest.java         # Static + dynamic ISA resolution
 │   │   ├── config/
 │   │   │   ├── AttimoConfigTest.java       # Config load/save/validation
-│   │   │   └── RegionGroupTest.java        # Region adjacency logic
+│   │   │   └── ContinentTest.java          # Continent grouping + fallback logic
 │   │   ├── ssh/
 │   │   │   ├── SshKeyManagerTest.java      # Key generation, config management
 │   │   │   ├── SshSessionTest.java         # SSH command construction
@@ -277,41 +277,37 @@ public class AwsClientFactory
 }
 
 // Enum — comma-first between enum constants
-public enum RegionGroup
+public enum Continent
 {
-    EUROPE(
-        "eu-west-1"
-        , "eu-west-2"
-        , "eu-west-3"
-        , "eu-central-1"
+    EMEA(
+        List.of("eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1")
+        , List.of("eu-west-1", "eu-central-1", "me-south-1")
+        , "EMEA (Europe, Middle East & Africa)"
     )
-    , US_EAST(
-        "us-east-1"
-        , "us-east-2"
+    , AMERICAS(
+        List.of("us-east-1", "us-east-2", "us-west-1", "us-west-2")
+        , List.of("us-east-1", "us-west-2", "ca-central-1")
+        , "Americas"
     )
-    , US_WEST(
-        "us-west-1"
-        , "us-west-2"
+    , ASIA_PACIFIC(
+        List.of("ap-northeast-1", "ap-southeast-1", "ap-south-1")
+        , List.of("ap-northeast-1", "ap-southeast-1", "ap-south-1")
+        , "Asia-Pacific"
     );
 
     private final List<String> regions;
+    private final List<String> representatives;
+    private final String displayName;
 
-    RegionGroup(final String... regions)
+    Continent(
+        final List<String> regions
+        , final List<String> representatives
+        , final String displayName
+    )
     {
-        this.regions = List.of(regions);
-    }
-
-    public static RegionGroup forRegion(final String region)
-    {
-        for (final RegionGroup group : values())
-        {
-            if (group.regions.contains(region))
-            {
-                return group;
-            }
-        }
-
-        throw new IllegalArgumentException("Unknown region: " + region);
+        this.regions = regions;
+        this.representatives = representatives;
+        this.displayName = displayName;
     }
 }
 
@@ -382,6 +378,7 @@ For AWS: `~/.config/attimo/aws/config.yaml`.
 
 ```yaml
 # Set during 'ato aws init'
+continent: EMEA
 preferred-region: eu-west-1
 ssh-public-key: ~/.ssh/id_ed25519.pub
 ```
@@ -544,25 +541,39 @@ public class AwsClientFactory {
    - Region proximity: prefer closer regions when prices are within ~15% of each other
 5. **Select the best candidate** and explain the choice to the user
 
-### Region Groups (Static)
+### Continent Groups
+
+Three continent-level groupings cover all AWS regions. The user selects a continent
+during `ato aws init`, then picks a specific region within it. SpotAdvisor queries
+all regions in the home continent plus 3 representative regions per foreign continent,
+with graduated pricing penalties:
+
+| Tier | Regions | Penalty |
+|------|---------|---------|
+| 0 | User's exact preferred region | 0% |
+| 1 | Other regions in user's continent | +10% |
+| 2 | Cheaper foreign continent (3 reps) | +25% |
+| 3 | More expensive foreign continent (3 reps) | +40% |
 
 ```java
-public enum RegionGroup {
-    EUROPE("eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-central-2",
-           "eu-north-1", "eu-south-1", "eu-south-2"),
-    US_EAST("us-east-1", "us-east-2"),
-    US_WEST("us-west-1", "us-west-2"),
-    AP_SOUTHEAST("ap-southeast-1", "ap-southeast-2", "ap-southeast-3"),
-    AP_NORTHEAST("ap-northeast-1", "ap-northeast-2", "ap-northeast-3"),
-    AP_SOUTH("ap-south-1", "ap-south-2"),
-    SOUTH_AMERICA("sa-east-1"),
-    MIDDLE_EAST("me-south-1", "me-central-1"),
-    AFRICA("af-south-1"),
-    CANADA("ca-central-1", "ca-west-1");
+public enum Continent {
+    EMEA("eu-west-1", "eu-west-2", ..., "me-south-1", "me-central-1", "af-south-1"),
+    AMERICAS("us-east-1", "us-east-2", ..., "ca-central-1", "ca-west-1", "sa-east-1"),
+    ASIA_PACIFIC("ap-northeast-1", ..., "ap-south-1", "ap-south-2");
 
-    // Find group for a given region
-    public static RegionGroup forRegion(String region) { /* ... */ }
+    // Each continent defines 3 high-volume representative regions
+    // used when querying foreign continents as fallback
+    public List<String> representatives() { /* ... */ }
+    public static Continent forRegion(String region) { /* ... */ }
 }
+```
+
+Foreign continent priority is determined dynamically by median spot price
+(cheapest continent gets tier-2 penalty, more expensive gets tier-3).
+
+On launch failure due to no spot capacity, the request command automatically
+retries with the next-best candidate from the ranked list (up to 3 attempts),
+cleaning up SG/key pair from failed attempts before moving on.
 ```
 
 ### Instance Sizing
@@ -817,7 +828,7 @@ Key unit test areas:
 - `ResourceCleanerTest` — complete teardown, partial failure resilience, orphan detection
 - `IsaMappingTest` — static YAML parsing, dynamic fallback, user overrides
 - `CostTrackerTest` — cost calculation, multi-instance session totals
-- `RegionGroupTest` — region adjacency, unknown region handling
+- `ContinentTest` — continent grouping, representatives, region lookup, fallback logic
 - `AttimoConfigTest` — load, save, validation, defaults
 - `ImageDefTest` — template parsing, tool reference resolution
 - `ToolDefTest` — tool YAML parsing, execution order
