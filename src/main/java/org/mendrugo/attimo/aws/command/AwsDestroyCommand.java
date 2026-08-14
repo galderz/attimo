@@ -9,6 +9,7 @@ import org.mendrugo.attimo.config.AttimoConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
+import org.aesh.command.option.Option;
 
 @CommandDefinition(
     name = "destroy"
@@ -17,6 +18,14 @@ import org.aesh.command.CommandResult;
 )
 public class AwsDestroyCommand extends BaseCommand
 {
+    @Option(
+        name = "scan-all-regions"
+        , description = "Scan all regions in the continent for orphaned resources"
+            + " (default: scan 3 representative regions only)"
+        , hasValue = false
+        , defaultValue = "false"
+    )
+    boolean scanAllRegions;
     @Override
     protected CommandResult doExecute() throws Exception
     {
@@ -80,15 +89,18 @@ public class AwsDestroyCommand extends BaseCommand
 
         final var factory = new AwsClientFactory();
 
-        // Scan representative regions in the user's continent.
-        // These are the 3 highest-volume regions per continent —
-        // most likely to have spot instances launched in them.
-        // This is best-effort (state was lost); with state, destroy
-        // uses the exact region from the state file.
         final var continent = Continent.forRegion(preferredRegion);
+        final var regionsToScan = scanAllRegions
+            ? continent.regionCodes()
+            : continent.representativeCodes();
+
+        System.out.println("Scanning " + regionsToScan.size() + " regions in "
+            + continent.displayName()
+            + (scanAllRegions ? " (all regions)" : " (representatives only)") + "...\n");
+
         var foundAny = false;
 
-        for (final String region : continent.representativeCodes())
+        for (final String region : regionsToScan)
         {
             try (final var ec2 = factory.ec2(region))
             {
