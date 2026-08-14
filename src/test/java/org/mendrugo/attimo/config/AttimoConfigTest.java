@@ -18,6 +18,7 @@ class AttimoConfigTest
     void defaultsWhenNoFileExists()
     {
         final var config = new AttimoConfig();
+        assertThat(config.getContinent()).isEmpty();
         assertThat(config.getPreferredRegion()).isEmpty();
         assertThat(config.getSshPublicKey()).isEmpty();
     }
@@ -28,6 +29,7 @@ class AttimoConfigTest
         final Path configFile = tempDir.resolve("config.yaml");
 
         final var config = new AttimoConfig();
+        config.setContinent("EMEA");
         config.setPreferredRegion("eu-west-1");
         config.setSshPublicKey("~/.ssh/id_ed25519.pub");
 
@@ -35,6 +37,7 @@ class AttimoConfigTest
         YAML.writeValue(configFile.toFile(), config);
 
         final var loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
+        assertThat(loaded.getContinent()).isEqualTo("EMEA");
         assertThat(loaded.getPreferredRegion()).isEqualTo("eu-west-1");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_ed25519.pub");
     }
@@ -43,9 +46,11 @@ class AttimoConfigTest
     void nullsSafelyDefaultToEmpty()
     {
         final var config = new AttimoConfig();
+        config.setContinent(null);
         config.setPreferredRegion(null);
         config.setSshPublicKey(null);
 
+        assertThat(config.getContinent()).isEmpty();
         assertThat(config.getPreferredRegion()).isEmpty();
         assertThat(config.getSshPublicKey()).isEmpty();
     }
@@ -76,8 +81,24 @@ class AttimoConfigTest
         // AttimoConfig.load() handles this by returning a new instance
         if (loaded != null)
         {
+            assertThat(loaded.getContinent()).isEmpty();
             assertThat(loaded.getPreferredRegion()).isEmpty();
             assertThat(loaded.getSshPublicKey()).isEmpty();
         }
+    }
+
+    @Test
+    void backwardCompatWithoutContinentField(@TempDir final Path tempDir) throws Exception
+    {
+        // Old config files don't have continent — should load fine
+        final Path configFile = tempDir.resolve("config.yaml");
+        Files.writeString(configFile, """
+            preferred-region: eu-west-1
+            ssh-public-key: ~/.ssh/id_ed25519.pub
+            """);
+
+        final var loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
+        assertThat(loaded.getContinent()).isEmpty();
+        assertThat(loaded.getPreferredRegion()).isEqualTo("eu-west-1");
     }
 }

@@ -22,11 +22,24 @@ public class AttimoConfig
 {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
+    @JsonProperty("continent")
+    private String continent = "";
+
     @JsonProperty("preferred-region")
     private String preferredRegion = "";
 
     @JsonProperty("ssh-public-key")
     private String sshPublicKey = "";
+
+    public String getContinent()
+    {
+        return continent;
+    }
+
+    public void setContinent(final String continent)
+    {
+        this.continent = continent == null ? "" : continent;
+    }
 
     public String getPreferredRegion()
     {
