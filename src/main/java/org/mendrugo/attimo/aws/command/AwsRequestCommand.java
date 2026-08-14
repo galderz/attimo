@@ -295,23 +295,23 @@ public class AwsRequestCommand extends BaseCommand
                     || msg.contains("InsufficientInstanceCapacity")
                     || msg.contains("SpotMaxPriceTooLow"));
 
-                if (isCapacityError && attempt < maxAttempts - 1)
+                cleanupFailedAttempt(ec2, sgId, keyPairName);
+                ec2.close();
+
+                if (!isCapacityError)
                 {
-                    System.out.println("  ⚠ No spot capacity in " + region + ". Cleaning up and trying next option...");
-                    cleanupFailedAttempt(ec2, sgId, keyPairName);
-                    ec2.close();
+                    System.err.println("Error launching instance in " + region + ": " + msg);
+                    return null;
+                }
+
+                if (attempt < maxAttempts - 1)
+                {
+                    System.out.println("  ⚠ No spot capacity in " + region
+                        + ". Cleaning up and trying next option...");
                 }
                 else
                 {
-                    System.err.println("Error launching instance in " + region + ": " + msg);
-                    cleanupFailedAttempt(ec2, sgId, keyPairName);
-                    ec2.close();
-
-                    if (!isCapacityError)
-                    {
-                        // Non-capacity error — don't retry
-                        return null;
-                    }
+                    System.out.println("  ⚠ No spot capacity in " + region + ".");
                 }
             }
         }
