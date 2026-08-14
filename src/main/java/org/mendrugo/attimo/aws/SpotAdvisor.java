@@ -1,6 +1,5 @@
 package org.mendrugo.attimo.aws;
 
-
 import org.mendrugo.attimo.isa.IsaFeature;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeSpotPriceHistoryRequest;
