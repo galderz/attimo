@@ -31,6 +31,9 @@ public class AttimoConfig
     @JsonProperty("ssh-public-key")
     private String sshPublicKey = "";
 
+    @JsonProperty("host-name")
+    private String hostName = "";
+
     public String getContinent()
     {
         return continent;
@@ -59,6 +62,16 @@ public class AttimoConfig
     public void setSshPublicKey(final String sshPublicKey)
     {
         this.sshPublicKey = sshPublicKey == null ? "" : sshPublicKey;
+    }
+
+    public String getHostName()
+    {
+        return hostName;
+    }
+
+    public void setHostName(final String hostName)
+    {
+        this.hostName = hostName == null ? "" : hostName;
     }
 
     /**

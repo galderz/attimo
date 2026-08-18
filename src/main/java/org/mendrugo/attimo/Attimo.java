@@ -1,6 +1,7 @@
 package org.mendrugo.attimo;
 
 import org.mendrugo.attimo.aws.command.AwsGroupCommand;
+import org.mendrugo.attimo.bluehat.command.BlueHatGroupCommand;
 import org.mendrugo.attimo.command.BaseCommand;
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
@@ -43,6 +44,7 @@ public class Attimo implements QuarkusApplication
         , description = "Cloud spot instance manager for OpenJDK engineers"
         , groupCommands = {
             AwsGroupCommand.class
+            , BlueHatGroupCommand.class
         }
         , generateHelp = true
     )
