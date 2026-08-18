@@ -1,7 +1,7 @@
 # Attimo — Progress & Backlog
 
-**Last updated:** 2026-08-14
-**Last session:** Continent-based region selection + spot capacity retry (issues #11, #15)
+**Last updated:** 2026-08-18
+**Last session:** Blue Hat cloud integration
 
 ## How to Resume
 
@@ -71,6 +71,13 @@ If you're a new agent session picking up this project:
 | — | AttimoConfig: continent field with backward compat | `4d53c3e` |
 | — | Commands: continent picker, retry loop on capacity failure, cleanup | `5bc2b08` |
 | — | Remove old RegionGroup | `defcc3b` |
+
+### Blue Hat Cloud Integration
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| — | Blue Hat cloud provider: init, request, status, connect, destroy commands | `6d90b36` |
+| — | BlueHatClient HTTP client, BlueHatInstanceSize, BlueHatDummyServer for testing | `6d90b36` |
 
 ### Bug Fixes from Real AWS Testing
 
@@ -166,6 +173,9 @@ org.mendrugo.attimo/
 ├── aws/          # AWS cloud provider
 │   ├── command/  # AWS CLI commands (ato aws init/request/status/connect/destroy)
 │   └── ...       # SDK clients, spot logic, AMI, cleanup
+├── bluehat/      # Blue Hat cloud provider
+│   ├── command/  # Blue Hat CLI commands (ato bh init/request/status/connect/destroy)
+│   └── ...       # HTTP client, instance sizes
 ├── command/      # Shared CLI base (BaseCommand)
 ├── config/       # Configuration (cloud-aware YAML, region groups)
 ├── isa/          # CPU ISA feature mapping (shared across clouds)
