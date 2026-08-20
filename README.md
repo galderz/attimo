@@ -20,8 +20,9 @@ Cloud spot instances give access to these platforms at minimal cost. Attimo hand
 | Cloud | Command Prefix | Status |
 |-------|---------------|--------|
 | **AWS** | `ato aws ...` | ✅ Fully supported |
+| **Blue Hat** | `ato bh ...` | ✅ Fully supported |
 
-Additional cloud providers can be added alongside the existing code. Each cloud gets its own subcommand group and configuration directory.
+Each cloud gets its own subcommand group and configuration directory. Additional providers can be added alongside existing code.
 
 ## Requirements
 
@@ -98,9 +99,24 @@ This will:
 
 Configuration is saved to `~/.config/attimo/aws/config.yaml` with owner-only permissions.
 
+## Setup (Blue Hat)
+
+### 1. Run `ato bh init`
+
+```bash
+ato bh init
+```
+
+This will:
+
+1. **Ask for the Blue Hat host name or IP address** — the address of your Blue Hat cloud proxy
+2. **Generate an SSH key pair** — creates a managed ed25519 key pair at `~/.config/attimo/bh/ssh/`
+
+Configuration is saved to `~/.config/attimo/bh/config.yaml` with owner-only permissions.
+
 ## Usage
 
-All cloud commands are nested under the cloud subcommand. For AWS: `ato aws <command>`.
+All cloud commands are nested under the cloud subcommand. For AWS: `ato aws <command>`. For Blue Hat: `ato bh <command>`.
 
 ### Request a spot instance
 
@@ -122,6 +138,22 @@ This will:
 
 When you exit the SSH session, attimo asks whether to keep the instance running or destroy it.
 
+### Request a Blue Hat VM
+
+```bash
+ato bh request --size medium
+```
+
+This will:
+
+1. Send an HTTP POST to the Blue Hat proxy with CPU/memory/OS requirements
+2. Wait for the VM to be provisioned (returns an FQDN)
+3. Wait for SSH to be reachable
+4. Install OpenJDK build dependencies (same packages as AWS: gcc, make, autoconf, JDK 25, capstone, etc.)
+5. Open an interactive SSH session as `root`
+
+When you exit the SSH session, attimo asks whether to keep the VM running or destroy it.
+
 ### Available ISA features
 
 | Feature | Architecture | Description | Instance families |
@@ -142,7 +174,9 @@ ISA mappings can be overridden by placing YAML files in `~/.config/attimo/isa-ma
 
 ### Instance sizes
 
-Control the instance size with `--size <value>` (default: `medium`):
+Control the instance size with `--size <value>` (default: `medium`).
+
+**AWS sizes:**
 
 | Size | vCPUs | OpenJDK build time | AWS suffixes | Best for |
 |------|-------|--------------------|--------------|----------|
@@ -151,36 +185,51 @@ Control the instance size with `--size <value>` (default: `medium`):
 | `medium` | 16–32 | ~5 min | `4xlarge`, `8xlarge` | Day-to-day OpenJDK hacking (default) |
 | `large` | 32–64 | ~2 min | `8xlarge`, `12xlarge`, `16xlarge` | Full build + jtreg runs, CI-like throughput |
 
+**Blue Hat sizes:**
+
+| Size | CPUs | Memory (GB) | Best for |
+|------|------|-------------|----------|
+| `micro` | 1 | 2 | Smoke tests and verification |
+| `small` | 8 | 16 | Full builds (~10 min) |
+| `medium` | 16 | 32 | Iterative development (default) |
+| `large` | 32 | 64 | Fast builds and jtreg runs (~2 min) |
+
 Tip: start with `--size micro` to confirm the instance launches and the ISA feature is present before spending more on a larger machine.
 
 ### Check instance status
 
 ```bash
-ato aws status
+ato aws status    # AWS
+ato bh status     # Blue Hat
 ```
 
-Shows: instance type, region, IP address, uptime, running cost, and whether the instance is still alive.
+For AWS: shows instance type, region, IP address, uptime, running cost, and whether the instance is still alive.
+For Blue Hat: shows FQDN, VM ID, state, uptime, and description.
 
 ### Reconnect to a running instance
 
 ```bash
-ato aws connect
+ato aws connect   # AWS
+ato bh connect    # Blue Hat
 ```
 
-If your laptop restarts or your terminal closes, use this to SSH back into the running instance.
+If your laptop restarts or your terminal closes, use this to SSH back into the running instance. For Blue Hat, the connect command verifies the VM is still running before attempting to reconnect.
 
 ### Destroy the instance
 
 ```bash
-ato aws destroy
+ato aws destroy   # AWS
+ato bh destroy    # Blue Hat
 ```
 
-Tears down everything:
+**AWS** tears down everything:
 
 1. Terminates the EC2 instance
 2. Deletes the security group
 3. Deletes the imported key pair
 4. Clears the local state file
+
+**Blue Hat** sends an HTTP DELETE to the proxy API and clears the local state.
 
 **No resources are left running.** Each step is logged, and cleanup continues even if individual steps fail.
 
@@ -276,15 +325,25 @@ Instances are provisioned with an Amazon Linux 2023 base image and the following
 | `~/.config/attimo/aws/state.yaml` | AWS active instance tracking (auto-managed) |
 | `~/.config/attimo/aws/ssh/id_ed25519` | AWS managed SSH private key |
 | `~/.config/attimo/aws/ssh/id_ed25519.pub` | AWS managed SSH public key |
+| `~/.config/attimo/bh/config.yaml` | Blue Hat host name |
+| `~/.config/attimo/bh/state.yaml` | Blue Hat active VM tracking (auto-managed) |
+| `~/.config/attimo/bh/ssh/id_ed25519` | Blue Hat managed SSH private key |
+| `~/.config/attimo/bh/ssh/id_ed25519.pub` | Blue Hat managed SSH public key |
 | `~/.config/attimo/isa-mappings/*.yaml` | User ISA mapping overrides (shared across clouds) |
 
 Each cloud provider stores its configuration under `~/.config/attimo/<cloud>/`.
 
-### config.yaml
+### config.yaml (AWS)
 
 ```yaml
 preferred-region: eu-west-1
 ssh-public-key: ~/.ssh/id_ed25519.pub
+```
+
+### config.yaml (Blue Hat)
+
+```yaml
+host-name: bluehat-proxy.acme.com
 ```
 
 ## CLI Reference
@@ -296,9 +355,15 @@ ssh-public-key: ~/.ssh/id_ed25519.pub
 | `ato aws status` | Show active instance status, uptime, cost |
 | `ato aws connect` | SSH into the active instance |
 | `ato aws destroy` | Tear down instance and all AWS resources |
+| `ato bh init` | One-time setup: Blue Hat host, SSH key |
+| `ato bh request [--size <size>]` | Request a Blue Hat VM (size: micro/small/medium/large) |
+| `ato bh status` | Show active VM status: FQDN, state, uptime |
+| `ato bh connect` | SSH into the active Blue Hat VM |
+| `ato bh destroy` | Destroy the active Blue Hat VM |
 | `ato --version` | Show version info |
 | `ato --help` | Show help (lists available cloud subcommands) |
 | `ato aws --help` | Show AWS-specific commands |
+| `ato bh --help` | Show Blue Hat-specific commands |
 
 ## Security
 
@@ -366,6 +431,18 @@ src/main/java/org/mendrugo/attimo/
 │       ├── AwsStatusCommand.java
 │       ├── AwsConnectCommand.java
 │       └── AwsDestroyCommand.java
+├── bluehat/                       # Blue Hat interaction
+│   ├── BlueHat.java               # Cloud constants
+│   ├── BlueHatClient.java         # HTTP client for Blue Hat API
+│   ├── BlueHatException.java      # Typed error wrapper
+│   ├── BlueHatInstanceSize.java   # Size → CPU/memory mapping
+│   └── command/                   # Blue Hat CLI commands
+│       ├── BlueHatGroupCommand.java   # 'bh' subcommand group
+│       ├── BlueHatInitCommand.java
+│       ├── BlueHatRequestCommand.java
+│       ├── BlueHatStatusCommand.java
+│       ├── BlueHatConnectCommand.java
+│       └── BlueHatDestroyCommand.java
 ├── command/                       # Shared CLI base
 │   └── BaseCommand.java
 ├── config/                        # Configuration
@@ -384,13 +461,14 @@ src/main/java/org/mendrugo/attimo/
 
 ### Adding a new cloud provider
 
-To add support for a new cloud provider (e.g., GCP):
+The Blue Hat integration serves as a reference implementation for adding a new cloud provider. To add another (e.g., GCP):
 
-1. Create a `@GroupCommandDefinition` class at `aws/command/` → `gcp/command/GcpGroupCommand.java`
-2. Implement cloud-specific commands (init, request, status, connect, destroy)
-3. Register the group command in `Attimo.AttimoCommand.groupCommands`
-4. Use `Environment.configDir("gcp")` for cloud-specific configuration paths
-5. Reuse shared code: `BaseCommand`, `IsaMapping`, `SshSession`, `SshKeyManager`, `AttimoConfig`, `InstanceState`
+1. Create a package `org.mendrugo.attimo.gcp` with cloud constants and client code
+2. Create a `@GroupCommandDefinition` class at `gcp/command/GcpGroupCommand.java`
+3. Implement cloud-specific commands (init, request, status, connect, destroy)
+4. Register the group command in `Attimo.AttimoCommand.groupCommands`
+5. Use `Environment.configDir("gcp")` for cloud-specific configuration paths
+6. Reuse shared code: `BaseCommand`, `SshSession`, `SshKeyManager`, `SshProvisioner`, `OsPackages`, `AttimoConfig`, `InstanceState`
 
 No new Maven modules are needed — cloud provider code lives alongside existing code.
 
@@ -402,6 +480,7 @@ No new Maven modules are needed — cloud provider code lives alongside existing
 - [ ] **TUI** — interactive terminal UI (like incus-spawn) for managing instances
 - [ ] **Template system** — YAML-defined image templates with custom packages and tools
 - [ ] **`ato aws build-ami`** — pre-build AMIs without launching a spot instance
+- [x] **Blue Hat cloud provider** — `ato bh init/request/status/connect/destroy`
 - [ ] **Additional cloud providers** — GCP, Azure, etc.
 
 ## License

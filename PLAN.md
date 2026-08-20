@@ -6,10 +6,11 @@ Prioritise the shortest path to: `ato aws request --isa avx512` → SSH into a s
 
 ### Multi-Cloud Architecture
 
-All cloud commands are grouped under per-cloud subcommands (e.g., `ato aws ...`).
+All cloud commands are grouped under per-cloud subcommands (e.g., `ato aws ...`, `ato bh ...`).
 Cloud-specific configuration is stored under `~/.config/attimo/{cloud}/`.
 Shared code (ISA mappings, SSH utilities, config/state models) lives in common packages.
 AWS-specific commands live in `org.mendrugo.attimo.aws.command`.
+Blue Hat-specific commands live in `org.mendrugo.attimo.bluehat.command`.
 Adding a new cloud provider requires no new Maven modules.
 
 ## Dependency Graph
@@ -735,6 +736,43 @@ Maven project + Quarkus skeleton
 
 ---
 
+---
+
+### Blue Hat Cloud Integration ✅
+
+#### Blue Hat: Init, Request, Status, Connect, Destroy
+
+**Description:** Full Blue Hat cloud integration under `ato bh` subcommand. Communicates with the Blue Hat cloud proxy via HTTP REST API. Includes a dummy API server for integration testing.
+
+**What was built:**
+- `BlueHat.java` — cloud constants (CLOUD="bh", SSH_USER="root", DEFAULT_OS="RedHat 10.2")
+- `BlueHatClient.java` — HTTP client using `java.net.http.HttpClient` (POST /vm, GET /vm, DELETE /vm/{fqdn})
+- `BlueHatException.java` — typed error wrapper
+- `BlueHatInstanceSize.java` — size → CPU/memory mapping (micro=1/2, small=8/16, medium=16/32, large=32/64)
+- `BlueHatGroupCommand.java` — 'bh' subcommand group
+- `BlueHatInitCommand.java` — prompts for host name/IP, generates SSH key pair
+- `BlueHatRequestCommand.java` — POST to create VM, provision packages, SSH as root, prompt keep/destroy
+- `BlueHatStatusCommand.java` — GET /vm, find matching FQDN, show state/uptime/VM ID
+- `BlueHatConnectCommand.java` — verify VM running, SSH reconnect
+- `BlueHatDestroyCommand.java` — DELETE /vm/{fqdn}, clear state
+- `BlueHatDummyServer.java` — dummy API server for integration tests (JDK built-in HttpServer)
+- `AttimoConfig.java` — added `host-name` field for Blue Hat host configuration
+
+**Tests:**
+- 16 unit tests (`BlueHatInstanceSizeTest`) — size mappings, CPU/memory ratios, validation
+- 7 unit tests (`BlueHatClientTest`) — all endpoints with embedded JDK HttpServer
+- 7 integration tests (`BlueHatIT`) — full lifecycle with dummy server
+
+**Key decisions:**
+- Reused `InstanceState` (stores FQDN in `instanceId` and `publicIp` fields)
+- Reused shared SSH infrastructure (`SshKeyManager`, `SshSession`, `SshProvisioner`, `OsPackages`)
+- No new Maven dependencies (java.net.http and com.sun.net.httpserver are built into JDK)
+- Memory-to-CPU ratio is 2:1 for all sizes (adequate for OpenJDK builds)
+
+**Commits:** `6d90b36`, `d86449e` (formatting fix), `71db0c8` (timeout increase)
+
+---
+
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
@@ -745,6 +783,7 @@ Maven project + Quarkus skeleton
 | SSH provisioning too slow for first-time use | Low | Acceptable for v1. AMI caching (Phase 5) eliminates this for subsequent uses |
 | LocalStack EC2 support incomplete (spot-specific APIs) | Medium | Use Mockito for unit tests (primary). LocalStack for integration tests where it supports the APIs. Skip unsupported LocalStack tests gracefully |
 | Tamboui/Aesh compatibility with Java 25 | Medium | Verify in Task 1. These are used by incus-spawn with Java 25 already |
+| Blue Hat API unavailable | Low | Integration tests use a dummy server; no real Blue Hat cloud needed for testing |
 
 ## Phase Priority Summary
 
@@ -754,11 +793,12 @@ Maven project + Quarkus skeleton
 | 2. Init + ISA | `ato init`, ISA→instance type resolution | Yes — prerequisite |
 | 3. Spot Launch | **`ato request` → SSH into spot instance** | **Yes — the goal** |
 | 4. Cleanup + Reconnect | `ato destroy`, `ato status`, `ato connect` | Yes — must clean up |
+| Blue Hat | `ato bh init/request/status/connect/destroy` | Yes — second cloud ✅ |
 | 5. AMI Caching | Fast subsequent launches | Nice to have for v1 |
 | 6. Spot Interruption | Auto-recovery from spot termination | Nice to have for v1 |
 | 7. Cost + TUI | Cost tracking, interactive TUI | Nice to have for v1 |
 | 8. Templates | Full incus-spawn-style template system | Nice to have for v1 |
 
-**The goal (build JDK + run jtreg) is achievable after Phase 4.** Phases 5-8 improve the experience but are not blocking.
+**The goal (build JDK + run jtreg) is achievable after Phase 4.** Phases 5-8 improve the experience but are not blocking. Blue Hat integration is complete.
 
 **Integration tests gate every phase.** Both `mvn test` and `mvn verify -DskipITs=false` must pass at every checkpoint. CI is set up in Phase 1 and validates every subsequent change.

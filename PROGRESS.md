@@ -94,7 +94,9 @@ If you're a new agent session picking up this project:
 
 ## Current State
 
-### What Works End-to-End (tested on real AWS)
+### What Works End-to-End
+
+**AWS (tested on real AWS):**
 - `ato aws init` — validates credentials (including `aws login` / SSO), sets region + SSH key
 - `ato aws request --isa avx512` — finds best spot (default: medium size), launches, provisions jdk-dev packages, SSHs in
 - `ato aws request --isa avx512 --size large` — uses larger instances for faster builds
@@ -104,16 +106,25 @@ If you're a new agent session picking up this project:
 - User successfully built OpenJDK and ran commands on a spot instance
 - Works in all AWS regions including opt-in regions (eu-central-2, etc.)
 
+**Blue Hat:**
+- `ato bh init` — configures Blue Hat host name/IP, generates SSH key pair
+- `ato bh request [--size <size>]` — requests VM via HTTP POST, provisions OpenJDK packages, SSHs in as root
+- `ato bh status` — queries Blue Hat API, shows FQDN, VM ID, state, uptime
+- `ato bh connect` — verifies VM is running, reconnects SSH
+- `ato bh destroy` — sends HTTP DELETE to tear down VM, clears state
+- Instance sizes: micro (1 CPU/2 GB), small (8/16), medium (16/32, default), large (32/64)
+
 ### Base OS & Provisioning
-- **Amazon Linux 2023** — base AMI, resolved via SSM Parameter Store (works in every region)
+- **Amazon Linux 2023** — base AMI for AWS, resolved via SSM Parameter Store (works in every region)
+- **RedHat 10.2** — default OS for Blue Hat VMs
 - **Amazon Corretto 25** — boot JDK, installed from `yum.corretto.aws` repo
 - **capstone** — `capstone`, `capstone-devel` from AL2023 repos
-- **SSH user** — `ec2-user`
+- **SSH user** — `ec2-user` (AWS), `root` (Blue Hat)
 - **Package manager** — `dnf`
 
 ### Test Counts
-- **82 unit tests** — all pass, no AWS needed
-- **10 integration tests** — all pass via LocalStack + Podman
+- **132 unit tests** — all pass, no cloud interaction needed
+- **17 integration tests** — all pass (10 AWS via LocalStack + Podman, 7 Blue Hat via dummy server)
 
 ### Key Technical Decisions Made During Implementation
 - **UrlConnectionHttpClient** instead of Apache HTTP client (avoids commons-logging dependency with Quarkus)
@@ -123,6 +134,10 @@ If you're a new agent session picking up this project:
 - **Orphan resource scan** — tag-based search across all regions in group, gracefully skips opt-in regions
 - **Test keys generated programmatically** — never stored in source, ephemeral ed25519 via Java KeyPairGenerator
 - **Multi-cloud subcommand architecture** — all cloud commands under `ato <cloud> ...`, cloud-specific config at `~/.config/attimo/<cloud>/`, shared ISA/SSH/config infrastructure, no new Maven modules needed per cloud
+- **Blue Hat uses java.net.http.HttpClient** — standard JDK HTTP client, no extra dependencies
+- **Blue Hat dummy server for testing** — uses `com.sun.net.httpserver.HttpServer` (built into JDK), no container runtime needed for Blue Hat integration tests
+- **Blue Hat SSH user is root** — provisioning via `sudo` still works (no-op as root)
+- **Blue Hat state reuses InstanceState** — stores FQDN in `instanceId` and `publicIp` fields
 
 ## Next Tasks
 
