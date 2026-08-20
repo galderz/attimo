@@ -54,7 +54,9 @@ public class BlueHatClient
                 .uri(URI.create(baseUrl + "/vm"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
-                .timeout(TIMEOUT)
+		// Creating a VM can take considerably more,
+		// so use a larger timeout compared to other requests.
+                .timeout(TIMEOUT.multipliedBy(10))
                 .build();
 
             final var response = httpClient.send(
