@@ -319,7 +319,7 @@ sudo tar -xzf /tmp/jtreg.tar.gz -C /opt/jtreg --strip-components=1
 
 ## Blue Hat
 
-Blue Hat cloud provides VMs via a proxy HTTP API. Attimo communicates with the Blue Hat proxy to request VMs, provision OpenJDK build tools, connect via SSH, and tear down VMs when done.
+Blue Hat cloud provides VMs. Attimo communicates with the Blue Hat to request VMs, provision OpenJDK build tools, connect via SSH, and tear down VMs when done.
 
 ### Setup
 
@@ -331,7 +331,7 @@ ato bh init
 
 This will:
 
-1. **Ask for the Blue Hat host name or IP address** — the address of your Blue Hat cloud proxy
+1. **Ask for the Blue Hat host name or IP address** — the address of your Blue Hat cloud
 2. **Generate an SSH key pair** — creates a managed ed25519 key pair at `~/.config/attimo/bh/ssh/`
 
 Configuration is saved to `~/.config/attimo/bh/config.yaml` with owner-only permissions.
@@ -344,8 +344,8 @@ ato bh request --size medium
 
 This will:
 
-1. Send an HTTP POST to the Blue Hat proxy with CPU, memory, and OS requirements
-2. Wait for the VM to be provisioned (the proxy returns an FQDN)
+1. Send an HTTP POST to the Blue Hat cloud with CPU, memory, and OS requirements
+2. Wait for the VM to be provisioned (returns an FQDN)
 3. Wait for SSH to be reachable
 4. Install OpenJDK build dependencies (gcc, make, autoconf, JDK 25, capstone, etc.)
 5. Open an interactive SSH session as `root`
@@ -389,7 +389,7 @@ Verifies the VM is still running via the Blue Hat API, then opens an SSH session
 ato bh destroy
 ```
 
-Sends an HTTP DELETE to the Blue Hat proxy API and clears the local state file.
+Sends an HTTP DELETE to the Blue Hat cloud and clears the local state file.
 
 ### Pre-installed software
 
@@ -414,7 +414,7 @@ VMs are provisioned with the same OpenJDK development packages as AWS:
 
 ```yaml
 # ~/.config/attimo/bh/config.yaml
-host-name: bluehat-proxy.acme.com
+host-name: bluehat-cloud.acme.com
 ```
 
 ### CLI reference
