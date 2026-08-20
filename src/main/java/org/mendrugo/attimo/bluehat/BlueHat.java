@@ -24,7 +24,7 @@ public final class BlueHat
     public static final String DEFAULT_OS = "RedHat 10.2";
 
     /**
-     * Blue Hat proxy API port.
+     * Blue Hat cloud API port.
      */
     public static final int API_PORT = 8080;
 }

@@ -14,7 +14,7 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * HTTP client for the Blue Hat cloud proxy API.
+ * HTTP client for the Blue Hat cloud API.
  * Handles VM request, list, and destroy operations.
  */
 public class BlueHatClient
