@@ -73,13 +73,13 @@ public class BlueHatClient
 
             return JSON.readValue(response.body(), VmResponse.class);
         }
-        catch (final IOException | InterruptedException e)
+        catch (final InterruptedException e)
         {
-            if (e instanceof InterruptedException)
-            {
-                Thread.currentThread().interrupt();
-            }
-
+            Thread.currentThread().interrupt();
+            throw new BlueHatException("VM request interrupted", e);
+        }
+        catch (final IOException e)
+        {
             throw new BlueHatException("Failed to request VM: " + e.getMessage(), e);
         }
     }
@@ -114,13 +114,13 @@ public class BlueHatClient
 
             return JSON.readValue(response.body(), new TypeReference<List<VmDetails>>() {});
         }
-        catch (final IOException | InterruptedException e)
+        catch (final InterruptedException e)
         {
-            if (e instanceof InterruptedException)
-            {
-                Thread.currentThread().interrupt();
-            }
-
+            Thread.currentThread().interrupt();
+            throw new BlueHatException("List VMs interrupted", e);
+        }
+        catch (final IOException e)
+        {
             throw new BlueHatException("Failed to list VMs: " + e.getMessage(), e);
         }
     }
@@ -156,13 +156,13 @@ public class BlueHatClient
 
             return JSON.readValue(response.body(), DestroyResponse.class);
         }
-        catch (final IOException | InterruptedException e)
+        catch (final InterruptedException e)
         {
-            if (e instanceof InterruptedException)
-            {
-                Thread.currentThread().interrupt();
-            }
-
+            Thread.currentThread().interrupt();
+            throw new BlueHatException("Destroy VM interrupted", e);
+        }
+        catch (final IOException e)
+        {
             throw new BlueHatException("Failed to destroy VM: " + e.getMessage(), e);
         }
     }
