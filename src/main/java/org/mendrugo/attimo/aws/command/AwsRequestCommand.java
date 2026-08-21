@@ -10,7 +10,7 @@ import org.mendrugo.attimo.aws.SpotAdvisor;
 import org.mendrugo.attimo.aws.SpotManager;
 import org.mendrugo.attimo.aws.SpotRecommendation;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.config.AttimoConfig;
+import org.mendrugo.attimo.aws.AwsConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.isa.IsaMapping;
 import org.mendrugo.attimo.ssh.OsPackages;
@@ -69,7 +69,7 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        final var config = AttimoConfig.load(Aws.CLOUD);
+        final var config = AwsConfig.load();
         final var preferredRegion = config.getPreferredRegion();
         if (preferredRegion.isBlank())
         {

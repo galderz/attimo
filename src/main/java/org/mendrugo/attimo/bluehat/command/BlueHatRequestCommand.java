@@ -5,7 +5,7 @@ import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
 import org.mendrugo.attimo.bluehat.BlueHatInstanceSize;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.config.AttimoConfig;
+import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.ssh.OsPackages;
 import org.mendrugo.attimo.ssh.SshKeyManager;
@@ -53,7 +53,7 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        final var config = AttimoConfig.load(BlueHat.CLOUD);
+        final var config = BlueHatConfig.load();
         final var hostName = config.getHostName();
         if (hostName.isBlank())
         {

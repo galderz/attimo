@@ -3,7 +3,7 @@ package org.mendrugo.attimo.bluehat.command;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.config.AttimoConfig;
+import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -32,7 +32,7 @@ public class BlueHatDestroyCommand extends BaseCommand
         System.out.println("Size:  " + state.getInstanceType());
         System.out.println();
 
-        final var config = AttimoConfig.load(BlueHat.CLOUD);
+        final var config = BlueHatConfig.load();
         final var hostName = config.getHostName();
 
         if (hostName.isBlank())

@@ -3,7 +3,7 @@ package org.mendrugo.attimo.bluehat.command;
 import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.config.AttimoConfig;
+import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -31,13 +31,13 @@ public class BlueHatInitCommand extends BaseCommand
     {
         System.out.println("=== attimo bh init ===\n");
 
-        final var config = AttimoConfig.load(BlueHat.CLOUD);
+        final var config = BlueHatConfig.load();
         final var console = System.console();
 
         setupHostName(console, config);
         setupSshKey(console, config);
 
-        config.save(BlueHat.CLOUD);
+        config.save();
 
         System.out.println("\n=== Init complete! ===");
         System.out.println("Next steps:");
@@ -48,7 +48,7 @@ public class BlueHatInitCommand extends BaseCommand
 
     private void setupHostName(
         final Console console
-        , final AttimoConfig config
+        , final BlueHatConfig config
     )
     {
         System.out.println("[1/2] Configuring Blue Hat host...");
@@ -94,7 +94,7 @@ public class BlueHatInitCommand extends BaseCommand
 
     private void setupSshKey(
         final Console console
-        , final AttimoConfig config
+        , final BlueHatConfig config
     )
     {
         System.out.println("\n[2/2] Configuring SSH key...");
