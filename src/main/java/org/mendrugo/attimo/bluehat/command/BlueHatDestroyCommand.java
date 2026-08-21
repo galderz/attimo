@@ -38,7 +38,7 @@ public class BlueHatDestroyCommand extends BaseCommand
         if (hostName.isBlank())
         {
             System.err.println("Error: no Blue Hat host configured. Run 'ato bh init' first.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         try
@@ -58,14 +58,14 @@ public class BlueHatDestroyCommand extends BaseCommand
             {
                 System.err.println("  Unexpected response status: " + response.status());
                 System.err.println("  Run 'ato bh destroy' again to retry.");
-                return CommandResult.valueOf(1);
+                return CommandResult.FAILURE;
             }
         }
         catch (final Exception e)
         {
             System.err.println("  Destroy failed: " + e.getMessage());
             System.err.println("  Run 'ato bh destroy' again to retry.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
     }
 }

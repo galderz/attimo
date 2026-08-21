@@ -41,7 +41,7 @@ public class AwsInitCommand extends BaseCommand
 
         if (!checkAwsCredentials(console, config))
         {
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         setupRegion(console, config);

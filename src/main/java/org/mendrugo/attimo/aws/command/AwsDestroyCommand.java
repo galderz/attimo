@@ -68,7 +68,7 @@ public class AwsDestroyCommand extends BaseCommand
                     System.err.println("  - " + error);
                 }
                 System.err.println("Run 'ato aws destroy' again to retry.");
-                return CommandResult.valueOf(1);
+                return CommandResult.FAILURE;
             }
         }
     }
@@ -84,7 +84,7 @@ public class AwsDestroyCommand extends BaseCommand
         if (preferredRegion.isBlank())
         {
             System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         final var factory = new AwsClientFactory();

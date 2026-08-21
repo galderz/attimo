@@ -25,7 +25,7 @@ public class BlueHatConnectCommand extends BaseCommand
         if (!state.hasActiveInstance())
         {
             System.err.println("No active VM. Use 'ato bh request' to launch one.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         final var fqdn = state.getInstanceId();
@@ -47,7 +47,7 @@ public class BlueHatConnectCommand extends BaseCommand
                 {
                     System.err.println("VM " + fqdn + " is not running.");
                     System.err.println("Use 'ato bh destroy' to clean up or 'ato bh request' for a new VM.");
-                    return CommandResult.valueOf(1);
+                    return CommandResult.FAILURE;
                 }
             }
             catch (final Exception e)

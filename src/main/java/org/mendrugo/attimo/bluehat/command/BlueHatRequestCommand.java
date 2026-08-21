@@ -41,7 +41,7 @@ public class BlueHatRequestCommand extends BaseCommand
         if (!BlueHatInitCommand.hasBeenInitialized())
         {
             System.err.println("Error: Blue Hat has not been initialized. Run 'ato bh init' first.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         // Check for existing active instance
@@ -50,7 +50,7 @@ public class BlueHatRequestCommand extends BaseCommand
         {
             System.err.println("Error: a VM is already active (" + existingState.getInstanceId() + ").");
             System.err.println("Use 'ato bh connect' to reconnect or 'ato bh destroy' to tear it down first.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         final var config = AttimoConfig.load(BlueHat.CLOUD);
@@ -58,7 +58,7 @@ public class BlueHatRequestCommand extends BaseCommand
         if (hostName.isBlank())
         {
             System.err.println("Error: no Blue Hat host configured. Run 'ato bh init' first.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         // Parse instance size
@@ -70,7 +70,7 @@ public class BlueHatRequestCommand extends BaseCommand
         catch (final IllegalArgumentException e)
         {
             System.err.println("Error: " + e.getMessage());
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         System.out.println("=== Requesting Blue Hat VM ===\n");
@@ -96,7 +96,7 @@ public class BlueHatRequestCommand extends BaseCommand
         if (!fqdn.matches("[A-Za-z0-9._-]+"))
         {
             System.err.println("Error: FQDN validation failed: " + fqdn);
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
         System.out.println("  VM provisioned: " + fqdn);
 
@@ -117,7 +117,7 @@ public class BlueHatRequestCommand extends BaseCommand
             System.err.println("Error: SSH not reachable after 5 minutes.");
             System.err.println("VM is provisioned at " + fqdn
                 + ". Use 'ato bh connect' to retry.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         // Provision packages (same as AWS)
