@@ -93,6 +93,11 @@ public class BlueHatRequestCommand extends BaseCommand
         final var client = new BlueHatClient(hostName);
         final var response = client.requestVm(request);
         final var fqdn = response.fqdn();
+        if (!fqdn.matches("[A-Za-z0-9._-]+"))
+        {
+            System.err.println("Error: FQDN validation failed: " + fqdn);
+            return CommandResult.valueOf(1);
+        }
         System.out.println("  VM provisioned: " + fqdn);
 
         // Save state for reconnection
