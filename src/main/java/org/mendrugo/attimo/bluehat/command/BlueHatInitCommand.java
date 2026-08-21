@@ -35,7 +35,7 @@ public class BlueHatInitCommand extends BaseCommand
         final var console = System.console();
 
         setupHostName(console, config);
-        setupSshKey(config);
+        setupSshKey(console, config);
 
         config.save(BlueHat.CLOUD);
 
@@ -92,10 +92,14 @@ public class BlueHatInitCommand extends BaseCommand
         System.out.println("  Host set to: " + hostName);
     }
 
-    private void setupSshKey(final AttimoConfig config)
+    private void setupSshKey(
+        final Console console
+        , final AttimoConfig config
+    )
     {
         System.out.println("\n[2/2] Configuring SSH key...");
 
+        // Generate managed key pair
         if (SshKeyManager.exists(BlueHat.CLOUD))
         {
             System.out.println("  Managed SSH key pair already exists.");
@@ -111,6 +115,25 @@ public class BlueHatInitCommand extends BaseCommand
                 System.err.println("  Warning: SSH key generation failed: " + e.getMessage());
                 System.err.println("  You can generate one manually later.");
             }
+        }
+
+        // Ask for personal SSH public key path
+        if (!config.getSshPublicKey().isBlank())
+        {
+            System.out.println("  Personal SSH public key: " + config.getSshPublicKey());
+        }
+        else if (console != null)
+        {
+            final var defaultKey = "~/.ssh/id_ed25519.pub";
+            System.out.print("  Path to your SSH public key [" + defaultKey + "]: ");
+            final var input = console.readLine().strip();
+            config.setSshPublicKey(input.isBlank() ? defaultKey : input);
+            System.out.println("  SSH public key set to: " + config.getSshPublicKey());
+        }
+        else
+        {
+            config.setSshPublicKey("~/.ssh/id_ed25519.pub");
+            System.out.println("  Defaulting to ~/.ssh/id_ed25519.pub");
         }
     }
 }

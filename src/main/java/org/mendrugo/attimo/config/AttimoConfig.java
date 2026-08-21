@@ -13,7 +13,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 /**
- * Global attimo configuration stored in ~/.config/attimo/config.yaml.
+ * Per-cloud attimo configuration stored in ~/.config/attimo/{cloud}/config.yaml.
+ * Contains cloud-specific settings (e.g. preferred-region for AWS, host-name for Blue Hat)
+ * and common settings (e.g. ssh-public-key) duplicated per cloud.
  * Owner-only permissions (chmod 600) for security.
  */
 @RegisterForReflection
