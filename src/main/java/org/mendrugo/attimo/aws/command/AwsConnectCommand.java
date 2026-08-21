@@ -22,7 +22,7 @@ public class AwsConnectCommand extends BaseCommand
         if (!state.hasActiveInstance())
         {
             System.err.println("No active instance. Use 'ato aws request' to launch one.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         System.out.println("Connecting to " + state.getInstanceType()

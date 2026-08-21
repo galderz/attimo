@@ -1,4 +1,4 @@
-package org.mendrugo.attimo.config;
+package org.mendrugo.attimo.bluehat;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -13,42 +13,29 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 /**
- * Global attimo configuration stored in ~/.config/attimo/config.yaml.
+ * Blue Hat-specific configuration stored at ~/.config/attimo/bh/config.yaml.
  * Owner-only permissions (chmod 600) for security.
  */
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AttimoConfig
+public class BlueHatConfig
 {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
-    @JsonProperty("continent")
-    private String continent = "";
-
-    @JsonProperty("preferred-region")
-    private String preferredRegion = "";
+    @JsonProperty("host-name")
+    private String hostName = "";
 
     @JsonProperty("ssh-public-key")
     private String sshPublicKey = "";
 
-    public String getContinent()
+    public String getHostName()
     {
-        return continent;
+        return hostName;
     }
 
-    public void setContinent(final String continent)
+    public void setHostName(final String hostName)
     {
-        this.continent = continent == null ? "" : continent;
-    }
-
-    public String getPreferredRegion()
-    {
-        return preferredRegion;
-    }
-
-    public void setPreferredRegion(final String preferredRegion)
-    {
-        this.preferredRegion = preferredRegion == null ? "" : preferredRegion;
+        this.hostName = hostName == null ? "" : hostName;
     }
 
     public String getSshPublicKey()
@@ -61,34 +48,28 @@ public class AttimoConfig
         this.sshPublicKey = sshPublicKey == null ? "" : sshPublicKey;
     }
 
-    /**
-     * Load config for a specific cloud provider.
-     */
-    public static AttimoConfig load(final String cloud)
+    public static BlueHatConfig load()
     {
-        final Path configFile = Environment.configFile(cloud);
+        final Path configFile = Environment.configFile(BlueHat.CLOUD);
         if (!Files.exists(configFile))
         {
-            return new AttimoConfig();
+            return new BlueHatConfig();
         }
 
         try
         {
-            return YAML.readValue(configFile.toFile(), AttimoConfig.class);
+            return YAML.readValue(configFile.toFile(), BlueHatConfig.class);
         }
         catch (final IOException e)
         {
-            System.err.println("Warning: could not read config: " + e.getMessage());
-            return new AttimoConfig();
+            System.err.println("Warning: could not read Blue Hat config: " + e.getMessage());
+            return new BlueHatConfig();
         }
     }
 
-    /**
-     * Save config for a specific cloud provider.
-     */
-    public void save(final String cloud)
+    public void save()
     {
-        final Path configFile = Environment.configFile(cloud);
+        final Path configFile = Environment.configFile(BlueHat.CLOUD);
         try
         {
             Files.createDirectories(configFile.getParent());
@@ -96,7 +77,6 @@ public class AttimoConfig
             try
             {
                 YAML.writeValue(tmp.toFile(), this);
-                // Owner-only permissions
                 tmp.toFile().setReadable(false, false);
                 tmp.toFile().setReadable(true, true);
                 tmp.toFile().setWritable(false, false);
@@ -111,7 +91,7 @@ public class AttimoConfig
         }
         catch (final IOException e)
         {
-            throw new RuntimeException("Failed to save config: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to save Blue Hat config: " + e.getMessage(), e);
         }
     }
 }

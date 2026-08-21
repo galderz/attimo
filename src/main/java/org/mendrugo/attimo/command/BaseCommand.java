@@ -24,7 +24,7 @@ public abstract class BaseCommand implements Command<CommandInvocation>
         catch (final Exception e)
         {
             System.err.println("Error: " + e.getMessage());
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
     }
 

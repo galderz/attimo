@@ -6,7 +6,11 @@ Attimo (`ato`) is a CLI+TUI tool for OpenJDK software engineers who need to vali
 
 The tool manages the full lifecycle of cloud spot instances: finding the cheapest option across nearby regions, launching, provisioning, connecting via SSH, handling spot interruptions transparently, and tearing down all resources on completion — leaving zero cost footprint by default.
 
-The architecture supports multiple cloud providers (AWS, GCP, Azure, etc.) through a per-cloud subcommand structure. Each cloud provider's commands are grouped under `ato <cloud> ...` (e.g., `ato aws init`, `ato aws request`). Cloud-specific configuration is stored separately under `~/.config/attimo/<cloud>/`.
+The architecture supports multiple cloud providers through a per-cloud subcommand structure. Each cloud provider's commands are grouped under `ato <cloud> ...` (e.g., `ato aws init`, `ato bh request`). Cloud-specific configuration is stored separately under `~/.config/attimo/<cloud>/`.
+
+**Supported clouds:**
+- **AWS** (`ato aws ...`) — spot instances via EC2, ISA-based instance selection, continent-aware pricing
+- **Blue Hat** (`ato bh ...`) — VMs via Blue Hat cloud proxy HTTP API, simple host-based setup
 
 **Primary user:** An OpenJDK engineer sitting at their workstation who needs a remote machine with specific CPU features for a few hours.
 
@@ -17,6 +21,7 @@ The architecture supports multiple cloud providers (AWS, GCP, Azure, etc.) throu
 - All unit tests run without any cloud interaction (no cost to run tests)
 - CI runs on every PR and push to main
 - Adding a new cloud provider requires no new Maven modules
+- Blue Hat integration: `ato bh request` provisions a VM and connects via SSH within minutes
 
 ## Tech Stack
 
@@ -26,6 +31,7 @@ The architecture supports multiple cloud providers (AWS, GCP, Azure, etc.) throu
 - **Aesh 3.11** — CLI command framework (same as incus-spawn)
 - **Tamboui 0.3.0** — TUI framework (same as incus-spawn)
 - **AWS SDK for Java v2** — EC2, STS, Pricing APIs
+- **java.net.http.HttpClient** — Blue Hat cloud API communication
 - **Jackson + YAML** — configuration and template parsing
 - **JUnit 5 + Mockito + AssertJ** — testing
 - **LocalStack (Testcontainers)** — integration testing without real AWS
@@ -63,6 +69,15 @@ ato aws destroy                    # Tear down instance + all resources
 ato aws destroy --keep-ami         # Tear down but keep the AMI for reuse
 ato aws build-ami --template jdk-dev   # Pre-build an AMI without launching a spot instance
 ato aws cost                       # Show current/total cost information
+
+# Blue Hat CLI commands (all under 'ato bh')
+ato bh --help                      # Show Blue Hat-specific commands
+ato bh init                        # One-time setup: Blue Hat host, SSH key
+ato bh request                     # Request a VM (default: medium size), provision, SSH in
+ato bh request --size large        # Use a larger VM (32 CPUs, 64 GB)
+ato bh status                      # Show VM status (FQDN, state, uptime)
+ato bh connect                     # SSH into existing running VM
+ato bh destroy                     # Destroy the VM
 ```
 
 ## Project Structure
@@ -98,6 +113,18 @@ src/
 │   │   │       ├── AwsStatusCommand.java  # ato aws status
 │   │   │       ├── AwsConnectCommand.java # ato aws connect
 │   │   │       └── AwsDestroyCommand.java # ato aws destroy
+│   │   ├── bluehat/                        # Blue Hat cloud provider
+│   │   │   ├── BlueHat.java               # Cloud constants (SSH user, default OS, API port)
+│   │   │   ├── BlueHatClient.java         # HTTP client for Blue Hat proxy API
+│   │   │   ├── BlueHatException.java      # Typed Blue Hat error wrapper
+│   │   │   ├── BlueHatInstanceSize.java   # Size → CPU/memory mapping
+│   │   │   └── command/                   # Blue Hat CLI commands (under 'ato bh')
+│   │   │       ├── BlueHatGroupCommand.java   # 'bh' subcommand group
+│   │   │       ├── BlueHatInitCommand.java    # ato bh init
+│   │   │       ├── BlueHatRequestCommand.java # ato bh request
+│   │   │       ├── BlueHatStatusCommand.java  # ato bh status
+│   │   │       ├── BlueHatConnectCommand.java # ato bh connect
+│   │   │       └── BlueHatDestroyCommand.java # ato bh destroy
 │   │   ├── isa/                            # CPU ISA feature mapping (shared across clouds)
 │   │   │   ├── IsaMapping.java            # Static YAML + dynamic hybrid lookup
 │   │   │   └── IsaFeature.java            # ISA feature model
@@ -134,6 +161,11 @@ src/
 │   │   │   ├── InstanceSizeTest.java       # Instance size tier tests
 │   │   │   ├── BaseAmiResolverTest.java    # AMI resolution via SSM
 │   │   │   └── AwsClientFactoryTest.java   # Credential validation
+│   │   ├── bluehat/
+│   │   │   ├── BlueHatClientTest.java     # HTTP client with embedded server
+│   │   │   ├── BlueHatInstanceSizeTest.java # Size mapping + CPU/memory ratios
+│   │   │   ├── BlueHatDummyServer.java    # Dummy API server for integration tests
+│   │   │   └── BlueHatIT.java             # Full lifecycle integration tests
 │   │   ├── isa/
 │   │   │   └── IsaMappingTest.java         # Static + dynamic ISA resolution
 │   │   ├── config/
@@ -385,6 +417,13 @@ ssh-public-key: ~/.ssh/id_ed25519.pub
 
 AWS credentials are NOT stored by attimo — they are managed entirely by the AWS SDK default credential chain (`~/.aws/credentials`, env vars, SSO).
 
+For Blue Hat: `~/.config/attimo/bh/config.yaml`.
+
+```yaml
+# Set during 'ato bh init'
+host-name: bluehat-proxy.acme.com
+```
+
 ### SSH Key (`~/.config/attimo/{cloud}/ssh/`)
 
 Each cloud provider has its own managed SSH key pair.
@@ -503,6 +542,37 @@ verify: jtreg -version
 Same YAML schema and resolution order as incus-spawn.
 
 ## Architecture
+
+### Blue Hat Interaction Layer
+
+**java.net.http.HttpClient** communicates with the Blue Hat cloud proxy API. Rationale:
+- Standard JDK HTTP client (no additional dependencies)
+- Simple REST API with JSON payloads (POST, GET, DELETE)
+- Jackson for JSON serialization/deserialization (already in the project)
+
+```java
+// BlueHatClient communicates with the Blue Hat proxy
+public class BlueHatClient {
+    public VmResponse requestVm(VmRequest request) { /* POST /vm */ }
+    public List<VmDetails> listVms() { /* GET /vm */ }
+    public DestroyResponse destroyVm(String fqdn) { /* DELETE /vm/{fqdn} */ }
+}
+```
+
+**Blue Hat VM request flow:**
+1. POST to `http://<host>:8080/vm` with JSON body (cpu, memory, os, description, ssh-public-key)
+2. Proxy provisions the VM and returns FQDN
+3. attimo SSHs in as `root`, provisions OpenJDK packages, opens interactive session
+4. On exit: prompt to keep or destroy (DELETE to `http://<host>:8080/vm/<fqdn>`)
+
+**Blue Hat instance sizes** (2:1 memory-to-CPU ratio for OpenJDK development):
+
+| Size | CPUs | Memory (GB) | Use Case |
+|------|------|-------------|----------|
+| `micro` | 1 | 2 | Smoke tests, verification |
+| `small` | 8 | 16 | Full builds (~10 min) |
+| `medium` | 16 | 32 | Iterative development (default) |
+| `large` | 32 | 64 | Fast builds and jtreg runs (~2 min) |
 
 ### AWS Interaction Layer
 
@@ -721,6 +791,16 @@ active-instance:
 
 This file is updated on launch, cleared on destroy. `ato aws status` and `ato aws connect` read it to find the active instance.
 
+For Blue Hat: `~/.config/attimo/bh/state.yaml`. The `instance-id` field stores the VM's FQDN
+(which is also used as the SSH target and the identifier for destroy requests).
+
+```yaml
+instance-id: bluehat-vm-1785494151.dev.acme.com
+public-ip: bluehat-vm-1785494151.dev.acme.com
+instance-type: medium
+launched-at: 2026-08-14T10:30:00Z
+```
+
 ## TUI Design
 
 The TUI (launched with bare `ato` command) provides an interactive view similar to incus-spawn, using Tamboui:
@@ -773,9 +853,9 @@ The TUI (launched with bare `ato` command) provides an interactive view similar 
 
 ## Testing Strategy
 
-### Principle: Zero AWS Cost in Tests
+### Principle: Zero Cloud Cost in Tests
 
-All tests must run without touching real AWS. This is non-negotiable because AWS API calls cost money and introduce flakiness.
+All tests must run without touching real AWS or Blue Hat. This is non-negotiable because cloud API calls cost money and introduce flakiness.
 
 ### Unit Tests (`mvn test` — no AWS, no containers)
 
@@ -833,8 +913,10 @@ Key unit test areas:
 - `ImageDefTest` — template parsing, tool reference resolution
 - `ToolDefTest` — tool YAML parsing, execution order
 - `SshKeyManagerTest` — key generation, config file management (borrowed from incus-spawn)
+- `BlueHatClientTest` — HTTP client with embedded JDK HttpServer (all endpoints, error handling)
+- `BlueHatInstanceSizeTest` — size mappings, CPU/memory ratios, validation
 
-### Integration Tests (`mvn verify -DskipITs=false` — LocalStack via Testcontainers)
+### Integration Tests (`mvn verify -DskipITs=false` — LocalStack + Blue Hat dummy server)
 
 Use **LocalStack** (via Testcontainers) to run a local AWS-compatible API:
 
@@ -854,6 +936,21 @@ class SpotManagerIT {
 ```
 
 LocalStack supports: EC2 (instances, security groups, key pairs, AMIs), STS (identity), and Pricing.
+
+For Blue Hat, a **`BlueHatDummyServer`** (using `com.sun.net.httpserver.HttpServer`) provides a lightweight
+in-process API server for integration tests. No container runtime needed for Blue Hat tests.
+
+```java
+class BlueHatIT {
+    BlueHatDummyServer server;  // JDK built-in HTTP server
+    BlueHatClient client;
+
+    @Test
+    void fullLifecycle_requestListDestroy() {
+        // Request VM → list VMs → verify running → destroy → verify deleted
+    }
+}
+```
 
 ### GitHub CI
 
@@ -929,6 +1026,12 @@ jobs:
 12. **GitHub CI** runs on every PR and push to main
 13. **ISA mappings** are overridable by users at `~/.config/attimo/isa-mappings/`
 14. **Templates** support incus-spawn-style YAML with packages + tools
+15. **`ato bh init`** configures Blue Hat host and generates SSH key pair
+16. **`ato bh request`** provisions a VM via Blue Hat proxy, provisions OpenJDK packages, connects via SSH
+17. **`ato bh status`** queries the Blue Hat API and shows FQDN, state, uptime
+18. **`ato bh connect`** reconnects to a running Blue Hat VM
+19. **`ato bh destroy`** destroys the VM via Blue Hat proxy API
+20. **Blue Hat integration tests** pass using an in-process dummy API server (no real cloud needed)
 
 ## Open Questions
 

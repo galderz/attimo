@@ -1,4 +1,4 @@
-package org.mendrugo.attimo.config;
+package org.mendrugo.attimo.aws;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -10,14 +10,14 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class AttimoConfigTest
+class AwsConfigTest
 {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     @Test
     void defaultsWhenNoFileExists()
     {
-        final var config = new AttimoConfig();
+        final var config = new AwsConfig();
         assertThat(config.getContinent()).isEmpty();
         assertThat(config.getPreferredRegion()).isEmpty();
         assertThat(config.getSshPublicKey()).isEmpty();
@@ -28,15 +28,14 @@ class AttimoConfigTest
     {
         final Path configFile = tempDir.resolve("config.yaml");
 
-        final var config = new AttimoConfig();
+        final var config = new AwsConfig();
         config.setContinent("EMEA");
         config.setPreferredRegion("eu-west-1");
         config.setSshPublicKey("~/.ssh/id_ed25519.pub");
 
-        // Write directly to temp dir for test isolation
         YAML.writeValue(configFile.toFile(), config);
 
-        final var loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
+        final var loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
         assertThat(loaded.getContinent()).isEqualTo("EMEA");
         assertThat(loaded.getPreferredRegion()).isEqualTo("eu-west-1");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_ed25519.pub");
@@ -45,7 +44,7 @@ class AttimoConfigTest
     @Test
     void nullsSafelyDefaultToEmpty()
     {
-        final var config = new AttimoConfig();
+        final var config = new AwsConfig();
         config.setContinent(null);
         config.setPreferredRegion(null);
         config.setSshPublicKey(null);
@@ -65,7 +64,7 @@ class AttimoConfigTest
             unknown-field: should-be-ignored
             """);
 
-        final var loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
+        final var loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
         assertThat(loaded.getPreferredRegion()).isEqualTo("us-east-1");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
     }
@@ -76,9 +75,7 @@ class AttimoConfigTest
         final Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile, "---\n");
 
-        final var loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
-        // Jackson returns null for empty YAML documents;
-        // AttimoConfig.load() handles this by returning a new instance
+        final var loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
         if (loaded != null)
         {
             assertThat(loaded.getContinent()).isEmpty();
@@ -90,14 +87,13 @@ class AttimoConfigTest
     @Test
     void backwardCompatWithoutContinentField(@TempDir final Path tempDir) throws Exception
     {
-        // Old config files don't have continent — should load fine
         final Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile, """
             preferred-region: eu-west-1
             ssh-public-key: ~/.ssh/id_ed25519.pub
             """);
 
-        final var loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
+        final var loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
         assertThat(loaded.getContinent()).isEmpty();
         assertThat(loaded.getPreferredRegion()).isEqualTo("eu-west-1");
     }

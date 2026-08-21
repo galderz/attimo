@@ -10,7 +10,7 @@ import org.mendrugo.attimo.aws.SpotAdvisor;
 import org.mendrugo.attimo.aws.SpotManager;
 import org.mendrugo.attimo.aws.SpotRecommendation;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.config.AttimoConfig;
+import org.mendrugo.attimo.aws.AwsConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.isa.IsaMapping;
 import org.mendrugo.attimo.ssh.OsPackages;
@@ -57,7 +57,7 @@ public class AwsRequestCommand extends BaseCommand
         if (!AwsInitCommand.hasBeenInitialized())
         {
             System.err.println("Error: AWS has not been initialized. Run 'ato aws init' first.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         // Check for existing active instance
@@ -66,15 +66,15 @@ public class AwsRequestCommand extends BaseCommand
         {
             System.err.println("Error: an instance is already active (" + existingState.getInstanceId() + ").");
             System.err.println("Use 'ato aws connect' to reconnect or 'ato aws destroy' to tear it down first.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
-        final var config = AttimoConfig.load(Aws.CLOUD);
+        final var config = AwsConfig.load();
         final var preferredRegion = config.getPreferredRegion();
         if (preferredRegion.isBlank())
         {
             System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         // 1. Resolve ISA → instance types
@@ -87,7 +87,7 @@ public class AwsRequestCommand extends BaseCommand
         {
             System.err.println("Error: unknown ISA feature '" + isaFeature + "'.");
             System.err.println("Available features: " + String.join(", ", isaMapping.allFeatureNames()));
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         System.out.println("  " + feature.description() + " (" + feature.architecture() + ")");
@@ -102,7 +102,7 @@ public class AwsRequestCommand extends BaseCommand
         catch (final IllegalArgumentException e)
         {
             System.err.println("Error: " + e.getMessage());
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         // 2. Find spot options across continents
@@ -121,7 +121,7 @@ public class AwsRequestCommand extends BaseCommand
         {
             System.err.println("Error: no spot instances available for " + isaFeature
                 + " across all continents.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         System.out.println("  Best option: " + recommendations.getFirst().rationale());
@@ -147,7 +147,7 @@ public class AwsRequestCommand extends BaseCommand
                 + Math.min(MAX_LAUNCH_ATTEMPTS, recommendations.size()) + " attempts.");
             System.err.println("All candidate regions had no spot capacity. Try again later"
                 + " or use a different --size.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         try (launchResult)
@@ -185,7 +185,7 @@ public class AwsRequestCommand extends BaseCommand
             System.err.println("Error: SSH not reachable after 5 minutes.");
             System.err.println("Instance is running at " + launchResult.publicIp
                 + ". Use 'ato aws connect' to retry.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         // Provision packages

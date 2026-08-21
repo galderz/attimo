@@ -5,7 +5,7 @@ import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.Continent;
 import org.mendrugo.attimo.aws.ResourceCleaner;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.config.AttimoConfig;
+import org.mendrugo.attimo.aws.AwsConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -68,7 +68,7 @@ public class AwsDestroyCommand extends BaseCommand
                     System.err.println("  - " + error);
                 }
                 System.err.println("Run 'ato aws destroy' again to retry.");
-                return CommandResult.valueOf(1);
+                return CommandResult.FAILURE;
             }
         }
     }
@@ -78,13 +78,13 @@ public class AwsDestroyCommand extends BaseCommand
         System.out.println("No active instance in state file.");
         System.out.println("Scanning for orphaned attimo resources...\n");
 
-        final var config = AttimoConfig.load(Aws.CLOUD);
+        final var config = AwsConfig.load();
         final var preferredRegion = config.getPreferredRegion();
 
         if (preferredRegion.isBlank())
         {
             System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         final var factory = new AwsClientFactory();

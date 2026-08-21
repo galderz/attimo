@@ -6,7 +6,7 @@ import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.aws.Continent;
 import org.mendrugo.attimo.aws.Region;
-import org.mendrugo.attimo.config.AttimoConfig;
+import org.mendrugo.attimo.aws.AwsConfig;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -36,18 +36,18 @@ public class AwsInitCommand extends BaseCommand
     {
         System.out.println("=== attimo aws init ===\n");
 
-        final var config = AttimoConfig.load(Aws.CLOUD);
+        final var config = AwsConfig.load();
         final var console = System.console();
 
         if (!checkAwsCredentials(console, config))
         {
-            return CommandResult.valueOf(1);
+            return CommandResult.FAILURE;
         }
 
         setupRegion(console, config);
         setupSshKey(console, config);
 
-        config.save(Aws.CLOUD);
+        config.save();
 
         System.out.println("\n=== Init complete! ===");
         System.out.println("Next steps:");
@@ -58,7 +58,7 @@ public class AwsInitCommand extends BaseCommand
 
     private boolean checkAwsCredentials(
         final Console console
-        , final AttimoConfig config
+        , final AwsConfig config
     )
     {
         System.out.println("[1/3] Checking AWS authentication...");
@@ -182,7 +182,7 @@ public class AwsInitCommand extends BaseCommand
 
     private void setupRegion(
         final Console console
-        , final AttimoConfig config
+        , final AwsConfig config
     )
     {
         System.out.println("\n[2/3] Configuring preferred AWS region...");
@@ -275,7 +275,7 @@ public class AwsInitCommand extends BaseCommand
 
     private void setupSshKey(
         final Console console
-        , final AttimoConfig config
+        , final AwsConfig config
     )
     {
         System.out.println("\n[3/3] Configuring SSH key...");
