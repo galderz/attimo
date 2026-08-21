@@ -136,6 +136,8 @@ public class BlueHatRequestCommand extends BaseCommand
             }
         }
 
+        // Any errors during provisioning are not treated as fatal.
+        // Inspect the logs for any warning messages if issues encountered during provisioning.
         provisioner.installPackages(OsPackages.JDK_DEV_PACKAGES);
 
         // Connect via SSH
