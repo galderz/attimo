@@ -15,6 +15,10 @@ import java.nio.file.StandardCopyOption;
 /**
  * Blue Hat-specific configuration stored at ~/.config/attimo/bh/config.yaml.
  * Owner-only permissions (chmod 600) for security.
+ *
+ * <p>The Blue Hat host name is no longer stored here — it is managed
+ * via Quarkus configuration ({@code attimo.bluehat.host-name}).
+ * See {@link BlueHatSettings}.
  */
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -22,21 +26,8 @@ public class BlueHatConfig
 {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
-    @JsonProperty("host-name")
-    private String hostName = "";
-
     @JsonProperty("ssh-public-key")
     private String sshPublicKey = "";
-
-    public String getHostName()
-    {
-        return hostName;
-    }
-
-    public void setHostName(final String hostName)
-    {
-        this.hostName = hostName == null ? "" : hostName;
-    }
 
     public String getSshPublicKey()
     {

@@ -2,8 +2,10 @@ package org.mendrugo.attimo.bluehat.command;
 
 import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.bluehat.BlueHat;
-import org.mendrugo.attimo.command.BaseCommand;
+import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
+import org.mendrugo.attimo.bluehat.BlueHatSettings;
+import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -13,7 +15,7 @@ import java.nio.file.Files;
 
 @CommandDefinition(
     name = "init"
-    , description = "One-time setup: configure Blue Hat host and SSH key"
+    , description = "One-time setup: configure SSH key and build local cloud (if localhost)"
     , generateHelp = true
 )
 public class BlueHatInitCommand extends BaseCommand
@@ -33,9 +35,22 @@ public class BlueHatInitCommand extends BaseCommand
 
         final var config = BlueHatConfig.load();
         final var console = System.console();
+        final var hostName = BlueHatSettings.hostName();
 
-        setupHostName(console, config);
-        setupSshKey(console, config);
+        System.out.println("Blue Hat host: " + hostName
+            + (BlueHatSettings.isLocal() ? " (local mode)" : " (remote mode)"));
+        System.out.println();
+
+        final int totalSteps = BlueHatSettings.isLocal() ? 2 : 1;
+        int step = 1;
+
+        setupSshKey(console, config, step, totalSteps);
+        step++;
+
+        if (BlueHatSettings.isLocal())
+        {
+            buildLocalCloud(step, totalSteps);
+        }
 
         config.save();
 
@@ -46,58 +61,14 @@ public class BlueHatInitCommand extends BaseCommand
         return CommandResult.SUCCESS;
     }
 
-    private void setupHostName(
-        final Console console
-        , final BlueHatConfig config
-    )
-    {
-        System.out.println("[1/2] Configuring Blue Hat host...");
-
-        if (!config.getHostName().isBlank())
-        {
-            System.out.println("  Current host: " + config.getHostName());
-            if (console != null)
-            {
-                System.out.print("  Keep this host? (Y/n): ");
-                final var answer = console.readLine().strip();
-                if (!answer.equalsIgnoreCase("n"))
-                {
-                    return;
-                }
-            }
-            else
-            {
-                return;
-            }
-        }
-
-        if (console == null)
-        {
-            System.err.println("  Error: no console available for interactive setup.");
-            System.err.println("  Set the host-name manually in "
-                + Environment.configFile(BlueHat.CLOUD));
-            return;
-        }
-
-        System.out.print("  Blue Hat host name or IP address: ");
-        final var hostName = console.readLine().strip();
-
-        if (hostName.isBlank())
-        {
-            System.err.println("  Error: host name cannot be empty.");
-            return;
-        }
-
-        config.setHostName(hostName);
-        System.out.println("  Host set to: " + hostName);
-    }
-
     private void setupSshKey(
         final Console console
         , final BlueHatConfig config
+        , final int step
+        , final int totalSteps
     )
     {
-        System.out.println("\n[2/2] Configuring SSH key...");
+        System.out.println("[" + step + "/" + totalSteps + "] Configuring SSH key...");
 
         // Generate managed key pair
         if (SshKeyManager.exists(BlueHat.CLOUD))
@@ -135,5 +106,12 @@ public class BlueHatInitCommand extends BaseCommand
             config.setSshPublicKey("~/.ssh/id_ed25519.pub");
             System.out.println("  Defaulting to ~/.ssh/id_ed25519.pub");
         }
+    }
+
+    private void buildLocalCloud(final int step, final int totalSteps)
+    {
+        System.out.println("\n[" + step + "/" + totalSteps
+            + "] Building local Blue Hat cloud...");
+        BlueHatCloudRunner.cloneAndBuild();
     }
 }

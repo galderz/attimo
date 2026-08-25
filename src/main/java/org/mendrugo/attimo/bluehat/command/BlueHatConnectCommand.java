@@ -3,8 +3,9 @@ package org.mendrugo.attimo.bluehat.command;
 import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
+import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
+import org.mendrugo.attimo.bluehat.BlueHatSettings;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.ssh.SshSession;
 import org.aesh.command.CommandDefinition;
@@ -29,32 +30,48 @@ public class BlueHatConnectCommand extends BaseCommand
         }
 
         final var fqdn = state.getInstanceId();
+        final var hostName = BlueHatSettings.hostName();
+        final var port = BlueHatSettings.apiPort();
 
-        // Verify the VM is still running
-        final var config = BlueHatConfig.load();
-        final var hostName = config.getHostName();
-        if (!hostName.isBlank())
+        // Start local cloud if needed
+        Process localProcess = null;
+        try
         {
-            try
-            {
-                final var client = new BlueHatClient(hostName);
-                final var vms = client.listVms();
-                final var isRunning = vms.stream()
-                    .anyMatch(vm -> fqdn.equals(vm.fqdn())
-                        && "running".equalsIgnoreCase(vm.state()));
+            localProcess = BlueHatRequestCommand.ensureCloudRunning(hostName, port);
+            return doConnect(fqdn, hostName, port);
+        }
+        finally
+        {
+            BlueHatCloudRunner.stop(localProcess);
+        }
+    }
 
-                if (!isRunning)
-                {
-                    System.err.println("VM " + fqdn + " is not running.");
-                    System.err.println("Use 'ato bh destroy' to clean up or 'ato bh request' for a new VM.");
-                    return CommandResult.FAILURE;
-                }
-            }
-            catch (final Exception e)
+    private CommandResult doConnect(
+        final String fqdn
+        , final String hostName
+        , final int port
+    )
+    {
+        // Verify the VM is still running
+        try
+        {
+            final var client = new BlueHatClient(hostName, port);
+            final var vms = client.listVms();
+            final var isRunning = vms.stream()
+                .anyMatch(vm -> fqdn.equals(vm.fqdn())
+                    && "running".equalsIgnoreCase(vm.state()));
+
+            if (!isRunning)
             {
-                System.err.println("Warning: could not verify VM status: " + e.getMessage());
-                System.err.println("Attempting to connect anyway...");
+                System.err.println("VM " + fqdn + " is not running.");
+                System.err.println("Use 'ato bh destroy' to clean up or 'ato bh request' for a new VM.");
+                return CommandResult.FAILURE;
             }
+        }
+        catch (final Exception e)
+        {
+            System.err.println("Warning: could not verify VM status: " + e.getMessage());
+            System.err.println("Attempting to connect anyway...");
         }
 
         System.out.println("Connecting to " + fqdn + "...");

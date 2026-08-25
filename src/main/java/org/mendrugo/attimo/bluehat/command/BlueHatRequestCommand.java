@@ -3,9 +3,11 @@ package org.mendrugo.attimo.bluehat.command;
 import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
-import org.mendrugo.attimo.bluehat.BlueHatInstanceSize;
-import org.mendrugo.attimo.command.BaseCommand;
+import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
+import org.mendrugo.attimo.bluehat.BlueHatInstanceSize;
+import org.mendrugo.attimo.bluehat.BlueHatSettings;
+import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.ssh.OsPackages;
 import org.mendrugo.attimo.ssh.SshKeyManager;
@@ -53,14 +55,6 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        final var config = BlueHatConfig.load();
-        final var hostName = config.getHostName();
-        if (hostName.isBlank())
-        {
-            System.err.println("Error: no Blue Hat host configured. Run 'ato bh init' first.");
-            return CommandResult.FAILURE;
-        }
-
         // Parse instance size
         final BlueHatInstanceSize instanceSize;
         try
@@ -73,6 +67,29 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
+        final var hostName = BlueHatSettings.hostName();
+        final var port = BlueHatSettings.apiPort();
+
+        // Start local cloud if needed
+        Process localProcess = null;
+        try
+        {
+            localProcess = ensureCloudRunning(hostName, port);
+            return doRequest(hostName, port, instanceSize, localProcess);
+        }
+        finally
+        {
+            BlueHatCloudRunner.stop(localProcess);
+        }
+    }
+
+    private CommandResult doRequest(
+        final String hostName
+        , final int port
+        , final BlueHatInstanceSize instanceSize
+        , final Process localProcess
+    ) throws Exception
+    {
         System.out.println("=== Requesting Blue Hat VM ===\n");
         System.out.println("[1/4] Preparing request (size: " + instanceSize.label()
             + ", " + instanceSize.cpus() + " CPUs, " + instanceSize.memoryGb() + " GB)...");
@@ -89,8 +106,8 @@ public class BlueHatRequestCommand extends BaseCommand
         );
 
         // Send the request
-        System.out.println("\n[2/4] Requesting VM from Blue Hat (" + hostName + ")...");
-        final var client = new BlueHatClient(hostName);
+        System.out.println("\n[2/4] Requesting VM from Blue Hat (" + hostName + ":" + port + ")...");
+        final var client = new BlueHatClient(hostName, port);
         final var response = client.requestVm(request);
         final var fqdn = response.fqdn();
         if (!fqdn.matches("[A-Za-z0-9._-]+"))
@@ -204,6 +221,33 @@ public class BlueHatRequestCommand extends BaseCommand
                 System.err.println("  Destroy failed: " + e.getMessage());
                 System.err.println("  Run 'ato bh destroy' to retry.");
             }
+        }
+    }
+
+    /**
+     * Ensure the Blue Hat cloud is running and healthy.
+     * For localhost: starts the local cloud process.
+     * For remote: performs a health check.
+     *
+     * @return the local process (or null if remote)
+     */
+    static Process ensureCloudRunning(final String hostName, final int port)
+    {
+        if (BlueHatSettings.isLocal())
+        {
+            return BlueHatCloudRunner.start();
+        }
+        else
+        {
+            if (!BlueHatCloudRunner.healthCheck(hostName, port))
+            {
+                throw new org.mendrugo.attimo.bluehat.BlueHatException(
+                    "Blue Hat cloud at " + hostName + ":" + port
+                        + " is not reachable. Verify the host is running."
+                );
+            }
+            System.out.println("  Blue Hat cloud at " + hostName + ":" + port + " is healthy.");
+            return null;
         }
     }
 }

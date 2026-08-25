@@ -18,7 +18,6 @@ class BlueHatConfigTest
     void defaultsWhenNoFileExists()
     {
         final var config = new BlueHatConfig();
-        assertThat(config.getHostName()).isEmpty();
         assertThat(config.getSshPublicKey()).isEmpty();
     }
 
@@ -28,13 +27,11 @@ class BlueHatConfigTest
         final Path configFile = tempDir.resolve("config.yaml");
 
         final var config = new BlueHatConfig();
-        config.setHostName("bluehat-proxy.acme.com");
         config.setSshPublicKey("~/.ssh/id_ed25519.pub");
 
         YAML.writeValue(configFile.toFile(), config);
 
         final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
-        assertThat(loaded.getHostName()).isEqualTo("bluehat-proxy.acme.com");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_ed25519.pub");
     }
 
@@ -42,10 +39,8 @@ class BlueHatConfigTest
     void nullsSafelyDefaultToEmpty()
     {
         final var config = new BlueHatConfig();
-        config.setHostName(null);
         config.setSshPublicKey(null);
 
-        assertThat(config.getHostName()).isEmpty();
         assertThat(config.getSshPublicKey()).isEmpty();
     }
 
@@ -54,13 +49,12 @@ class BlueHatConfigTest
     {
         final Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile, """
-            host-name: bluehat-proxy.acme.com
             ssh-public-key: ~/.ssh/id_rsa.pub
             unknown-field: should-be-ignored
+            host-name: legacy-field-ignored
             """);
 
         final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
-        assertThat(loaded.getHostName()).isEqualTo("bluehat-proxy.acme.com");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
     }
 
@@ -73,7 +67,6 @@ class BlueHatConfigTest
         final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
         if (loaded != null)
         {
-            assertThat(loaded.getHostName()).isEmpty();
             assertThat(loaded.getSshPublicKey()).isEmpty();
         }
     }

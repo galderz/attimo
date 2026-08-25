@@ -2,8 +2,9 @@ package org.mendrugo.attimo.bluehat.command;
 
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
+import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
+import org.mendrugo.attimo.bluehat.BlueHatSettings;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -27,23 +28,37 @@ public class BlueHatDestroyCommand extends BaseCommand
         }
 
         final var fqdn = state.getInstanceId();
+        final var hostName = BlueHatSettings.hostName();
+        final var port = BlueHatSettings.apiPort();
+
+        // Start local cloud if needed
+        Process localProcess = null;
+        try
+        {
+            localProcess = BlueHatRequestCommand.ensureCloudRunning(hostName, port);
+            return doDestroy(fqdn, hostName, port, state);
+        }
+        finally
+        {
+            BlueHatCloudRunner.stop(localProcess);
+        }
+    }
+
+    private CommandResult doDestroy(
+        final String fqdn
+        , final String hostName
+        , final int port
+        , final InstanceState state
+    )
+    {
         System.out.println("=== Destroying Blue Hat VM ===\n");
         System.out.println("FQDN:  " + fqdn);
         System.out.println("Size:  " + state.getInstanceType());
         System.out.println();
 
-        final var config = BlueHatConfig.load();
-        final var hostName = config.getHostName();
-
-        if (hostName.isBlank())
-        {
-            System.err.println("Error: no Blue Hat host configured. Run 'ato bh init' first.");
-            return CommandResult.FAILURE;
-        }
-
         try
         {
-            final var client = new BlueHatClient(hostName);
+            final var client = new BlueHatClient(hostName, port);
             final var response = client.destroyVm(fqdn);
 
             if ("success".equalsIgnoreCase(response.status()))
