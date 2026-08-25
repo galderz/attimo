@@ -78,6 +78,7 @@ If you're a new agent session picking up this project:
 |------|-------------|--------|
 | — | Blue Hat cloud provider: init, request, status, connect, destroy commands | `6d90b36` |
 | — | BlueHatClient HTTP client, BlueHatInstanceSize, BlueHatDummyServer for testing | `6d90b36` |
+| — | Refactor host-name to Quarkus config, local cloud runner, health checks | `95689bd` |
 
 ### Bug Fixes from Real AWS Testing
 
@@ -123,7 +124,7 @@ If you're a new agent session picking up this project:
 - **Package manager** — `dnf`
 
 ### Test Counts
-- **132 unit tests** — all pass, no cloud interaction needed
+- **151 unit tests** — all pass, no cloud interaction needed
 - **17 integration tests** — all pass (10 AWS via LocalStack + Podman, 7 Blue Hat via dummy server)
 
 ### Key Technical Decisions Made During Implementation
@@ -138,6 +139,7 @@ If you're a new agent session picking up this project:
 - **Blue Hat dummy server for testing** — uses `com.sun.net.httpserver.HttpServer` (built into JDK), no container runtime needed for Blue Hat integration tests
 - **Blue Hat SSH user is root** — provisioning via `sudo` still works (no-op as root)
 - **Blue Hat state reuses InstanceState** — stores FQDN in `instanceId` and `publicIp` fields
+- **Blue Hat host-name via Quarkus config** — `attimo.bluehat.host-name` (default: localhost), `attimo.bluehat.repository` for git clone, `attimo.bluehat.local-port` (default: 18080). When localhost, init clones+builds the repo; commands start/stop local cloud process. When remote, commands health-check `<host>:8080/vm`.
 
 ## Next Tasks
 
