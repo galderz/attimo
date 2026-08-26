@@ -376,4 +376,31 @@ public final class BlueHatCloudRunner
             );
         }
     }
+
+    /**
+     * Ensure the Blue Hat cloud is running and healthy.
+     * For localhost: starts the local cloud process.
+     * For remote: performs a health check.
+     *
+     * @return the local process (or null if remote)
+     */
+    public static Process ensureCloudRunning(final String hostName, final int port)
+    {
+        if (BlueHatSettings.isLocal())
+        {
+            return BlueHatCloudRunner.start();
+        }
+        else
+        {
+            if (!BlueHatCloudRunner.healthCheck(hostName, port))
+            {
+                throw new org.mendrugo.attimo.bluehat.BlueHatException(
+                    "Blue Hat cloud at " + hostName + ":" + port
+                        + " is not reachable. Verify the host is running."
+                );
+            }
+            System.out.println("  Blue Hat cloud at " + hostName + ":" + port + " is healthy.");
+            return null;
+        }
+    }
 }

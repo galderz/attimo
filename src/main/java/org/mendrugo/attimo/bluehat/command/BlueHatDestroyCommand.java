@@ -35,7 +35,7 @@ public class BlueHatDestroyCommand extends BaseCommand
         Process localProcess = null;
         try
         {
-            localProcess = BlueHatRequestCommand.ensureCloudRunning(hostName, port);
+            localProcess = BlueHatCloudRunner.ensureCloudRunning(hostName, port);
             return doDestroy(fqdn, hostName, port, state);
         }
         finally

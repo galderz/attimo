@@ -37,7 +37,7 @@ public class BlueHatConnectCommand extends BaseCommand
         Process localProcess = null;
         try
         {
-            localProcess = BlueHatRequestCommand.ensureCloudRunning(hostName, port);
+            localProcess = BlueHatCloudRunner.ensureCloudRunning(hostName, port);
             return doConnect(fqdn, hostName, port);
         }
         finally

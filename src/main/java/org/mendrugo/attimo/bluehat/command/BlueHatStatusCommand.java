@@ -39,7 +39,7 @@ public class BlueHatStatusCommand extends BaseCommand
         Process localProcess = null;
         try
         {
-            localProcess = BlueHatRequestCommand.ensureCloudRunning(hostName, port);
+            localProcess = BlueHatCloudRunner.ensureCloudRunning(hostName, port);
             return doStatus(fqdn, hostName, port, state);
         }
         finally
