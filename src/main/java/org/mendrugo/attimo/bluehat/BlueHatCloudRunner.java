@@ -203,7 +203,11 @@ public final class BlueHatCloudRunner
             process.destroy();
             try
             {
-                final var exited = process.waitFor();
+                final boolean processExited = process.waitFor(Duration.ofSeconds(30));
+                if (!processExited)
+                {
+                    process.destroyForcibly();
+                }
             }
             catch (final InterruptedException e)
             {
