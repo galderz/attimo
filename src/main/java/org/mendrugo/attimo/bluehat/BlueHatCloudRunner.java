@@ -28,9 +28,9 @@ public final class BlueHatCloudRunner
 {
     private BlueHatCloudRunner() {}
 
-    private static final Duration HEALTH_TIMEOUT = Duration.ofSeconds(5);
-    private static final int HEALTH_MAX_RETRIES = 30;
-    private static final Duration HEALTH_RETRY_DELAY = Duration.ofSeconds(2);
+    private static final Duration HEALTH_TIMEOUT = Duration.ofSeconds(2);
+    private static final int HEALTH_MAX_RETRIES = 10;
+    private static final Duration HEALTH_RETRY_DELAY = Duration.ofMillis(1000);
 
     /**
      * Returns the directory where the Blue Hat cloud repository is cloned.
@@ -114,8 +114,11 @@ public final class BlueHatCloudRunner
 
         final var port = BlueHatSettings.localPort();
 
+        final var logFile = logFile();
+
         try
         {
+            Files.createDirectories(logFile.getParent());
             System.out.println("  Starting local Blue Hat cloud on port " + port + "...");
             final var process = new ProcessBuilder(
                 "java"
@@ -126,17 +129,14 @@ public final class BlueHatCloudRunner
             )
                 .directory(targetDir.toFile())
                 .redirectErrorStream(true)
-                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()))
                 .start();
 
             // Wait for it to be healthy
-            if (!waitForHealthy("localhost", port))
+            if (!waitForHealthy("localhost", port, process))
             {
                 process.destroyForcibly();
-                throw new BlueHatException(
-                    "Local Blue Hat cloud failed to start within "
-                        + (HEALTH_MAX_RETRIES * HEALTH_RETRY_DELAY.toSeconds()) + " seconds."
-                );
+                reportStartupFailure(process, logFile);
             }
 
             System.out.println("  Local Blue Hat cloud is running.");
@@ -214,12 +214,30 @@ public final class BlueHatCloudRunner
     }
 
     /**
-     * Wait for the Blue Hat cloud to become healthy, retrying up to HEALTH_MAX_RETRIES times.
+     * Returns the log file path for the local Blue Hat cloud process.
      */
-    private static boolean waitForHealthy(final String host, final int port)
+    static Path logFile()
+    {
+        return Environment.cacheDir(BlueHat.CLOUD).resolve("cloud.log");
+    }
+
+    /**
+     * Wait for the Blue Hat cloud to become healthy, retrying up to HEALTH_MAX_RETRIES times.
+     * Stops early if the process exits (no point retrying against a dead process).
+     */
+    private static boolean waitForHealthy(
+        final String host
+        , final int port
+        , final Process process
+    )
     {
         for (int i = 0; i < HEALTH_MAX_RETRIES; i++)
         {
+            if (!process.isAlive())
+            {
+                return false;
+            }
+
             if (healthCheck(host, port))
             {
                 return true;
@@ -237,6 +255,58 @@ public final class BlueHatCloudRunner
         }
 
         return false;
+    }
+
+    /**
+     * Report why the local cloud failed to start, showing the log file location
+     * and the last few lines of output.
+     */
+    private static void reportStartupFailure(
+        final Process process
+        , final Path logFile
+    )
+    {
+        final var sb = new StringBuilder();
+        sb.append("Local Blue Hat cloud failed to start.");
+
+        if (!process.isAlive())
+        {
+            sb.append("\n  Process exited with code: ").append(process.exitValue());
+        }
+        else
+        {
+            sb.append("\n  Process is running but health check at http://localhost:")
+                .append(BlueHatSettings.localPort())
+                .append("/vm did not respond within ")
+                .append(HEALTH_MAX_RETRIES)
+                .append(" attempts.");
+        }
+
+        sb.append("\n  Log file: ").append(logFile);
+
+        // Show last lines of the log
+        try
+        {
+            if (Files.exists(logFile) && Files.size(logFile) > 0)
+            {
+                final var lines = Files.readAllLines(logFile);
+                final var tail = lines.subList(
+                    Math.max(0, lines.size() - 20)
+                    , lines.size()
+                );
+                sb.append("\n\n  Last output:");
+                for (final var line : tail)
+                {
+                    sb.append("\n    ").append(line);
+                }
+            }
+        }
+        catch (final IOException ignored)
+        {
+            // Best effort — if we can't read the log, we still report the path
+        }
+
+        throw new BlueHatException(sb.toString());
     }
 
     /**
