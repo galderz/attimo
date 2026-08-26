@@ -182,7 +182,8 @@ public final class BlueHatCloudRunner
             // Any 2xx response with a body is considered healthy
             return response.statusCode() >= 200
                 && response.statusCode() < 300
-                && response.body() != null;
+                && response.body() != null
+                && !response.body().isBlank();
         }
         catch (final Exception e)
         {
