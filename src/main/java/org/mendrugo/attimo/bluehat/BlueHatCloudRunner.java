@@ -92,7 +92,7 @@ public final class BlueHatCloudRunner
 
     /**
      * Start the local Blue Hat cloud as a background process.
-     * The process binds to localhost on the configured local port.
+     * The process binds to localhost on the default Quarkus port (8080).
      *
      * @return the running process
      * @throws BlueHatException if the process cannot be started
@@ -112,18 +112,15 @@ public final class BlueHatCloudRunner
             );
         }
 
-        final var port = BlueHatSettings.localPort();
-
         final var logFile = logFile();
 
         try
         {
             Files.createDirectories(logFile.getParent());
-            System.out.println("  Starting local Blue Hat cloud on port " + port + "...");
+            System.out.println("  Starting local Blue Hat cloud...");
             final var process = new ProcessBuilder(
                 "java"
                 , "-Dquarkus.http.host=localhost"
-                , "-Dquarkus.http.port=" + port
                 , "-jar"
                 , quarkusJar.toString()
             )
@@ -133,7 +130,7 @@ public final class BlueHatCloudRunner
                 .start();
 
             // Wait for it to be healthy
-            if (!waitForHealthy("localhost", port, process))
+            if (!waitForHealthy("localhost", BlueHat.API_PORT, process))
             {
                 process.destroyForcibly();
                 reportStartupFailure(process, logFile);
@@ -281,7 +278,7 @@ public final class BlueHatCloudRunner
         else
         {
             sb.append("\n  Process is running but health check at http://localhost:")
-                .append(BlueHatSettings.localPort())
+                .append(BlueHat.API_PORT)
                 .append("/vm did not respond within ")
                 .append(HEALTH_MAX_RETRIES)
                 .append(" attempts.");

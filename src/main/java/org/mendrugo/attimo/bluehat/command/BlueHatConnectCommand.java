@@ -31,7 +31,7 @@ public class BlueHatConnectCommand extends BaseCommand
 
         final var fqdn = state.getInstanceId();
         final var hostName = BlueHatSettings.hostName();
-        final var port = BlueHatSettings.apiPort();
+        final var port = BlueHat.API_PORT;
 
         // Start local cloud if needed
         Process localProcess = null;

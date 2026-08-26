@@ -73,7 +73,7 @@ class BlueHatCloudRunnerTest
     void healthCheckFailsOnUnreachableHost()
     {
         // Unreachable host — should fail without hanging
-        assertThat(BlueHatCloudRunner.healthCheck("192.0.2.1", 18080)).isFalse();
+        assertThat(BlueHatCloudRunner.healthCheck("192.0.2.1", 8080)).isFalse();
     }
 
     @Test

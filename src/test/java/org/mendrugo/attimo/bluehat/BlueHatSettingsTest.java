@@ -24,22 +24,6 @@ class BlueHatSettingsTest
     }
 
     @Test
-    void defaultLocalPort()
-    {
-        assertThat(BlueHatSettings.localPort()).isEqualTo(18080);
-    }
-
-    @Test
-    void apiPortReturnsLocalPortWhenLocal()
-    {
-        // When host is localhost, apiPort should return the localPort
-        if (BlueHatSettings.isLocal())
-        {
-            assertThat(BlueHatSettings.apiPort()).isEqualTo(BlueHatSettings.localPort());
-        }
-    }
-
-    @Test
     void repositoryIsConfigured()
     {
         assertThat(BlueHatSettings.repository()).isNotBlank();
