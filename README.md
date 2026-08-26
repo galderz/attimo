@@ -350,6 +350,12 @@ Provide the URL of a git repository containing the Blue Hat cloud application. A
 
 This is useful when you don’t have a shared Blue Hat cloud running and want to run everything on your workstation.
 
+> **⚠ Environment variables required.** The Blue Hat cloud needs configuration
+> via environment variables (e.g. cloud credentials, API keys). Check the
+> README file in the Blue Hat repository for the list of required variables.
+> These must be set in your shell **before** running any `ato bh` command.
+> Init will ask you to confirm that you are aware of this requirement.
+
 **Option 2: Remote host**
 
 Provide the host name or IP address of a Blue Hat cloud that is already running. Commands will connect directly to `<host>:8080`.

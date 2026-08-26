@@ -110,6 +110,21 @@ public class BlueHatInitCommand extends BaseCommand
                 return;
             }
 
+            System.out.println();
+            System.out.println("  ⚠  The Blue Hat cloud requires configuration via environment");
+            System.out.println("     variables (e.g. cloud credentials, API keys).");
+            System.out.println("     Check the README in the repository for required variables.");
+            System.out.println("     These must be set in your shell before running ato bh commands.");
+            System.out.println();
+            System.out.print("  I understand and have configured the required environment variables (y/N): ");
+            final var confirm = console.readLine().strip();
+
+            if (!confirm.equalsIgnoreCase("y"))
+            {
+                System.out.println("  Aborting. Set the required environment variables and run 'ato bh init' again.");
+                return;
+            }
+
             config.setRepository(repo);
             config.setHostName("");
             System.out.println("  Mode set to: local (repository: " + repo + ")");

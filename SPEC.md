@@ -1035,7 +1035,7 @@ jobs:
 12. **GitHub CI** runs on every PR and push to main
 13. **ISA mappings** are overridable by users at `~/.config/attimo/isa-mappings/`
 14. **Templates** support incus-spawn-style YAML with packages + tools
-15. **`ato bh init`** lets user choose cloud mode (git repo or remote host) and generates SSH key pair
+15. **`ato bh init`** lets user choose cloud mode (git repo or remote host), warns about required environment variables for local mode, and generates SSH key pair
 16. **`ato bh request`** provisions a VM via Blue Hat proxy, provisions OpenJDK packages, connects via SSH
 17. **`ato bh status`** queries the Blue Hat API and shows FQDN, state, uptime
 18. **`ato bh connect`** reconnects to a running Blue Hat VM
