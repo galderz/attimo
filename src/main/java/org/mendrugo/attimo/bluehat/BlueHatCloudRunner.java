@@ -117,6 +117,7 @@ public final class BlueHatCloudRunner
         try
         {
             Files.createDirectories(logFile.getParent());
+            Files.deleteIfExists(logFile);
             System.out.println("  Starting local Blue Hat cloud...");
             final var process = new ProcessBuilder(
                 "java"
