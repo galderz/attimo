@@ -29,7 +29,7 @@ public final class BlueHatSettings
     {
         return ConfigProvider.getConfig()
             .getOptionalValue("attimo.bluehat.repository", String.class)
-            .orElse("");
+            .orElse("https://github.com/attimo/bluehat.git");
     }
 
     public static int localPort()
