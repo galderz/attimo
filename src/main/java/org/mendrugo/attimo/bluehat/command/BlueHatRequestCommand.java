@@ -75,7 +75,7 @@ public class BlueHatRequestCommand extends BaseCommand
         try
         {
             localProcess = ensureCloudRunning(hostName, port);
-            return doRequest(hostName, port, instanceSize, localProcess);
+            return doRequest(hostName, port, instanceSize);
         }
         finally
         {
@@ -87,8 +87,7 @@ public class BlueHatRequestCommand extends BaseCommand
         final String hostName
         , final int port
         , final BlueHatInstanceSize instanceSize
-        , final Process localProcess
-    ) throws Exception
+    )
     {
         System.out.println("=== Requesting Blue Hat VM ===\n");
         System.out.println("[1/4] Preparing request (size: " + instanceSize.label()
