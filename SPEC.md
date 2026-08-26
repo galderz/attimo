@@ -72,7 +72,7 @@ ato aws cost                       # Show current/total cost information
 
 # Blue Hat CLI commands (all under 'ato bh')
 ato bh --help                      # Show Blue Hat-specific commands
-ato bh init                        # One-time setup: Blue Hat host, SSH key
+ato bh init                        # One-time setup: choose cloud mode, SSH key
 ato bh request                     # Request a VM (default: medium size), provision, SSH in
 ato bh request --size large        # Use a larger VM (32 CPUs, 64 GB)
 ato bh status                      # Show VM status (FQDN, state, uptime)
@@ -116,6 +116,8 @@ src/
 │   │   ├── bluehat/                        # Blue Hat cloud provider
 │   │   │   ├── BlueHat.java               # Cloud constants (SSH user, default OS, API port)
 │   │   │   ├── BlueHatClient.java         # HTTP client for Blue Hat proxy API
+│   │   │   ├── BlueHatCloudRunner.java    # Local cloud lifecycle (clone, build, start, stop)
+│   │   │   ├── BlueHatConfig.java         # Per-user config (repository or host-name)
 │   │   │   ├── BlueHatException.java      # Typed Blue Hat error wrapper
 │   │   │   ├── BlueHatInstanceSize.java   # Size → CPU/memory mapping
 │   │   │   └── command/                   # Blue Hat CLI commands (under 'ato bh')
@@ -420,8 +422,15 @@ AWS credentials are NOT stored by attimo — they are managed entirely by the AW
 For Blue Hat: `~/.config/attimo/bh/config.yaml`.
 
 ```yaml
-# Set during 'ato bh init'
+# Set during 'ato bh init' — local mode (git repository)
+repository: https://github.com/openjdk/bluehat-cloud.git
+ssh-public-key: ~/.ssh/id_ed25519.pub
+```
+
+```yaml
+# Set during 'ato bh init' — remote mode (running host)
 host-name: bluehat-proxy.acme.com
+ssh-public-key: ~/.ssh/id_ed25519.pub
 ```
 
 ### SSH Key (`~/.config/attimo/{cloud}/ssh/`)
@@ -1026,7 +1035,7 @@ jobs:
 12. **GitHub CI** runs on every PR and push to main
 13. **ISA mappings** are overridable by users at `~/.config/attimo/isa-mappings/`
 14. **Templates** support incus-spawn-style YAML with packages + tools
-15. **`ato bh init`** configures Blue Hat host and generates SSH key pair
+15. **`ato bh init`** lets user choose cloud mode (git repo or remote host), warns about required environment variables for local mode, and generates SSH key pair
 16. **`ato bh request`** provisions a VM via Blue Hat proxy, provisions OpenJDK packages, connects via SSH
 17. **`ato bh status`** queries the Blue Hat API and shows FQDN, state, uptime
 18. **`ato bh connect`** reconnects to a running Blue Hat VM

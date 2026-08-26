@@ -3,9 +3,10 @@ package org.mendrugo.attimo.bluehat.command;
 import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
+import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
+import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.bluehat.BlueHatInstanceSize;
 import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.ssh.OsPackages;
 import org.mendrugo.attimo.ssh.SshKeyManager;
@@ -54,10 +55,9 @@ public class BlueHatRequestCommand extends BaseCommand
         }
 
         final var config = BlueHatConfig.load();
-        final var hostName = config.getHostName();
-        if (hostName.isBlank())
+        if (!config.hasCloudTarget())
         {
-            System.err.println("Error: no Blue Hat host configured. Run 'ato bh init' first.");
+            System.err.println("Error: no Blue Hat cloud configured. Run 'ato bh init' first.");
             return CommandResult.FAILURE;
         }
 
@@ -73,6 +73,28 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
+        final var hostName = config.effectiveHostName();
+        final var port = BlueHat.API_PORT;
+
+        // Start local cloud if needed
+        Process localProcess = null;
+        try
+        {
+            localProcess = BlueHatCloudRunner.ensureCloudRunning(config);
+            return doRequest(hostName, port, instanceSize);
+        }
+        finally
+        {
+            BlueHatCloudRunner.stop(localProcess);
+        }
+    }
+
+    private CommandResult doRequest(
+        final String hostName
+        , final int port
+        , final BlueHatInstanceSize instanceSize
+    )
+    {
         System.out.println("=== Requesting Blue Hat VM ===\n");
         System.out.println("[1/4] Preparing request (size: " + instanceSize.label()
             + ", " + instanceSize.cpus() + " CPUs, " + instanceSize.memoryGb() + " GB)...");
@@ -89,8 +111,8 @@ public class BlueHatRequestCommand extends BaseCommand
         );
 
         // Send the request
-        System.out.println("\n[2/4] Requesting VM from Blue Hat (" + hostName + ")...");
-        final var client = new BlueHatClient(hostName);
+        System.out.println("\n[2/4] Requesting VM from Blue Hat (" + hostName + ":" + port + ")...");
+        final var client = new BlueHatClient(hostName, port);
         final var response = client.requestVm(request);
         final var fqdn = response.fqdn();
         if (!fqdn.matches("[A-Za-z0-9._-]+"))

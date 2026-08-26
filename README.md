@@ -319,7 +319,7 @@ sudo tar -xzf /tmp/jtreg.tar.gz -C /opt/jtreg --strip-components=1
 
 ## Blue Hat
 
-Blue Hat cloud provides VMs. Attimo communicates with the Blue Hat to request VMs, provision OpenJDK build tools, connect via SSH, and tear down VMs when done.
+Blue Hat cloud provides VMs. Attimo communicates with the Blue Hat cloud to request VMs, provision OpenJDK build tools, connect via SSH, and tear down VMs when done.
 
 ### Setup
 
@@ -329,10 +329,41 @@ Run `ato bh init`:
 ato bh init
 ```
 
-This will:
+You will be asked to choose how to connect to the Blue Hat cloud:
 
-1. **Ask for the Blue Hat host name or IP address** — the address of your Blue Hat cloud
-2. **Generate an SSH key pair** — creates a managed ed25519 key pair at `~/.config/attimo/bh/ssh/`
+```
+How will you connect to the Blue Hat cloud?
+
+  1) Git repository — attimo clones, builds, and runs it locally
+  2) Remote host    — connect to a Blue Hat cloud already running
+
+Choice [1/2]:
+```
+
+**Option 1: Git repository (local mode)**
+
+Provide the URL of a git repository containing the Blue Hat cloud application. Attimo will:
+
+1. Clone the repository to `~/.cache/attimo/bh/<repo-name>/`
+2. Build it with `mvn package`
+3. On each subsequent command (`request`, `status`, `connect`, `destroy`), start the cloud locally bound to `localhost:8080`, run the command, then stop it automatically
+
+This is useful when you don’t have a shared Blue Hat cloud running and want to run everything on your workstation.
+
+> **⚠ Environment variables required.** The Blue Hat cloud needs configuration
+> via environment variables (e.g. cloud credentials, API keys). Check the
+> README file in the Blue Hat repository for the list of required variables.
+> These must be set in your shell **before** running any `ato bh` command.
+> Init will ask you to confirm that you are aware of this requirement.
+
+**Option 2: Remote host**
+
+Provide the host name or IP address of a Blue Hat cloud that is already running. Commands will connect directly to `<host>:8080`.
+
+After choosing a mode, init will also:
+
+- **Generate an SSH key pair** — creates a managed ed25519 key pair at `~/.config/attimo/bh/ssh/`
+- **Ask for your personal SSH public key path** — defaults to `~/.ssh/id_ed25519.pub`
 
 Configuration is saved to `~/.config/attimo/bh/config.yaml` with owner-only permissions.
 
@@ -407,21 +438,28 @@ VMs are provisioned with the same OpenJDK development packages as AWS:
 
 | Path | Purpose |
 |------|---------|
-| `~/.config/attimo/bh/config.yaml` | Blue Hat host name |
+| `~/.config/attimo/bh/config.yaml` | Cloud mode: repository or host-name |
 | `~/.config/attimo/bh/state.yaml` | Active VM tracking (auto-managed) |
 | `~/.config/attimo/bh/ssh/id_ed25519` | Managed SSH private key |
 | `~/.config/attimo/bh/ssh/id_ed25519.pub` | Managed SSH public key |
 
 ```yaml
-# ~/.config/attimo/bh/config.yaml
+# ~/.config/attimo/bh/config.yaml (local mode)
+repository: https://github.com/openjdk/bluehat-cloud.git
+ssh-public-key: ~/.ssh/id_ed25519.pub
+```
+
+```yaml
+# ~/.config/attimo/bh/config.yaml (remote mode)
 host-name: bluehat-cloud.acme.com
+ssh-public-key: ~/.ssh/id_ed25519.pub
 ```
 
 ### CLI reference
 
 | Command | Description |
 |---------|-------------|
-| `ato bh init` | One-time setup: Blue Hat host, SSH key |
+| `ato bh init` | One-time setup: choose cloud mode (git repo or remote host), SSH key |
 | `ato bh request [--size <size>]` | Request a VM (size: micro/small/medium/large) |
 | `ato bh status` | Show active VM status: FQDN, state, uptime |
 | `ato bh connect` | SSH into the active Blue Hat VM |
@@ -487,6 +525,8 @@ src/main/java/org/mendrugo/attimo/
 ├── bluehat/                       # Blue Hat interaction
 │   ├── BlueHat.java               # Cloud constants
 │   ├── BlueHatClient.java         # HTTP client for Blue Hat API
+│   ├── BlueHatCloudRunner.java    # Local cloud lifecycle (clone, build, start, stop)
+│   ├── BlueHatConfig.java         # Per-user config (repository or host-name)
 │   ├── BlueHatException.java      # Typed error wrapper
 │   ├── BlueHatInstanceSize.java   # Size → CPU/memory mapping
 │   └── command/                   # Blue Hat CLI commands

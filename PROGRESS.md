@@ -78,6 +78,8 @@ If you're a new agent session picking up this project:
 |------|-------------|--------|
 | — | Blue Hat cloud provider: init, request, status, connect, destroy commands | `6d90b36` |
 | — | BlueHatClient HTTP client, BlueHatInstanceSize, BlueHatDummyServer for testing | `6d90b36` |
+| — | Refactor host-name to Quarkus config, local cloud runner, health checks | `95689bd` |
+| — | User-driven init: choose git repo (local) or remote host; remove Quarkus config | pending |
 
 ### Bug Fixes from Real AWS Testing
 
@@ -107,7 +109,7 @@ If you're a new agent session picking up this project:
 - Works in all AWS regions including opt-in regions (eu-central-2, etc.)
 
 **Blue Hat:**
-- `ato bh init` — configures Blue Hat host name/IP, generates SSH key pair
+- `ato bh init` — user chooses cloud mode (git repo or remote host), generates SSH key pair
 - `ato bh request [--size <size>]` — requests VM via HTTP POST, provisions OpenJDK packages, SSHs in as root
 - `ato bh status` — queries Blue Hat API, shows FQDN, VM ID, state, uptime
 - `ato bh connect` — verifies VM is running, reconnects SSH
@@ -123,7 +125,7 @@ If you're a new agent session picking up this project:
 - **Package manager** — `dnf`
 
 ### Test Counts
-- **132 unit tests** — all pass, no cloud interaction needed
+- **150 unit tests** — all pass, no cloud interaction needed
 - **17 integration tests** — all pass (10 AWS via LocalStack + Podman, 7 Blue Hat via dummy server)
 
 ### Key Technical Decisions Made During Implementation
@@ -138,6 +140,7 @@ If you're a new agent session picking up this project:
 - **Blue Hat dummy server for testing** — uses `com.sun.net.httpserver.HttpServer` (built into JDK), no container runtime needed for Blue Hat integration tests
 - **Blue Hat SSH user is root** — provisioning via `sudo` still works (no-op as root)
 - **Blue Hat state reuses InstanceState** — stores FQDN in `instanceId` and `publicIp` fields
+- **Blue Hat cloud mode** — user chooses during `ato bh init`: (1) git repository (local mode) or (2) remote host name. Local mode: init clones+builds the repo; commands start/stop cloud process on localhost:8080. Remote mode: commands connect to `<host>:8080` and health-check `/vm`.
 
 ## Next Tasks
 
