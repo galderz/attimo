@@ -14,10 +14,10 @@ import java.time.Duration;
 /**
  * Manages the local Blue Hat cloud lifecycle.
  *
- * <p>When {@code attimo.bluehat.host-name} is "localhost", this class handles:
+ * <p>When a git repository is configured (local mode), this class handles:
  * <ul>
- *   <li>{@link #cloneAndBuild()} — clone the git repository and build with Maven (during init)</li>
- *   <li>{@link #start()} — launch the Quarkus app as a background process</li>
+ *   <li>{@link #cloneAndBuild(String)} — clone the git repository and build with Maven (during init)</li>
+ *   <li>{@link #start(String)} — launch the Quarkus app as a background process</li>
  *   <li>{@link #healthCheck(String, int)} — verify the cloud is reachable via HTTP</li>
  *   <li>{@link #stop(Process)} — stop the background process</li>
  * </ul>
@@ -34,11 +34,12 @@ public final class BlueHatCloudRunner
 
     /**
      * Returns the directory where the Blue Hat cloud repository is cloned.
+     *
+     * @param repository the git repository URL
      */
-    public static Path repoDir()
+    public static Path repoDir(final String repository)
     {
-        final var repo = BlueHatSettings.repository();
-        final var repoName = extractRepoName(repo);
+        final var repoName = extractRepoName(repository);
         return Environment.cacheDir(BlueHat.CLOUD).resolve(repoName);
     }
 
@@ -46,19 +47,17 @@ public final class BlueHatCloudRunner
      * Clone the Blue Hat cloud repository and build it with Maven.
      * Called during {@code ato bh init} when running locally.
      *
+     * @param repository the git repository URL
      * @throws BlueHatException if clone or build fails
      */
-    public static void cloneAndBuild()
+    public static void cloneAndBuild(final String repository)
     {
-        final var repo = BlueHatSettings.repository();
-        if (repo.isBlank())
+        if (repository.isBlank())
         {
-            throw new BlueHatException(
-                "No repository configured. Set attimo.bluehat.repository in application.properties."
-            );
+            throw new BlueHatException("No repository configured.");
         }
 
-        final var targetDir = repoDir();
+        final var targetDir = repoDir(repository);
 
         try
         {
@@ -72,8 +71,8 @@ public final class BlueHatCloudRunner
             }
             else
             {
-                System.out.println("  Cloning " + repo + "...");
-                runProcess(targetDir.getParent(), "git", "clone", repo, targetDir.getFileName().toString());
+                System.out.println("  Cloning " + repository + "...");
+                runProcess(targetDir.getParent(), "git", "clone", repository, targetDir.getFileName().toString());
             }
 
             System.out.println("  Building with Maven...");
@@ -94,12 +93,13 @@ public final class BlueHatCloudRunner
      * Start the local Blue Hat cloud as a background process.
      * The process binds to localhost on the default Quarkus port (8080).
      *
+     * @param repository the git repository URL (used to locate the built jar)
      * @return the running process
      * @throws BlueHatException if the process cannot be started
      */
-    public static Process start()
+    public static Process start(final String repository)
     {
-        final var targetDir = repoDir();
+        final var targetDir = repoDir(repository);
         final var quarkusJar = targetDir.resolve("target")
             .resolve("quarkus-app")
             .resolve("quarkus-run.jar");
@@ -377,22 +377,26 @@ public final class BlueHatCloudRunner
 
     /**
      * Ensure the Blue Hat cloud is running and healthy.
-     * For localhost: starts the local cloud process.
-     * For remote: performs a health check.
+     * For local mode: starts the cloud process from the built repository.
+     * For remote mode: performs a health check against the remote host.
      *
+     * @param config the Blue Hat configuration
      * @return the local process (or null if remote)
      */
-    public static Process ensureCloudRunning(final String hostName, final int port)
+    public static Process ensureCloudRunning(final BlueHatConfig config)
     {
-        if (BlueHatSettings.isLocal())
+        final var hostName = config.effectiveHostName();
+        final var port = BlueHat.API_PORT;
+
+        if (config.isLocal())
         {
-            return BlueHatCloudRunner.start();
+            return BlueHatCloudRunner.start(config.getRepository());
         }
         else
         {
             if (!BlueHatCloudRunner.healthCheck(hostName, port))
             {
-                throw new org.mendrugo.attimo.bluehat.BlueHatException(
+                throw new BlueHatException(
                     "Blue Hat cloud at " + hostName + ":" + port
                         + " is not reachable. Verify the host is running."
                 );

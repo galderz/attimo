@@ -4,7 +4,6 @@ import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
-import org.mendrugo.attimo.bluehat.BlueHatSettings;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.aesh.command.CommandDefinition;
@@ -15,7 +14,7 @@ import java.nio.file.Files;
 
 @CommandDefinition(
     name = "init"
-    , description = "One-time setup: configure SSH key and build local cloud (if localhost)"
+    , description = "One-time setup: choose cloud mode, configure SSH key"
     , generateHelp = true
 )
 public class BlueHatInitCommand extends BaseCommand
@@ -35,40 +34,113 @@ public class BlueHatInitCommand extends BaseCommand
 
         final var config = BlueHatConfig.load();
         final var console = System.console();
-        final var hostName = BlueHatSettings.hostName();
 
-        System.out.println("Blue Hat host: " + hostName
-            + (BlueHatSettings.isLocal() ? " (local mode)" : " (remote mode)"));
-        System.out.println();
-
-        final int totalSteps = BlueHatSettings.isLocal() ? 2 : 1;
-        int step = 1;
-
-        setupSshKey(console, config, step, totalSteps);
-        step++;
-
-        if (BlueHatSettings.isLocal())
+        if (config.hasCloudTarget())
         {
-            buildLocalCloud(step, totalSteps);
+            System.out.println("Current configuration:");
+            if (config.isLocal())
+            {
+                System.out.println("  Mode:       local (git repository)");
+                System.out.println("  Repository: " + config.getRepository());
+            }
+            else
+            {
+                System.out.println("  Mode:       remote");
+                System.out.println("  Host:       " + config.getHostName());
+            }
+            System.out.println();
+
+            if (console != null)
+            {
+                System.out.print("  Reconfigure? (y/N): ");
+                final var answer = console.readLine().strip();
+                if (!answer.equalsIgnoreCase("y"))
+                {
+                    setupSshKey(console, config);
+                    config.save();
+                    printNextSteps();
+                    return CommandResult.SUCCESS;
+                }
+            }
         }
+
+        setupCloudMode(console, config);
+        setupSshKey(console, config);
 
         config.save();
 
-        System.out.println("\n=== Init complete! ===");
-        System.out.println("Next steps:");
-        System.out.println("  ato bh request               # Request a VM");
-        System.out.println("  ato bh status                # Check VM status");
+        if (config.isLocal())
+        {
+            System.out.println("\nBuilding local Blue Hat cloud...");
+            BlueHatCloudRunner.cloneAndBuild(config.getRepository());
+        }
+
+        printNextSteps();
         return CommandResult.SUCCESS;
+    }
+
+    private void setupCloudMode(
+        final Console console
+        , final BlueHatConfig config
+    )
+    {
+        System.out.println("How will you connect to the Blue Hat cloud?\n");
+        System.out.println("  1) Git repository — attimo clones, builds, and runs it locally");
+        System.out.println("  2) Remote host    — connect to a Blue Hat cloud already running\n");
+
+        if (console == null)
+        {
+            System.err.println("Error: no console available for interactive setup.");
+            System.err.println("Set repository or host-name manually in "
+                + Environment.configFile(BlueHat.CLOUD));
+            return;
+        }
+
+        System.out.print("Choice [1/2]: ");
+        final var choice = console.readLine().strip();
+
+        if ("1".equals(choice))
+        {
+            System.out.print("  Git repository URL: ");
+            final var repo = console.readLine().strip();
+
+            if (repo.isBlank())
+            {
+                System.err.println("  Error: repository URL cannot be empty.");
+                return;
+            }
+
+            config.setRepository(repo);
+            config.setHostName("");
+            System.out.println("  Mode set to: local (repository: " + repo + ")");
+        }
+        else if ("2".equals(choice))
+        {
+            System.out.print("  Blue Hat host name or IP address: ");
+            final var host = console.readLine().strip();
+
+            if (host.isBlank())
+            {
+                System.err.println("  Error: host name cannot be empty.");
+                return;
+            }
+
+            config.setHostName(host);
+            config.setRepository("");
+            System.out.println("  Mode set to: remote (host: " + host + ")");
+        }
+        else
+        {
+            System.err.println("  Invalid choice. Please enter 1 or 2.");
+        }
     }
 
     private void setupSshKey(
         final Console console
         , final BlueHatConfig config
-        , final int step
-        , final int totalSteps
     )
     {
-        System.out.println("[" + step + "/" + totalSteps + "] Configuring SSH key...");
+        System.out.println("\nConfiguring SSH key...");
 
         // Generate managed key pair
         if (SshKeyManager.exists(BlueHat.CLOUD))
@@ -108,10 +180,11 @@ public class BlueHatInitCommand extends BaseCommand
         }
     }
 
-    private void buildLocalCloud(final int step, final int totalSteps)
+    private void printNextSteps()
     {
-        System.out.println("\n[" + step + "/" + totalSteps
-            + "] Building local Blue Hat cloud...");
-        BlueHatCloudRunner.cloneAndBuild();
+        System.out.println("\n=== Init complete! ===");
+        System.out.println("Next steps:");
+        System.out.println("  ato bh request               # Request a VM");
+        System.out.println("  ato bh status                # Check VM status");
     }
 }

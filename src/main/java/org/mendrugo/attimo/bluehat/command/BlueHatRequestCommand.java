@@ -6,7 +6,6 @@ import org.mendrugo.attimo.bluehat.BlueHatClient;
 import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.bluehat.BlueHatInstanceSize;
-import org.mendrugo.attimo.bluehat.BlueHatSettings;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.ssh.OsPackages;
@@ -55,6 +54,13 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
+        final var config = BlueHatConfig.load();
+        if (!config.hasCloudTarget())
+        {
+            System.err.println("Error: no Blue Hat cloud configured. Run 'ato bh init' first.");
+            return CommandResult.FAILURE;
+        }
+
         // Parse instance size
         final BlueHatInstanceSize instanceSize;
         try
@@ -67,14 +73,14 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        final var hostName = BlueHatSettings.hostName();
+        final var hostName = config.effectiveHostName();
         final var port = BlueHat.API_PORT;
 
         // Start local cloud if needed
         Process localProcess = null;
         try
         {
-            localProcess = BlueHatCloudRunner.ensureCloudRunning(hostName, port);
+            localProcess = BlueHatCloudRunner.ensureCloudRunning(config);
             return doRequest(hostName, port, instanceSize);
         }
         finally

@@ -18,29 +18,83 @@ class BlueHatConfigTest
     void defaultsWhenNoFileExists()
     {
         final var config = new BlueHatConfig();
+        assertThat(config.getRepository()).isEmpty();
+        assertThat(config.getHostName()).isEmpty();
         assertThat(config.getSshPublicKey()).isEmpty();
     }
 
     @Test
-    void roundTripSaveAndLoad(@TempDir final Path tempDir) throws Exception
+    void roundTripWithRepository(@TempDir final Path tempDir) throws Exception
     {
         final Path configFile = tempDir.resolve("config.yaml");
 
         final var config = new BlueHatConfig();
+        config.setRepository("https://github.com/openjdk/bluehat-cloud.git");
         config.setSshPublicKey("~/.ssh/id_ed25519.pub");
 
         YAML.writeValue(configFile.toFile(), config);
 
         final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
+        assertThat(loaded.getRepository()).isEqualTo("https://github.com/openjdk/bluehat-cloud.git");
+        assertThat(loaded.getHostName()).isEmpty();
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_ed25519.pub");
+    }
+
+    @Test
+    void roundTripWithHostName(@TempDir final Path tempDir) throws Exception
+    {
+        final Path configFile = tempDir.resolve("config.yaml");
+
+        final var config = new BlueHatConfig();
+        config.setHostName("bluehat-proxy.acme.com");
+        config.setSshPublicKey("~/.ssh/id_rsa.pub");
+
+        YAML.writeValue(configFile.toFile(), config);
+
+        final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
+        assertThat(loaded.getRepository()).isEmpty();
+        assertThat(loaded.getHostName()).isEqualTo("bluehat-proxy.acme.com");
+        assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
+    }
+
+    @Test
+    void isLocalWhenRepositoryIsSet()
+    {
+        final var config = new BlueHatConfig();
+        config.setRepository("https://github.com/openjdk/bluehat-cloud.git");
+        assertThat(config.isLocal()).isTrue();
+        assertThat(config.hasCloudTarget()).isTrue();
+        assertThat(config.effectiveHostName()).isEqualTo("localhost");
+    }
+
+    @Test
+    void isRemoteWhenHostNameIsSet()
+    {
+        final var config = new BlueHatConfig();
+        config.setHostName("bluehat-proxy.acme.com");
+        assertThat(config.isLocal()).isFalse();
+        assertThat(config.hasCloudTarget()).isTrue();
+        assertThat(config.effectiveHostName()).isEqualTo("bluehat-proxy.acme.com");
+    }
+
+    @Test
+    void hasNoCloudTargetWhenEmpty()
+    {
+        final var config = new BlueHatConfig();
+        assertThat(config.isLocal()).isFalse();
+        assertThat(config.hasCloudTarget()).isFalse();
     }
 
     @Test
     void nullsSafelyDefaultToEmpty()
     {
         final var config = new BlueHatConfig();
+        config.setRepository(null);
+        config.setHostName(null);
         config.setSshPublicKey(null);
 
+        assertThat(config.getRepository()).isEmpty();
+        assertThat(config.getHostName()).isEmpty();
         assertThat(config.getSshPublicKey()).isEmpty();
     }
 
@@ -49,12 +103,13 @@ class BlueHatConfigTest
     {
         final Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile, """
+            repository: https://github.com/openjdk/bluehat-cloud.git
             ssh-public-key: ~/.ssh/id_rsa.pub
             unknown-field: should-be-ignored
-            host-name: legacy-field-ignored
             """);
 
         final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
+        assertThat(loaded.getRepository()).isEqualTo("https://github.com/openjdk/bluehat-cloud.git");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
     }
 
@@ -67,6 +122,8 @@ class BlueHatConfigTest
         final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
         if (loaded != null)
         {
+            assertThat(loaded.getRepository()).isEmpty();
+            assertThat(loaded.getHostName()).isEmpty();
             assertThat(loaded.getSshPublicKey()).isEmpty();
         }
     }

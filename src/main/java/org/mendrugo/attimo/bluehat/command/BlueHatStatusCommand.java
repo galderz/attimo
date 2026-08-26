@@ -3,7 +3,7 @@ package org.mendrugo.attimo.bluehat.command;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
 import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
-import org.mendrugo.attimo.bluehat.BlueHatSettings;
+import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
 import org.aesh.command.CommandDefinition;
@@ -32,14 +32,15 @@ public class BlueHatStatusCommand extends BaseCommand
         }
 
         final var fqdn = state.getInstanceId();
-        final var hostName = BlueHatSettings.hostName();
+        final var config = BlueHatConfig.load();
+        final var hostName = config.effectiveHostName();
         final var port = BlueHat.API_PORT;
 
         // Start local cloud if needed
         Process localProcess = null;
         try
         {
-            localProcess = BlueHatCloudRunner.ensureCloudRunning(hostName, port);
+            localProcess = BlueHatCloudRunner.ensureCloudRunning(config);
             return doStatus(fqdn, hostName, port, state);
         }
         finally
