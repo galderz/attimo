@@ -30,7 +30,7 @@ class BaseAmiResolverTest
             .thenReturn(paramResponse("ami-x86"));
 
         final var resolver = new BaseAmiResolver();
-        final var amiId = resolver.resolve(ssm, "x86_64");
+        final var amiId = resolver.resolve(ssm, "x86_64", "us-east-1");
 
         assertThat(amiId).isEqualTo("ami-x86");
         verify(ssm).getParameter(
@@ -47,7 +47,7 @@ class BaseAmiResolverTest
             .thenReturn(paramResponse("ami-arm"));
 
         final var resolver = new BaseAmiResolver();
-        final var amiId = resolver.resolve(ssm, "arm64");
+        final var amiId = resolver.resolve(ssm, "arm64", "eu-west-1");
 
         assertThat(amiId).isEqualTo("ami-arm");
         verify(ssm).getParameter(
@@ -64,8 +64,8 @@ class BaseAmiResolverTest
             .thenReturn(paramResponse("ami-cached"));
 
         final var resolver = new BaseAmiResolver();
-        final var first = resolver.resolve(ssm, "arm64");
-        final var second = resolver.resolve(ssm, "arm64");
+        final var first = resolver.resolve(ssm, "arm64", "eu-west-1");
+        final var second = resolver.resolve(ssm, "arm64", "eu-west-1");
 
         assertThat(first).isEqualTo("ami-cached");
         assertThat(second).isEqualTo("ami-cached");
@@ -80,11 +80,27 @@ class BaseAmiResolverTest
             .thenReturn(paramResponse("ami-x86"));
 
         final var resolver = new BaseAmiResolver();
-        final var arm = resolver.resolve(ssm, "arm64");
-        final var x86 = resolver.resolve(ssm, "x86_64");
+        final var arm = resolver.resolve(ssm, "arm64", "us-east-1");
+        final var x86 = resolver.resolve(ssm, "x86_64", "us-east-1");
 
         assertThat(arm).isEqualTo("ami-arm");
         assertThat(x86).isEqualTo("ami-x86");
+        verify(ssm, times(2)).getParameter(any(GetParameterRequest.class));
+    }
+
+    @Test
+    void cachesPerRegion()
+    {
+        when(ssm.getParameter(any(GetParameterRequest.class)))
+            .thenReturn(paramResponse("ami-east"))
+            .thenReturn(paramResponse("ami-west"));
+
+        final var resolver = new BaseAmiResolver();
+        final var east = resolver.resolve(ssm, "arm64", "us-east-1");
+        final var west = resolver.resolve(ssm, "arm64", "us-west-2");
+
+        assertThat(east).isEqualTo("ami-east");
+        assertThat(west).isEqualTo("ami-west");
         verify(ssm, times(2)).getParameter(any(GetParameterRequest.class));
     }
 
@@ -97,7 +113,7 @@ class BaseAmiResolverTest
                 .build());
 
         final var resolver = new BaseAmiResolver();
-        assertThatThrownBy(() -> resolver.resolve(ssm, "arm64"))
+        assertThatThrownBy(() -> resolver.resolve(ssm, "arm64", "us-east-1"))
             .isInstanceOf(AwsException.class)
             .hasMessageContaining("Failed to resolve Amazon Linux 2023 AMI")
             .hasMessageContaining("arm64");

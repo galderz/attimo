@@ -248,7 +248,7 @@ public class AwsRequestCommand extends BaseCommand
             final String amiId;
             try (final var ssm = factory.ssm(region))
             {
-                amiId = amiResolver.resolve(ssm, arch);
+                amiId = amiResolver.resolve(ssm, arch, region);
             }
             catch (final Exception e)
             {
