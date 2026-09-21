@@ -21,8 +21,10 @@ import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
 import org.aesh.command.option.Option;
 import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.List;
 
 @CommandDefinition(
@@ -289,34 +291,117 @@ public class AwsRequestCommand extends BaseCommand
             }
             catch (final Exception e)
             {
-                final var msg = e.getMessage();
-                final boolean isCapacityError = msg != null
-                    && (msg.contains("no Spot capacity")
-                    || msg.contains("InsufficientInstanceCapacity")
-                    || msg.contains("SpotMaxPriceTooLow"));
+                final boolean isRetryableError = isRetryableLaunchError(e);
 
                 cleanupFailedAttempt(ec2, sgId, keyPairName);
                 ec2.close();
 
-                if (!isCapacityError)
+                if (!isRetryableError)
                 {
-                    System.err.println("Error launching instance in " + region + ": " + msg);
+                    System.err.println("Error launching instance in " + region
+                        + ": " + e.getMessage());
                     return null;
                 }
 
+                final var reason = retryableReason(e);
                 if (attempt < maxAttempts - 1)
                 {
-                    System.out.println("  ⚠ No spot capacity in " + region
+                    System.out.println("  ⚠ " + reason + " in " + region
                         + ". Cleaning up and trying next option...");
                 }
                 else
                 {
-                    System.out.println("  ⚠ No spot capacity in " + region + ".");
+                    System.out.println("  ⚠ " + reason + " in " + region + ".");
                 }
             }
         }
 
         return null;
+    }
+
+    /**
+     * AWS error codes that indicate a launch failure retryable in
+     * a different region. These are stable API contracts.
+     */
+    static final Set<String> RETRYABLE_ERROR_CODES = Set.of(
+        "InsufficientInstanceCapacity"  // no spot/on-demand capacity
+        , "SpotMaxPriceTooLow"          // spot price exceeds bid
+        , "MaxSpotInstanceCountExceeded" // per-region spot limit
+        , "InvalidAMIID.NotFound"        // AMI doesn't exist in region
+    );
+
+    /**
+     * Check if a launch error is retryable in a different region.
+     * Checks the AWS error code first (stable API contract), then
+     * falls back to message text matching for non-Ec2Exception errors.
+     */
+    static boolean isRetryableLaunchError(final Exception e)
+    {
+        // Prefer error code (stable AWS API contract)
+        if (e instanceof Ec2Exception ec2Ex
+            && ec2Ex.awsErrorDetails() != null)
+        {
+            final var code = ec2Ex.awsErrorDetails().errorCode();
+            if (code != null && RETRYABLE_ERROR_CODES.contains(code))
+            {
+                return true;
+            }
+        }
+
+        // Fall back to message text for non-Ec2 exceptions
+        // (e.g., AwsException wrappers, timeout errors)
+        final var msg = e.getMessage();
+        if (msg == null)
+        {
+            return false;
+        }
+
+        return msg.contains("Insufficient capacity")
+            || msg.contains("no Spot capacity")
+            || msg.contains("Max spot instance count exceeded")
+            || msg.contains("does not exist");
+    }
+
+    /**
+     * Return a concise, user-friendly reason for a retryable error.
+     */
+    static String retryableReason(final Exception e)
+    {
+        if (e instanceof Ec2Exception ec2Ex
+            && ec2Ex.awsErrorDetails() != null)
+        {
+            final var code = ec2Ex.awsErrorDetails().errorCode();
+            if (code != null)
+            {
+                return switch (code)
+                {
+                    case "InsufficientInstanceCapacity" -> "No spot capacity";
+                    case "SpotMaxPriceTooLow" -> "Spot price too low";
+                    case "MaxSpotInstanceCountExceeded" -> "Spot instance limit reached";
+                    case "InvalidAMIID.NotFound" -> "AMI not found (region-specific)";
+                    default -> code;
+                };
+            }
+        }
+
+        final var msg = e.getMessage();
+        if (msg != null)
+        {
+            if (msg.contains("Insufficient capacity") || msg.contains("no Spot capacity"))
+            {
+                return "No spot capacity";
+            }
+            if (msg.contains("Max spot instance count exceeded"))
+            {
+                return "Spot instance limit reached";
+            }
+            if (msg.contains("does not exist"))
+            {
+                return "AMI not found (region-specific)";
+            }
+        }
+
+        return "Launch failed";
     }
 
     /**
