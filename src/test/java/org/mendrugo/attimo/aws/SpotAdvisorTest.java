@@ -814,4 +814,52 @@ class SpotAdvisorTest
         // ap-northeast-1: $0.05 * 1.40 = $0.07 << $0.50
         assertThat(results.getFirst().region()).isEqualTo("ap-northeast-1");
     }
+
+    // --- isRegionSkippable tests ---
+
+    @Test
+    void skipsOptInRegion401()
+    {
+        assertThat(SpotAdvisor.isRegionSkippable(
+            "(Service: Ec2, Status Code: 401, Request ID: abc)"
+        )).isTrue();
+    }
+
+    @Test
+    void skipsAuthFailure()
+    {
+        assertThat(SpotAdvisor.isRegionSkippable(
+            "AuthFailure: not authorized"
+        )).isTrue();
+    }
+
+    @Test
+    void skipsOptInRequired()
+    {
+        assertThat(SpotAdvisor.isRegionSkippable(
+            "OptInRequired: region not enabled"
+        )).isTrue();
+    }
+
+    @Test
+    void skipsConnectTimeout()
+    {
+        assertThat(SpotAdvisor.isRegionSkippable(
+            "Unable to execute HTTP request: Connect timed out (SDK Attempt Count: 4)"
+        )).isTrue();
+    }
+
+    @Test
+    void doesNotSkipRealError()
+    {
+        assertThat(SpotAdvisor.isRegionSkippable(
+            "Rate limit exceeded"
+        )).isFalse();
+    }
+
+    @Test
+    void doesNotSkipNull()
+    {
+        assertThat(SpotAdvisor.isRegionSkippable(null)).isFalse();
+    }
 }

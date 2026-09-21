@@ -169,13 +169,12 @@ public class SpotAdvisor
             }
             catch (final Exception e)
             {
+                // Silently skip regions that aren't enabled (opt-in regions
+                // like eu-south-1, af-south-1 return 401/AuthFailure) and
+                // regions that time out (me-south-1 often does).
+                // Only warn for truly unexpected errors.
                 final var msg = e.getMessage();
-                if (msg != null && (msg.contains("401") || msg.contains("AuthFailure")
-                    || msg.contains("OptInRequired")))
-                {
-                    System.out.println("  Skipping " + region + " (region not enabled in your account)");
-                }
-                else
+                if (!isRegionSkippable(msg))
                 {
                     System.err.println("  Warning: could not query spot prices in "
                         + region + ": " + msg);
@@ -234,8 +233,12 @@ public class SpotAdvisor
             }
             catch (final Exception e)
             {
-                System.err.println("  Warning: spot price query failed for batch in "
-                    + region + ": " + e.getMessage());
+                // Silently skip opt-in/timeout errors at batch level too
+                if (!isRegionSkippable(e.getMessage()))
+                {
+                    System.err.println("  Warning: spot price query failed for batch in "
+                        + region + ": " + e.getMessage());
+                }
             }
         }
 
@@ -413,6 +416,25 @@ public class SpotAdvisor
         }
 
         return index;
+    }
+
+    /**
+     * Check if an error indicates the region should be silently skipped.
+     * Covers opt-in regions (401/AuthFailure/OptInRequired) and
+     * regions that time out (Connect timed out).
+     */
+    static boolean isRegionSkippable(final String msg)
+    {
+        if (msg == null)
+        {
+            return false;
+        }
+
+        return msg.contains("401")
+            || msg.contains("AuthFailure")
+            || msg.contains("OptInRequired")
+            || msg.contains("timed out")
+            || msg.contains("Connect to");
     }
 
     record PricedCandidate(

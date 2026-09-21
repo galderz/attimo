@@ -81,7 +81,7 @@ public class AwsRequestCommand extends BaseCommand
 
         // 1. Resolve ISA → instance types
         System.out.println("=== Requesting spot instance ===\n");
-        System.out.println("[1/5] Resolving ISA feature: " + isaFeature);
+        System.out.println("[1/4] Resolving ISA feature: " + isaFeature);
 
         final var isaMapping = new IsaMapping();
         final var feature = isaMapping.resolve(isaFeature);
@@ -108,7 +108,7 @@ public class AwsRequestCommand extends BaseCommand
         }
 
         // 2. Find spot options across continents
-        System.out.println("\n[2/5] Querying spot prices across continents"
+        System.out.println("\n[2/4] Querying spot prices across continents"
             + " (size: " + instanceSize.label() + ")...");
 
         final var factory = new AwsClientFactory();
@@ -133,6 +133,8 @@ public class AwsRequestCommand extends BaseCommand
         }
 
         // 3. Resolve base AMI + launch with retry on capacity failure
+        System.out.println("\n[3/5] Launching spot instance...");
+
         final var arch = "aarch64".equals(feature.architecture()) ? "arm64" : "x86_64";
         final var amiResolver = new BaseAmiResolver();
 
@@ -151,6 +153,17 @@ public class AwsRequestCommand extends BaseCommand
                 + " or use a different --size.");
             return CommandResult.FAILURE;
         }
+
+        // Print launch details only on success
+        final var rec = launchResult.recommendation;
+        System.out.println("  " + rec.instanceType() + " in "
+            + rec.availabilityZone() + " @ $"
+            + String.format("%.4f", rec.pricePerHour()) + "/hr");
+        System.out.println("  Instance: " + launchResult.instanceId
+            + "  IP: " + launchResult.publicIp);
+        System.out.println("  AMI: " + launchResult.amiId
+            + "  SG: " + launchResult.securityGroupId
+            + "  Key: " + launchResult.keyPairName);
 
         try (launchResult)
         {
@@ -176,8 +189,8 @@ public class AwsRequestCommand extends BaseCommand
         state.setSessionId(launchResult.sessionId);
         state.save(Aws.CLOUD);
 
-        // 5. Provision + SSH
-        System.out.println("\n[5/5] Provisioning and connecting...");
+        // 4. Provision + SSH
+        System.out.println("\n[4/4] Provisioning and connecting...");
 
         final var sshUser = BaseAmiResolver.SSH_USER;
         final var keyFile = Environment.sshKeyFile(Aws.CLOUD);
@@ -238,13 +251,7 @@ public class AwsRequestCommand extends BaseCommand
             final var recommendation = recommendations.get(attempt);
             final var region = recommendation.region();
 
-            if (attempt > 0)
-            {
-                System.out.println("\n  Trying next option: " + recommendation.rationale());
-            }
-
-            // 3. Resolve AMI in this region
-            System.out.println("\n[3/5] Resolving base AMI in " + region + "...");
+            // Resolve AMI in this region
             final String amiId;
             try (final var ssm = factory.ssm(region))
             {
@@ -252,12 +259,12 @@ public class AwsRequestCommand extends BaseCommand
             }
             catch (final Exception e)
             {
-                System.err.println("  Warning: AMI resolution failed in " + region + ": " + e.getMessage());
+                System.out.println("  ⚠ AMI resolution failed in " + region
+                    + ". Trying next option...");
                 continue;
             }
 
-            // 4. Launch spot instance
-            System.out.println("\n[4/5] Launching spot instance in " + region + "...");
+            // Launch spot instance
             final Ec2Client ec2 = factory.ec2(region);
             final var spotManager = new SpotManager(ec2);
 
