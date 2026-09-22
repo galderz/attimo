@@ -59,14 +59,11 @@ Choose one of these methods:
 
 **Option A: AWS CLI** (recommended)
 
-```bash
-# Install the AWS CLI
-sudo dnf install awscli2        # Fedora
-sudo apt install awscli         # Ubuntu/Debian
-brew install awscli             # macOS
-nix-env -iA nixpkgs.awscli2     # Nix
+Install the AWS CLI as per
+[instructions](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
+Then login to AWS:
 
-# Login to AWS
+```bash
 aws login
 ```
 
