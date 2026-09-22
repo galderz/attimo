@@ -858,6 +858,14 @@ class SpotAdvisorTest
     }
 
     @Test
+    void doesNotSkipConnectionRefused()
+    {
+        assertThat(SpotAdvisor.isRegionSkippable(
+            "Failed to Connect to endpoint: Connect to ec2.us-east-1.amazonaws.com failed"
+        )).isFalse();
+    }
+
+    @Test
     void doesNotSkipNull()
     {
         assertThat(SpotAdvisor.isRegionSkippable(null)).isFalse();

@@ -433,8 +433,7 @@ public class SpotAdvisor
         return msg.contains("401")
             || msg.contains("AuthFailure")
             || msg.contains("OptInRequired")
-            || msg.contains("timed out")
-            || msg.contains("Connect to");
+            || msg.contains("timed out");
     }
 
     record PricedCandidate(
