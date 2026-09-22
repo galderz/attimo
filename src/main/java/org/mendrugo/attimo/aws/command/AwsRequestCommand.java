@@ -133,7 +133,7 @@ public class AwsRequestCommand extends BaseCommand
         }
 
         // 3. Resolve base AMI + launch with retry on capacity failure
-        System.out.println("\n[3/5] Launching spot instance...");
+        System.out.println("\n[3/4] Launching spot instance...");
 
         final var arch = "aarch64".equals(feature.architecture()) ? "arm64" : "x86_64";
         final var amiResolver = new BaseAmiResolver();
