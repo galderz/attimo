@@ -65,7 +65,7 @@ class BaseAmiResolverIT
         try (final var ssm = ssmClient())
         {
             final var resolver = new BaseAmiResolver();
-            final var amiId = resolver.resolve(ssm, "arm64");
+            final var amiId = resolver.resolve(ssm, "arm64", LOCALSTACK.getRegion());
             assertThat(amiId).isNotBlank();
         }
     }

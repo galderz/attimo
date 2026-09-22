@@ -92,7 +92,6 @@ public class SpotManager
                 .build()
         );
 
-        System.out.println("  Created security group: " + sgId + " (" + groupName + ")");
         return sgId;
     }
 
@@ -119,7 +118,6 @@ public class SpotManager
                 .build()
         );
 
-        System.out.println("  Imported key pair: " + keyName);
         return keyName;
     }
 
@@ -167,7 +165,6 @@ public class SpotManager
         );
 
         final var instanceId = response.instances().getFirst().instanceId();
-        System.out.println("  Launched spot instance: " + instanceId + " (" + instanceType + ")");
         return instanceId;
     }
 
@@ -206,7 +203,6 @@ public class SpotManager
                         final var publicIp = instance.publicIpAddress();
                         if (publicIp != null && !publicIp.isBlank())
                         {
-                            System.out.println("  Instance running: " + publicIp);
                             return publicIp;
                         }
                     }
@@ -227,7 +223,8 @@ public class SpotManager
                 if (e.awsErrorDetails() != null
                     && "InvalidInstanceID.NotFound".equals(e.awsErrorDetails().errorCode()))
                 {
-                    System.out.println("  Waiting for instance to become visible...");
+                    // AWS eventual consistency: instance ID may not be
+                    // visible immediately after launch. Silently retry.
                 }
                 else
                 {

@@ -93,6 +93,9 @@ If you're a new agent session picking up this project:
 | Test SSH keys hardcoded in source | Generate ephemeral ed25519 keys programmatically | `8a7446e` |
 | Fedora AMI not found in opt-in regions | Switched to Amazon Linux 2023 (SSM lookup, works in all regions) | `c26154a` |
 | AWS eventual consistency in waitForRunning | Retry on InvalidInstanceID.NotFound after launch | `03c1737` |
+| Fallback not triggered on capacity/limit errors | Check AWS error codes first, expand retryable patterns (issue #21) | `3560334` |
+| Cross-region AMI cache returns wrong AMI | Cache key by (region, arch) not just arch (issue #21) | `378fafb` |
+| Noisy output on opt-in/timeout regions | Silence skippable regions, defer launch details until success (issue #21) | `c332911` |
 
 ## Current State
 
@@ -125,7 +128,7 @@ If you're a new agent session picking up this project:
 - **Package manager** — `dnf`
 
 ### Test Counts
-- **150 unit tests** — all pass, no cloud interaction needed
+- **168 unit tests** — all pass, no cloud interaction needed
 - **17 integration tests** — all pass (10 AWS via LocalStack + Podman, 7 Blue Hat via dummy server)
 
 ### Key Technical Decisions Made During Implementation

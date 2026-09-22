@@ -21,8 +21,10 @@ import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
 import org.aesh.command.option.Option;
 import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.List;
 
 @CommandDefinition(
@@ -79,7 +81,7 @@ public class AwsRequestCommand extends BaseCommand
 
         // 1. Resolve ISA → instance types
         System.out.println("=== Requesting spot instance ===\n");
-        System.out.println("[1/5] Resolving ISA feature: " + isaFeature);
+        System.out.println("[1/4] Resolving ISA feature: " + isaFeature);
 
         final var isaMapping = new IsaMapping();
         final var feature = isaMapping.resolve(isaFeature);
@@ -106,7 +108,7 @@ public class AwsRequestCommand extends BaseCommand
         }
 
         // 2. Find spot options across continents
-        System.out.println("\n[2/5] Querying spot prices across continents"
+        System.out.println("\n[2/4] Querying spot prices across continents"
             + " (size: " + instanceSize.label() + ")...");
 
         final var factory = new AwsClientFactory();
@@ -131,6 +133,8 @@ public class AwsRequestCommand extends BaseCommand
         }
 
         // 3. Resolve base AMI + launch with retry on capacity failure
+        System.out.println("\n[3/4] Launching spot instance...");
+
         final var arch = "aarch64".equals(feature.architecture()) ? "arm64" : "x86_64";
         final var amiResolver = new BaseAmiResolver();
 
@@ -149,6 +153,17 @@ public class AwsRequestCommand extends BaseCommand
                 + " or use a different --size.");
             return CommandResult.FAILURE;
         }
+
+        // Print launch details only on success
+        final var rec = launchResult.recommendation;
+        System.out.println("  " + rec.instanceType() + " in "
+            + rec.availabilityZone() + " @ $"
+            + String.format("%.4f", rec.pricePerHour()) + "/hr");
+        System.out.println("  Instance: " + launchResult.instanceId
+            + "  IP: " + launchResult.publicIp);
+        System.out.println("  AMI: " + launchResult.amiId
+            + "  SG: " + launchResult.securityGroupId
+            + "  Key: " + launchResult.keyPairName);
 
         try (launchResult)
         {
@@ -174,8 +189,8 @@ public class AwsRequestCommand extends BaseCommand
         state.setSessionId(launchResult.sessionId);
         state.save(Aws.CLOUD);
 
-        // 5. Provision + SSH
-        System.out.println("\n[5/5] Provisioning and connecting...");
+        // 4. Provision + SSH
+        System.out.println("\n[4/4] Provisioning and connecting...");
 
         final var sshUser = BaseAmiResolver.SSH_USER;
         final var keyFile = Environment.sshKeyFile(Aws.CLOUD);
@@ -236,26 +251,20 @@ public class AwsRequestCommand extends BaseCommand
             final var recommendation = recommendations.get(attempt);
             final var region = recommendation.region();
 
-            if (attempt > 0)
-            {
-                System.out.println("\n  Trying next option: " + recommendation.rationale());
-            }
-
-            // 3. Resolve AMI in this region
-            System.out.println("\n[3/5] Resolving base AMI in " + region + "...");
+            // Resolve AMI in this region
             final String amiId;
             try (final var ssm = factory.ssm(region))
             {
-                amiId = amiResolver.resolve(ssm, arch);
+                amiId = amiResolver.resolve(ssm, arch, region);
             }
             catch (final Exception e)
             {
-                System.err.println("  Warning: AMI resolution failed in " + region + ": " + e.getMessage());
+                System.out.println("  ⚠ AMI resolution failed in " + region
+                    + ". Trying next option...");
                 continue;
             }
 
-            // 4. Launch spot instance
-            System.out.println("\n[4/5] Launching spot instance in " + region + "...");
+            // Launch spot instance
             final Ec2Client ec2 = factory.ec2(region);
             final var spotManager = new SpotManager(ec2);
 
@@ -289,34 +298,117 @@ public class AwsRequestCommand extends BaseCommand
             }
             catch (final Exception e)
             {
-                final var msg = e.getMessage();
-                final boolean isCapacityError = msg != null
-                    && (msg.contains("no Spot capacity")
-                    || msg.contains("InsufficientInstanceCapacity")
-                    || msg.contains("SpotMaxPriceTooLow"));
+                final boolean isRetryableError = isRetryableLaunchError(e);
 
                 cleanupFailedAttempt(ec2, sgId, keyPairName);
                 ec2.close();
 
-                if (!isCapacityError)
+                if (!isRetryableError)
                 {
-                    System.err.println("Error launching instance in " + region + ": " + msg);
+                    System.err.println("Error launching instance in " + region
+                        + ": " + e.getMessage());
                     return null;
                 }
 
+                final var reason = retryableReason(e);
                 if (attempt < maxAttempts - 1)
                 {
-                    System.out.println("  ⚠ No spot capacity in " + region
+                    System.out.println("  ⚠ " + reason + " in " + region
                         + ". Cleaning up and trying next option...");
                 }
                 else
                 {
-                    System.out.println("  ⚠ No spot capacity in " + region + ".");
+                    System.out.println("  ⚠ " + reason + " in " + region + ".");
                 }
             }
         }
 
         return null;
+    }
+
+    /**
+     * AWS error codes that indicate a launch failure retryable in
+     * a different region. These are stable API contracts.
+     */
+    static final Set<String> RETRYABLE_ERROR_CODES = Set.of(
+        "InsufficientInstanceCapacity"  // no spot/on-demand capacity
+        , "SpotMaxPriceTooLow"          // spot price exceeds bid
+        , "MaxSpotInstanceCountExceeded" // per-region spot limit
+        , "InvalidAMIID.NotFound"        // AMI doesn't exist in region
+    );
+
+    /**
+     * Check if a launch error is retryable in a different region.
+     * Checks the AWS error code first (stable API contract), then
+     * falls back to message text matching for non-Ec2Exception errors.
+     */
+    static boolean isRetryableLaunchError(final Exception e)
+    {
+        // Prefer error code (stable AWS API contract)
+        if (e instanceof Ec2Exception ec2Ex
+            && ec2Ex.awsErrorDetails() != null)
+        {
+            final var code = ec2Ex.awsErrorDetails().errorCode();
+            if (code != null && RETRYABLE_ERROR_CODES.contains(code))
+            {
+                return true;
+            }
+        }
+
+        // Fall back to message text for non-Ec2 exceptions
+        // (e.g., AwsException wrappers, timeout errors)
+        final var msg = e.getMessage();
+        if (msg == null)
+        {
+            return false;
+        }
+
+        return msg.contains("Insufficient capacity")
+            || msg.contains("no Spot capacity")
+            || msg.contains("Max spot instance count exceeded")
+            || msg.contains("does not exist");
+    }
+
+    /**
+     * Return a concise, user-friendly reason for a retryable error.
+     */
+    static String retryableReason(final Exception e)
+    {
+        if (e instanceof Ec2Exception ec2Ex
+            && ec2Ex.awsErrorDetails() != null)
+        {
+            final var code = ec2Ex.awsErrorDetails().errorCode();
+            if (code != null)
+            {
+                return switch (code)
+                {
+                    case "InsufficientInstanceCapacity" -> "No spot capacity";
+                    case "SpotMaxPriceTooLow" -> "Spot price too low";
+                    case "MaxSpotInstanceCountExceeded" -> "Spot instance limit reached";
+                    case "InvalidAMIID.NotFound" -> "AMI not found (region-specific)";
+                    default -> code;
+                };
+            }
+        }
+
+        final var msg = e.getMessage();
+        if (msg != null)
+        {
+            if (msg.contains("Insufficient capacity") || msg.contains("no Spot capacity"))
+            {
+                return "No spot capacity";
+            }
+            if (msg.contains("Max spot instance count exceeded"))
+            {
+                return "Spot instance limit reached";
+            }
+            if (msg.contains("does not exist"))
+            {
+                return "AMI not found (region-specific)";
+            }
+        }
+
+        return "Launch failed";
     }
 
     /**
