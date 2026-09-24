@@ -185,7 +185,7 @@ Attimo uses an **Aeron-inspired style** combined with **Elm-style comma-first fo
 | Rule | Example |
 |------|---------|
 | **Allman braces** | Opening `{` on its own line |
-| **`final` on parameters and locals** | `final var config = AttimoConfig.load();` |
+| **`final` on locals** | `final var config = AttimoConfig.load();` |
 | **4-space indent** | No tabs |
 | **Comma-first** on multi-line args | `, secondArg` on a new line |
 | **No wildcard imports** | `import java.util.List;` not `import java.util.*;` |
