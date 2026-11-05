@@ -13,7 +13,8 @@ import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.aws.AwsConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.isa.IsaMapping;
-import org.mendrugo.attimo.ssh.OsPackages;
+import org.mendrugo.attimo.config.ImageDef;
+import org.mendrugo.attimo.ssh.BootJdkProvisioner;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.mendrugo.attimo.ssh.SshProvisioner;
 import org.mendrugo.attimo.ssh.SshSession;
@@ -203,22 +204,22 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // Provision packages
+        // Provision packages from template
         final var provisioner = new SshProvisioner(launchResult.publicIp, sshUser, keyFile);
-
-        // Install Corretto 25 (not in default AL2023 repos)
-        System.out.println("  Installing Amazon Corretto 25...");
-        for (final var cmd : OsPackages.CORRETTO_25_INSTALL_COMMANDS)
-        {
-            final var rc = provisioner.run(cmd);
-            if (rc != 0)
-            {
-                System.err.println("  Warning: Corretto 25 install failed (exit " + rc + ").");
-                break;
-            }
-        }
-
-        provisioner.installPackages(OsPackages.JDK_DEV_PACKAGES);
+        final var defs = ImageDef.loadAll();
+        final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
+        // Derive arch from ISA feature for Adoptium API
+        final var isaMapping = new IsaMapping();
+        final var resolvedFeature = isaMapping.resolve(isaFeature);
+        final var templateArch = resolvedFeature != null
+            && "aarch64".equals(resolvedFeature.architecture())
+            ? "aarch64" : "x86_64";
+        BootJdkProvisioner.provision(
+            imageDef.getPackages()
+            , provisioner
+            , false  // AL2023, not Fedora
+            , templateArch
+        );
 
         // Connect
         final var exitCode = sshSession.connect();

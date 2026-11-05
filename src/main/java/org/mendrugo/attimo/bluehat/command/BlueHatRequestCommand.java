@@ -8,7 +8,8 @@ import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.bluehat.BlueHatInstanceSize;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
-import org.mendrugo.attimo.ssh.OsPackages;
+import org.mendrugo.attimo.config.ImageDef;
+import org.mendrugo.attimo.ssh.BootJdkProvisioner;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.mendrugo.attimo.ssh.SshProvisioner;
 import org.mendrugo.attimo.ssh.SshSession;
@@ -142,25 +143,17 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // Provision packages (same as AWS)
+        // Provision packages from template
         System.out.println("\n[4/4] Provisioning and connecting...");
         final var provisioner = new SshProvisioner(fqdn, BlueHat.SSH_USER, keyFile);
-
-        // Install Corretto 25
-        System.out.println("  Installing Amazon Corretto 25...");
-        for (final var cmd : OsPackages.CORRETTO_25_INSTALL_COMMANDS)
-        {
-            final var rc = provisioner.run(cmd);
-            if (rc != 0)
-            {
-                System.err.println("  Warning: Corretto 25 install failed (exit " + rc + ").");
-                break;
-            }
-        }
-
-        // Any errors during provisioning are not treated as fatal.
-        // Inspect the logs for any warning messages if issues encountered during provisioning.
-        provisioner.installPackages(OsPackages.JDK_DEV_PACKAGES);
+        final var defs = ImageDef.loadAll();
+        final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
+        BootJdkProvisioner.provision(
+            imageDef.getPackages()
+            , provisioner
+            , true  // Fedora
+            , "x86_64"  // Blue Hat default arch
+        );
 
         // Connect via SSH
         final var exitCode = sshSession.connect();
