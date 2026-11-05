@@ -1,7 +1,7 @@
 # Attimo — Progress & Backlog
 
-**Last updated:** 2026-08-18
-**Last session:** Blue Hat cloud integration
+**Last updated:** 2026-11-05
+**Last session:** Template system (ImageDef + BootJdkProvisioner)
 
 ## How to Resume
 
@@ -122,14 +122,15 @@ If you're a new agent session picking up this project:
 ### Base OS & Provisioning
 - **Amazon Linux 2023** — base AMI for AWS, resolved via SSM Parameter Store (works in every region)
 - **RedHat 10.2** — default OS for Blue Hat VMs
-- **Amazon Corretto 25** — boot JDK, installed from `yum.corretto.aws` repo
+- **Boot JDK** — Adoptium Temurin tarball on AL2023 (downloaded to `/opt/jdk-{version}`), `java-latest-openjdk-devel` on Fedora
+- **Package list** — defined in `src/main/resources/images/openjdk.yaml` template
 - **capstone** — `capstone`, `capstone-devel` from AL2023 repos
 - **SSH user** — `ec2-user` (AWS), `root` (Blue Hat)
 - **Package manager** — `dnf`
 
 ### Test Counts
-- **168 unit tests** — all pass, no cloud interaction needed
-- **17 integration tests** — all pass (10 AWS via LocalStack + Podman, 7 Blue Hat via dummy server)
+- **185 unit tests** — all pass, no cloud interaction needed
+- **17 integration tests** — 7 Blue Hat pass, 10 AWS require LocalStack + Podman
 
 ### Key Technical Decisions Made During Implementation
 - **UrlConnectionHttpClient** instead of Apache HTTP client (avoids commons-logging dependency with Quarkus)
@@ -159,8 +160,14 @@ If you're a new agent session picking up this project:
 - [ ] **Task 19:** CostTracker + `ato cost` command
 - [ ] **Task 20:** TUI main view (Tamboui)
 
-### Phase 8: Template System
-- [ ] **Task 21:** Image template + tool YAML system (incus-spawn style)
+### Phase 8: Template System ✅
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| — | ImageDef record + TemplateLoader + tpl-minimal + tpl-openjdk YAML | `f51a18e` |
+| — | BootJdkProvisioner: OS-aware boot JDK (Adoptium tarball on AL2023, dnf on Fedora) | `505b7c7` |
+| — | Wire templates into AwsRequestCommand + BlueHatRequestCommand | `505b7c7` |
+| — | Remove OsPackages (replaced by ImageDef + BootJdkProvisioner) | `a1b5862` |
 
 ## Backlog — New Ideas & Improvements
 
@@ -202,8 +209,7 @@ org.mendrugo.attimo/
 ├── isa/          # CPU ISA feature mapping (shared across clouds)
 ├── ssh/          # SSH key management, sessions, provisioning (shared)
 ├── cost/         # (planned) Cost tracking
-├── tui/          # (planned) TUI components
-└── tool/         # (planned) Tool/template system
+└── tui/          # (planned) TUI components
 ```
 
 ### Multi-Cloud Architecture
