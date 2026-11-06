@@ -77,11 +77,12 @@ public final class BootJdkProvisioner
 
         // Step 1: Query Adoptium API for the latest GA version
         System.out.println("  Querying Adoptium API for latest release...");
-        final var versionScript =
+        final var versionRc = provisioner.run(
             "curl -sL https://api.adoptium.net/v3/info/available_releases"
             + " | grep -o '\"most_recent_feature_release\":[0-9]*'"
-            + " | grep -o '[0-9]*'";
-        final var versionRc = provisioner.run(versionScript, 30);
+            + " | grep -o '[0-9]*'"
+            , 30
+        );
         if (versionRc != 0)
         {
             System.err.println("  Error: failed to query Adoptium API (exit " + versionRc + ").");
@@ -89,38 +90,47 @@ public final class BootJdkProvisioner
             return false;
         }
 
-        // Step 2: Download, extract, symlink — as a single script so $VERSION
-        // is available throughout. Each command prints progress and the script
-        // reports the specific failing step on error.
-        final var installScript = String.format(
-            "set -e; "
-            + "VERSION=$(curl -sL https://api.adoptium.net/v3/info/available_releases"
+        // Step 2: Download tarball
+        System.out.println("  Downloading Adoptium Temurin JDK (" + apiArch + ")...");
+        final var downloadCmd = String.format(
+            "VERSION=$(curl -sL https://api.adoptium.net/v3/info/available_releases"
             + " | grep -o '\"most_recent_feature_release\":[0-9]*'"
-            + " | grep -o '[0-9]*'); "
-            + "if [ -z \"$VERSION\" ]; then echo 'Error: could not determine latest JDK version' >&2; exit 1; fi; "
-            + "echo \"  Downloading Adoptium Temurin JDK $VERSION (%s)...\"; "
-            + "curl -fSL"
+            + " | grep -o '[0-9]*')"
+            + " && echo \"  Latest release: JDK ${VERSION}\""
+            + " && curl -fSL"
             + " \"https://api.adoptium.net/v3/binary/latest/${VERSION}/ga/linux/%s/jdk/hotspot/normal/eclipse\""
-            + " -o /tmp/jdk.tar.gz; "
-            + "echo \"  Extracting to /opt/jdk-${VERSION}...\"; "
-            + "sudo mkdir -p /opt/jdk-${VERSION}; "
-            + "sudo tar -xzf /tmp/jdk.tar.gz -C /opt/jdk-${VERSION} --strip-components=1; "
-            + "sudo ln -sfn /opt/jdk-${VERSION} %s; "
-            + "rm -f /tmp/jdk.tar.gz; "
-            + "echo \"  Boot JDK installed: /opt/jdk-${VERSION}\"; "
-            + "echo \"  Symlinked: %s -> /opt/jdk-${VERSION}\""
+            + " -o /tmp/jdk.tar.gz"
             , apiArch
-            , apiArch
+        );
+        final var downloadRc = provisioner.run(downloadCmd, 300);
+        if (downloadRc != 0)
+        {
+            System.err.println("  Error: failed to download Adoptium Temurin (exit " + downloadRc + ").");
+            return false;
+        }
+
+        // Step 3: Extract and symlink
+        System.out.println("  Extracting...");
+        final var extractCmd = String.format(
+            "VERSION=$(curl -sL https://api.adoptium.net/v3/info/available_releases"
+            + " | grep -o '\"most_recent_feature_release\":[0-9]*'"
+            + " | grep -o '[0-9]*')"
+            + " && sudo mkdir -p /opt/jdk-${VERSION}"
+            + " && sudo tar -xzf /tmp/jdk.tar.gz -C /opt/jdk-${VERSION} --strip-components=1"
+            + " && sudo ln -sfn /opt/jdk-${VERSION} %s"
+            + " && rm -f /tmp/jdk.tar.gz"
+            + " && echo \"  Boot JDK installed: /opt/jdk-${VERSION}\""
+            + " && echo \"  Symlinked: %s -> /opt/jdk-${VERSION}\""
             , JDK_INSTALL_DIR
             , JDK_INSTALL_DIR
         );
-
-        final var rc = provisioner.run("bash -c '" + installScript + "'", 300);
-        if (rc != 0)
+        final var extractRc = provisioner.run(extractCmd, 120);
+        if (extractRc != 0)
         {
-            System.err.println("  Error: Adoptium Temurin install failed (exit " + rc + ").");
-            System.err.println("  Check the output above for details.");
+            System.err.println("  Error: failed to extract Adoptium Temurin (exit " + extractRc + ").");
+            return false;
         }
-        return rc == 0;
+
+        return true;
     }
 }

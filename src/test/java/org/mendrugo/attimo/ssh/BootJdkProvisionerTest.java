@@ -52,13 +52,11 @@ class BootJdkProvisionerTest
         assertThat(recorder.installedPackages)
             .contains("gcc", "make")
             .doesNotContain("java-latest-openjdk-devel");
-        // Version check + install script
-        assertThat(recorder.ranCommands).hasSize(2);
-        assertThat(recorder.ranCommands.get(0))
-            .contains("adoptium");
-        assertThat(recorder.ranCommands.get(1))
-            .contains("adoptium")
-            .contains("x64");
+        // Version check + download + extract
+        assertThat(recorder.ranCommands).hasSize(3);
+        assertThat(recorder.ranCommands.get(0)).contains("adoptium");
+        assertThat(recorder.ranCommands.get(1)).contains("adoptium").contains("x64");
+        assertThat(recorder.ranCommands.get(2)).contains("/opt/jdk");
     }
 
     @Test
@@ -69,11 +67,11 @@ class BootJdkProvisionerTest
         final var recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "aarch64");
 
-        assertThat(recorder.ranCommands).hasSize(2);
-        // Install script uses aarch64
+        assertThat(recorder.ranCommands).hasSize(3);
+        // Download step uses aarch64
         assertThat(recorder.ranCommands.get(1))
             .contains("aarch64")
-            .doesNotContain("x64");
+            .doesNotContain("/x64/");
     }
 
     @Test
