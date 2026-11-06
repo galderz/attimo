@@ -5,12 +5,16 @@ import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.command.BaseCommand;
+import org.mendrugo.attimo.config.AttimoConfig;
+import org.mendrugo.attimo.config.ImageDef;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
 
 import java.io.Console;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 
 @CommandDefinition(
     name = "init"
@@ -66,6 +70,7 @@ public class BlueHatInitCommand extends BaseCommand
 
         setupCloudMode(console, config);
         setupSshKey(console, config);
+        setupSearchPaths(console);
 
         config.save();
 
@@ -192,6 +197,94 @@ public class BlueHatInitCommand extends BaseCommand
         {
             config.setSshPublicKey("~/.ssh/id_ed25519.pub");
             System.out.println("  Defaulting to ~/.ssh/id_ed25519.pub");
+        }
+    }
+
+    private void setupSearchPaths(final Console console)
+    {
+        System.out.println("\nTemplate search paths...");
+        System.out.println("  Local directories where attimo looks for custom image");
+        System.out.println("  definitions. Each directory should contain an images/");
+        System.out.println("  subdirectory with YAML template files.");
+        System.out.println();
+
+        final var config = AttimoConfig.load();
+        final var existing = config.getSearchPaths();
+
+        if (!existing.isEmpty())
+        {
+            System.out.println("  Current search paths:");
+            for (int i = 0; i < existing.size(); i++)
+            {
+                System.out.println("    " + (i + 1) + ". " + existing.get(i));
+            }
+        }
+
+        if (console == null)
+        {
+            if (existing.isEmpty())
+            {
+                System.out.println("  No search paths configured."
+                    + " Add them later in ~/.config/attimo/config.yaml");
+            }
+            return;
+        }
+
+        final var paths = new ArrayList<>(existing);
+        while (true)
+        {
+            final var hasEntries = !paths.isEmpty();
+            System.out.print("  Add a local directory"
+                + (hasEntries ? " or # to remove" : "")
+                + " (or press Enter to "
+                + (hasEntries ? "finish" : "skip") + "): ");
+            final var input = console.readLine().strip();
+            if (input.isEmpty())
+            {
+                break;
+            }
+
+            if (input.matches("\\d+"))
+            {
+                final int index = Integer.parseInt(input) - 1;
+                if (index >= 0 && index < paths.size())
+                {
+                    System.out.println("  Removed: " + paths.remove(index));
+                }
+                else
+                {
+                    System.out.println("  No entry #" + input + ".");
+                }
+                continue;
+            }
+
+            final var expanded = ImageDef.expandTilde(input);
+            final var path = Path.of(expanded).toAbsolutePath().normalize().toString();
+            if (paths.contains(path))
+            {
+                System.out.println("  Already in the list.");
+            }
+            else
+            {
+                paths.add(path);
+                System.out.println("  Added: " + path);
+            }
+        }
+
+        if (!paths.equals(existing))
+        {
+            config.setSearchPaths(paths);
+            config.save();
+            System.out.println("  Search paths saved.");
+        }
+        else if (paths.isEmpty())
+        {
+            System.out.println("  No search paths configured."
+                + " Add them later in ~/.config/attimo/config.yaml");
+        }
+        else
+        {
+            System.out.println("  Paths unchanged.");
         }
     }
 

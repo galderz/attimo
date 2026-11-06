@@ -36,6 +36,13 @@ public class BlueHatRequestCommand extends BaseCommand
     )
     String size;
 
+    @Option(
+        name = "template"
+        , description = "Image template to use for provisioning (default: tpl-openjdk)"
+        , defaultValue = "tpl-openjdk"
+    )
+    String template;
+
     @Override
     protected CommandResult doExecute() throws Exception
     {
@@ -147,7 +154,14 @@ public class BlueHatRequestCommand extends BaseCommand
         System.out.println("\n[4/4] Provisioning and connecting...");
         final var provisioner = new SshProvisioner(fqdn, BlueHat.SSH_USER, keyFile);
         final var defs = ImageDef.loadAll();
-        final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
+        final var imageDef = ImageDef.findByName(template, defs);
+        if (imageDef == null)
+        {
+            System.err.println("Error: unknown template '" + template + "'.");
+            System.err.println("Available templates: "
+                + String.join(", ", defs.keySet()));
+            return CommandResult.FAILURE;
+        }
         BootJdkProvisioner.provision(
             imageDef.getPackages()
             , provisioner

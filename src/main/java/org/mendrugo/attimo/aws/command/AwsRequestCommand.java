@@ -53,6 +53,13 @@ public class AwsRequestCommand extends BaseCommand
     )
     String size;
 
+    @Option(
+        name = "template"
+        , description = "Image template to use for provisioning (default: tpl-openjdk)"
+        , defaultValue = "tpl-openjdk"
+    )
+    String template;
+
     @Override
     protected CommandResult doExecute() throws Exception
     {
@@ -207,7 +214,14 @@ public class AwsRequestCommand extends BaseCommand
         // Provision packages from template
         final var provisioner = new SshProvisioner(launchResult.publicIp, sshUser, keyFile);
         final var defs = ImageDef.loadAll();
-        final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
+        final var imageDef = ImageDef.findByName(template, defs);
+        if (imageDef == null)
+        {
+            System.err.println("Error: unknown template '" + template + "'.");
+            System.err.println("Available templates: "
+                + String.join(", ", defs.keySet()));
+            return CommandResult.FAILURE;
+        }
         // Derive arch from ISA feature for Adoptium API
         final var isaMapping = new IsaMapping();
         final var resolvedFeature = isaMapping.resolve(isaFeature);

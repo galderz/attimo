@@ -240,7 +240,7 @@ public class ImageDef
         }
     }
 
-    static String expandTilde(final String path)
+    public static String expandTilde(final String path)
     {
         if (path.startsWith("~/"))
         {
