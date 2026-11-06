@@ -52,9 +52,11 @@ class BootJdkProvisionerTest
         assertThat(recorder.installedPackages)
             .contains("gcc", "make")
             .doesNotContain("java-latest-openjdk-devel");
-        // Adoptium tarball download command was run
-        assertThat(recorder.ranCommands).hasSize(1);
-        assertThat(recorder.ranCommands.getFirst())
+        // Version check + install script
+        assertThat(recorder.ranCommands).hasSize(2);
+        assertThat(recorder.ranCommands.get(0))
+            .contains("adoptium");
+        assertThat(recorder.ranCommands.get(1))
             .contains("adoptium")
             .contains("x64");
     }
@@ -67,8 +69,9 @@ class BootJdkProvisionerTest
         final var recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "aarch64");
 
-        assertThat(recorder.ranCommands).hasSize(1);
-        assertThat(recorder.ranCommands.getFirst())
+        assertThat(recorder.ranCommands).hasSize(2);
+        // Install script uses aarch64
+        assertThat(recorder.ranCommands.get(1))
             .contains("aarch64")
             .doesNotContain("x64");
     }

@@ -63,8 +63,7 @@ public final class BootJdkProvisioner
 
     /**
      * Download and extract the latest Adoptium Temurin JDK tarball.
-     * Uses the Adoptium API to discover the latest GA release version,
-     * then downloads the tarball for the target architecture.
+     * Runs each step individually over SSH so errors are visible.
      */
     static boolean installAdoptiumTarball(
         final SshProvisioner provisioner
@@ -76,20 +75,34 @@ public final class BootJdkProvisioner
 
         System.out.println("  Installing Adoptium Temurin JDK...");
 
-        // Single script that:
-        // 1. Queries Adoptium API for latest GA feature release version
-        // 2. Downloads the tarball
-        // 3. Extracts to /opt/jdk-<version>
-        // 4. Creates /opt/jdk symlink for convenience
-        final var script = String.format(
+        // Step 1: Query Adoptium API for the latest GA version
+        System.out.println("  Querying Adoptium API for latest release...");
+        final var versionScript =
+            "curl -sL https://api.adoptium.net/v3/info/available_releases"
+            + " | grep -o '\"most_recent_feature_release\":[0-9]*'"
+            + " | grep -o '[0-9]*'";
+        final var versionRc = provisioner.run(versionScript, 30);
+        if (versionRc != 0)
+        {
+            System.err.println("  Error: failed to query Adoptium API (exit " + versionRc + ").");
+            System.err.println("  Check network connectivity on the instance.");
+            return false;
+        }
+
+        // Step 2: Download, extract, symlink — as a single script so $VERSION
+        // is available throughout. Each command prints progress and the script
+        // reports the specific failing step on error.
+        final var installScript = String.format(
             "set -e; "
             + "VERSION=$(curl -sL https://api.adoptium.net/v3/info/available_releases"
             + " | grep -o '\"most_recent_feature_release\":[0-9]*'"
             + " | grep -o '[0-9]*'); "
-            + "echo \"  Latest Adoptium release: JDK ${VERSION}\"; "
-            + "curl -fsSL"
+            + "if [ -z \"$VERSION\" ]; then echo 'Error: could not determine latest JDK version' >&2; exit 1; fi; "
+            + "echo \"  Downloading Adoptium Temurin JDK $VERSION (%s)...\"; "
+            + "curl -fSL"
             + " \"https://api.adoptium.net/v3/binary/latest/${VERSION}/ga/linux/%s/jdk/hotspot/normal/eclipse\""
             + " -o /tmp/jdk.tar.gz; "
+            + "echo \"  Extracting to /opt/jdk-${VERSION}...\"; "
             + "sudo mkdir -p /opt/jdk-${VERSION}; "
             + "sudo tar -xzf /tmp/jdk.tar.gz -C /opt/jdk-${VERSION} --strip-components=1; "
             + "sudo ln -sfn /opt/jdk-${VERSION} %s; "
@@ -97,11 +110,17 @@ public final class BootJdkProvisioner
             + "echo \"  Boot JDK installed: /opt/jdk-${VERSION}\"; "
             + "echo \"  Symlinked: %s -> /opt/jdk-${VERSION}\""
             , apiArch
+            , apiArch
             , JDK_INSTALL_DIR
             , JDK_INSTALL_DIR
         );
 
-        final var rc = provisioner.run("bash -c '" + script + "'", 300);
+        final var rc = provisioner.run("bash -c '" + installScript + "'", 300);
+        if (rc != 0)
+        {
+            System.err.println("  Error: Adoptium Temurin install failed (exit " + rc + ").");
+            System.err.println("  Check the output above for details.");
+        }
         return rc == 0;
     }
 }
