@@ -1,8 +1,12 @@
 package org.mendrugo.attimo.config;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -181,6 +185,79 @@ class ImageDefTest
         final var child = defs.get("child");
         final var ancestors = ImageDef.ancestors(child, defs);
         assertThat(ancestors).isEmpty();
+    }
+
+    @Test
+    void searchPathLoadsExternalTemplates(@TempDir final Path tempDir) throws IOException
+    {
+        // Create a search path with images/ subdirectory
+        final var imagesDir = tempDir.resolve("images");
+        Files.createDirectories(imagesDir);
+        Files.writeString(imagesDir.resolve("custom.yaml"), """
+            name: tpl-custom
+            description: Custom template
+            parent: tpl-minimal
+            packages:
+              - vim
+            """);
+
+        final var defs = ImageDef.loadAll(List.of(tempDir.toString()));
+
+        // Built-ins still loaded
+        assertThat(defs).containsKeys("tpl-minimal", "tpl-openjdk");
+        // Custom template loaded from search path
+        assertThat(defs).containsKey("tpl-custom");
+        final var custom = defs.get("tpl-custom");
+        assertThat(custom.getParent()).isEqualTo("tpl-minimal");
+        assertThat(custom.getPackages()).containsExactly("vim");
+    }
+
+    @Test
+    void searchPathOverridesBuiltin(@TempDir final Path tempDir) throws IOException
+    {
+        final var imagesDir = tempDir.resolve("images");
+        Files.createDirectories(imagesDir);
+        Files.writeString(imagesDir.resolve("openjdk.yaml"), """
+            name: tpl-openjdk
+            description: Overridden OpenJDK
+            parent: tpl-minimal
+            packages:
+              - gcc
+            """);
+
+        final var defs = ImageDef.loadAll(List.of(tempDir.toString()));
+        final var openjdk = defs.get("tpl-openjdk");
+        assertThat(openjdk.getDescription()).isEqualTo("Overridden OpenJDK");
+        assertThat(openjdk.getPackages()).containsExactly("gcc");
+    }
+
+    @Test
+    void emptySearchPathsLoadsOnlyBuiltins()
+    {
+        final var defs = ImageDef.loadAll(List.of());
+        assertThat(defs).containsOnlyKeys("tpl-minimal", "tpl-openjdk");
+    }
+
+    @Test
+    void nonExistentSearchPathIsIgnored()
+    {
+        final var defs = ImageDef.loadAll(List.of("/nonexistent/path"));
+        assertThat(defs).containsKeys("tpl-minimal", "tpl-openjdk");
+    }
+
+    @Test
+    void expandTildeExpandsHome()
+    {
+        final var expanded = ImageDef.expandTilde("~/templates");
+        assertThat(expanded).startsWith(System.getProperty("user.home"));
+        assertThat(expanded).endsWith("/templates");
+    }
+
+    @Test
+    void expandTildeIgnoresAbsolutePath()
+    {
+        final var path = "/opt/templates";
+        assertThat(ImageDef.expandTilde(path)).isEqualTo(path);
     }
 
     private static ImageDef createDef(

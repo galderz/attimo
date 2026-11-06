@@ -7,6 +7,8 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,6 +39,8 @@ public class ImageDef
         "minimal.yaml"
         , "openjdk.yaml"
     );
+
+    private static final Path PROJECT_IMAGES_DIR = Path.of(".attimo/images");
 
     private String name;
     private String description = "";
@@ -118,12 +122,36 @@ public class ImageDef
     }
 
     /**
-     * Load all built-in image definitions from the classpath.
-     * Returns a map keyed by image name (e.g. "tpl-minimal").
+     * Load all image definitions: built-in first, then search paths,
+     * then project-local. Later definitions with the same name override
+     * earlier ones. Search paths come from {@link AttimoConfig}.
+     *
+     * <p>Same resolution order as incus-spawn:
+     * built-in → search paths ({@code images/} subdirectory) → project-local.
      */
     public static Map<String, ImageDef> loadAll()
     {
+        return loadAll(AttimoConfig.load().getSearchPaths());
+    }
+
+    /**
+     * Load all image definitions with explicit search paths.
+     */
+    public static Map<String, ImageDef> loadAll(final List<String> searchPaths)
+    {
         final var defs = new LinkedHashMap<String, ImageDef>();
+        loadBuiltins(defs);
+        for (final var searchPath : searchPaths)
+        {
+            final var expanded = expandTilde(searchPath);
+            loadFromDirectory(Path.of(expanded).resolve("images"), defs);
+        }
+        loadFromDirectory(PROJECT_IMAGES_DIR, defs);
+        return defs;
+    }
+
+    private static void loadBuiltins(final Map<String, ImageDef> defs)
+    {
         for (final var filename : BUILTIN_FILES)
         {
             final var def = loadResource(RESOURCE_DIR + filename);
@@ -132,7 +160,6 @@ public class ImageDef
                 defs.put(def.getName(), def);
             }
         }
-        return defs;
     }
 
     /**
@@ -154,6 +181,46 @@ public class ImageDef
         return YAML.readValue(yaml, ImageDef.class);
     }
 
+    private static void loadFromDirectory(
+        final Path dir
+        , final Map<String, ImageDef> defs
+    )
+    {
+        if (!Files.isDirectory(dir))
+        {
+            return;
+        }
+
+        try (final var stream = Files.list(dir))
+        {
+            stream
+                .filter(p -> p.toString().endsWith(".yaml")
+                    || p.toString().endsWith(".yml"))
+                .sorted()
+                .forEach(path ->
+                {
+                    try (final var is = Files.newInputStream(path))
+                    {
+                        final var def = YAML.readValue(is, ImageDef.class);
+                        if (def.getName() != null)
+                        {
+                            defs.put(def.getName(), def);
+                        }
+                    }
+                    catch (final IOException e)
+                    {
+                        System.err.println("Warning: failed to parse "
+                            + path.getFileName() + ": " + e.getMessage());
+                    }
+                });
+        }
+        catch (final IOException e)
+        {
+            System.err.println("Warning: failed to scan " + dir
+                + ": " + e.getMessage());
+        }
+    }
+
     private static ImageDef loadResource(final String resourcePath)
     {
         try (final InputStream is = ImageDef.class.getClassLoader()
@@ -171,5 +238,14 @@ public class ImageDef
                 + resourcePath + ": " + e.getMessage());
             return null;
         }
+    }
+
+    static String expandTilde(final String path)
+    {
+        if (path.startsWith("~/"))
+        {
+            return System.getProperty("user.home") + path.substring(1);
+        }
+        return path;
     }
 }
