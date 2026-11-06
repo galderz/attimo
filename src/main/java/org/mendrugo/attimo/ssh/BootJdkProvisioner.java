@@ -75,12 +75,13 @@ public final class BootJdkProvisioner
 
         System.out.println("  Installing Adoptium Temurin JDK...");
 
-        // Step 1: Query Adoptium API for the latest GA version
+        // Step 1: Query Adoptium API once, save version to temp file
         System.out.println("  Querying Adoptium API for latest release...");
         final var versionRc = provisioner.run(
             "curl -sL https://api.adoptium.net/v3/info/available_releases"
-            + " | grep -o '\"most_recent_feature_release\":[0-9]*'"
+            + " | grep -o '\"most_recent_feature_release\": *[0-9]*'"
             + " | grep -o '[0-9]*'"
+            + " > /tmp/jdk-version.txt"
             , 30
         );
         if (versionRc != 0)
@@ -90,12 +91,11 @@ public final class BootJdkProvisioner
             return false;
         }
 
-        // Step 2: Download tarball
+        // Step 2: Validate version was captured, then download tarball
         System.out.println("  Downloading Adoptium Temurin JDK (" + apiArch + ")...");
         final var downloadCmd = String.format(
-            "VERSION=$(curl -sL https://api.adoptium.net/v3/info/available_releases"
-            + " | grep -o '\"most_recent_feature_release\":[0-9]*'"
-            + " | grep -o '[0-9]*')"
+            "VERSION=$(cat /tmp/jdk-version.txt)"
+            + " && test -n \"${VERSION}\""
             + " && echo \"  Latest release: JDK ${VERSION}\""
             + " && curl -fSL"
             + " \"https://api.adoptium.net/v3/binary/latest/${VERSION}/ga/linux/%s/jdk/hotspot/normal/eclipse\""
@@ -106,19 +106,18 @@ public final class BootJdkProvisioner
         if (downloadRc != 0)
         {
             System.err.println("  Error: failed to download Adoptium Temurin (exit " + downloadRc + ").");
+            System.err.println("  Check /tmp/jdk-version.txt on the instance for the detected version.");
             return false;
         }
 
         // Step 3: Extract and symlink
         System.out.println("  Extracting...");
         final var extractCmd = String.format(
-            "VERSION=$(curl -sL https://api.adoptium.net/v3/info/available_releases"
-            + " | grep -o '\"most_recent_feature_release\":[0-9]*'"
-            + " | grep -o '[0-9]*')"
+            "VERSION=$(cat /tmp/jdk-version.txt)"
             + " && sudo mkdir -p /opt/jdk-${VERSION}"
             + " && sudo tar -xzf /tmp/jdk.tar.gz -C /opt/jdk-${VERSION} --strip-components=1"
             + " && sudo ln -sfn /opt/jdk-${VERSION} %s"
-            + " && rm -f /tmp/jdk.tar.gz"
+            + " && rm -f /tmp/jdk.tar.gz /tmp/jdk-version.txt"
             + " && echo \"  Boot JDK installed: /opt/jdk-${VERSION}\""
             + " && echo \"  Symlinked: %s -> /opt/jdk-${VERSION}\""
             , JDK_INSTALL_DIR
