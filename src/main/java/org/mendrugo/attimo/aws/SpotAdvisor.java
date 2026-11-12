@@ -145,7 +145,7 @@ public class SpotAdvisor {
                 score *= (1.0 - sizeIdx * SIZE_BIAS_PER_STEP);
 
                 if (continent == homeContinent && candidate.region.equals(preferredRegion)) {
-
+                    // Tier 0: no penalty
                 } else if (continent == homeContinent) {
                     score *= (1.0 + TIER_1_PENALTY);
                 } else {
