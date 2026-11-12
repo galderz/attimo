@@ -1,7 +1,7 @@
 # Attimo — Progress & Backlog
 
-**Last updated:** 2026-11-05
-**Last session:** Template system (ImageDef + BootJdkProvisioner)
+**Last updated:** 2026-11-12
+**Last session:** Remove all code comments
 
 ## How to Resume
 
@@ -129,8 +129,14 @@ If you're a new agent session picking up this project:
 - **SSH user** — `ec2-user` (AWS), `root` (Blue Hat)
 - **Package manager** — `dnf`
 
+### Code Comments Removal
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| — | Remove all // and /** */ comments from 60 Java files (production + test) | `5dac294` |
+
 ### Test Counts
-- **203 unit tests** — all pass, no cloud interaction needed
+- **214 unit tests** — all pass, no cloud interaction needed
 - **17 integration tests** — 7 Blue Hat pass, 10 AWS require LocalStack + Podman
 
 ### Key Technical Decisions Made During Implementation
