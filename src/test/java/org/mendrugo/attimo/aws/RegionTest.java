@@ -1,6 +1,7 @@
 package org.mendrugo.attimo.aws;
 
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -53,7 +54,7 @@ class RegionTest {
 
     @Test
     void allRegionsHaveNonEmptyCodeAndDescription() {
-        for (final Region region : Region.values()) {
+        for (Region region : Region.values()) {
             assertThat(region.code())
                     .as("Region %s should have a non-empty code", region.name())
                     .isNotBlank();
@@ -65,7 +66,7 @@ class RegionTest {
 
     @Test
     void codesAreUnique() {
-        final var codes = Arrays.stream(Region.values())
+        final List<String> codes = Arrays.stream(Region.values())
                 .map(Region::code)
                 .toList();
 

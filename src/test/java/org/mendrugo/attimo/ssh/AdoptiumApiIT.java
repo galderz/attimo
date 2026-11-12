@@ -6,7 +6,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpClient.Redirect;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
@@ -20,22 +22,22 @@ class AdoptiumApiIT {
 
     @Test
     void grepPatternExtractsVersion() throws IOException, InterruptedException {
-        final var client = HttpClient.newHttpClient();
-        final var request = HttpRequest.newBuilder()
+        final HttpClient client = HttpClient.newHttpClient();
+        final HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
                 .GET()
                 .build();
-        final var response = client.send(request, BodyHandlers.ofString());
+        final HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 
         assertThat(response.statusCode()).isEqualTo(200);
 
-        final var body = response.body();
-        final var matcher = VERSION_PATTERN.matcher(body);
+        final String body = response.body();
+        final Matcher matcher = VERSION_PATTERN.matcher(body);
         assertThat(matcher.find())
                 .as("Pattern should match in API response: %s", body)
                 .isTrue();
 
-        final var version = matcher.group(1);
+        final String version = matcher.group(1);
         assertThat(version).matches("[0-9]+");
 
         final int versionNum = Integer.parseInt(version);
@@ -49,17 +51,17 @@ class AdoptiumApiIT {
     @Test
     void downloadUrlReturnsRedirect() throws IOException, InterruptedException {
 
-        final var version = latestVersion();
-        final var url = String.format("https://api.adoptium.net/v3/binary/latest/%s/ga/linux/x64/jdk/hotspot/normal/eclipse", version);
+        final String version = latestVersion();
+        final String url = String.format("https://api.adoptium.net/v3/binary/latest/%s/ga/linux/x64/jdk/hotspot/normal/eclipse", version);
 
-        final var client = HttpClient.newBuilder()
+        final HttpClient client = HttpClient.newBuilder()
                 .followRedirects(Redirect.NEVER)
                 .build();
-        final var request = HttpRequest.newBuilder()
+        final HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .method("HEAD", BodyPublishers.noBody())
                 .build();
-        final var response = client.send(request, BodyHandlers.discarding());
+        final HttpResponse<Void> response = client.send(request, BodyHandlers.discarding());
 
         assertThat(response.statusCode())
                 .as("Download URL should redirect (307), got %d for %s", response.statusCode(), url)
@@ -71,13 +73,13 @@ class AdoptiumApiIT {
     }
 
     private static String latestVersion() throws IOException, InterruptedException {
-        final var client = HttpClient.newHttpClient();
-        final var request = HttpRequest.newBuilder()
+        final HttpClient client = HttpClient.newHttpClient();
+        final HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
                 .GET()
                 .build();
-        final var body = client.send(request, BodyHandlers.ofString()).body();
-        final var matcher = VERSION_PATTERN.matcher(body);
+        final String body = client.send(request, BodyHandlers.ofString()).body();
+        final Matcher matcher = VERSION_PATTERN.matcher(body);
         if (!matcher.find()) {
             throw new AssertionError("Could not extract version from: " + body);
         }

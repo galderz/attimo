@@ -1,6 +1,7 @@
 package org.mendrugo.attimo.bluehat;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 
@@ -32,9 +33,9 @@ class BlueHatCloudRunnerTest {
     void healthCheckSucceedsWithValidResponse() {
         server.createContext("/vm",
                 exchange -> {
-                    final var body = "[]";
+                    final String body = "[]";
                     exchange.sendResponseHeaders(200, body.length());
-                    try (final var os = exchange.getResponseBody()) {
+                    try (OutputStream os = exchange.getResponseBody()) {
                         os.write(body.getBytes(StandardCharsets.UTF_8));
                     }
                 });

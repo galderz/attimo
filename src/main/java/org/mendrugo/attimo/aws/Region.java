@@ -35,7 +35,7 @@ public enum Region {
     private final String code;
     private final String description;
 
-    Region(final String code, final String description) {
+    Region(String code, String description) {
         this.code = code;
         this.description = description;
     }
@@ -48,8 +48,8 @@ public enum Region {
         return description;
     }
 
-    public static Region fromCode(final String code) {
-        for (final Region region : values()) {
+    public static Region fromCode(String code) {
+        for (Region region : values()) {
             if (region.code.equals(code)) {
                 return region;
             }
@@ -58,8 +58,8 @@ public enum Region {
         throw new IllegalArgumentException("Unknown AWS region: " + code);
     }
 
-    public static boolean isKnown(final String code) {
-        for (final Region region : values()) {
+    public static boolean isKnown(String code) {
+        for (Region region : values()) {
             if (region.code.equals(code)) {
                 return true;
             }

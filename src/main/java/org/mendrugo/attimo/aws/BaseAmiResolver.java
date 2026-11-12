@@ -5,6 +5,7 @@ import java.util.Map;
 
 import software.amazon.awssdk.services.ssm.SsmClient;
 import software.amazon.awssdk.services.ssm.model.GetParameterRequest;
+import software.amazon.awssdk.services.ssm.model.GetParameterResponse;
 
 public class BaseAmiResolver {
 
@@ -14,26 +15,26 @@ public class BaseAmiResolver {
 
     private final Map<String, String> cache = new HashMap<>();
 
-    public String resolve(final SsmClient ssm, final String arch, final String region) {
-        final var cacheKey = region + ":" + arch;
-        final var cached = cache.get(cacheKey);
+    public String resolve(SsmClient ssm, String arch, String region) {
+        final String cacheKey = region + ":" + arch;
+        final String cached = cache.get(cacheKey);
         if (cached != null) {
             return cached;
         }
 
-        final var paramName = AL2023_SSM_PARAM + arch;
+        final String paramName = AL2023_SSM_PARAM + arch;
         System.out.println("  Looking up AMI via SSM: " + paramName);
 
         try {
-            final var response = ssm.getParameter(GetParameterRequest.builder()
+            final GetParameterResponse response = ssm.getParameter(GetParameterRequest.builder()
                     .name(paramName)
                     .build());
 
-            final var amiId = response.parameter().value();
+            final String amiId = response.parameter().value();
             System.out.println("  Resolved Amazon Linux 2023 (" + arch + ") → " + amiId);
             cache.put(cacheKey, amiId);
             return amiId;
-        } catch (final Exception e) {
+        } catch (Exception e) {
             throw new AwsException("Failed to resolve Amazon Linux 2023 AMI for "
                     + arch
                     + " via SSM parameter "

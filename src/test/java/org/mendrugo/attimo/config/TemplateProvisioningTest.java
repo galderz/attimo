@@ -5,9 +5,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mendrugo.attimo.config.ImageDef.ResolvedTemplate;
 import org.mendrugo.attimo.ssh.BootJdkProvisioner;
 import org.mendrugo.attimo.ssh.SshProvisioner;
 
@@ -18,10 +20,10 @@ class TemplateProvisioningTest {
     @Test
     void awsProvisioningWithBuiltinOpenjdkTemplate() {
 
-        final var defs = ImageDef.loadAll(List.of(), null);
-        final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
-        final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final var recorder = new RecordingProvisioner();
+        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
+        final ImageDef imageDef = ImageDef.findByName("tpl-openjdk", defs);
+        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        final RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, false, "x86_64");
 
@@ -36,7 +38,7 @@ class TemplateProvisioningTest {
     @Test
     void awsProvisioningWithInheritedTemplate(@TempDir final Path tempDir) throws IOException {
 
-        final var imagesDir = tempDir.resolve("images");
+        final Path imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
         Files.writeString(imagesDir.resolve("base.yaml"),
                 """
@@ -56,10 +58,10 @@ class TemplateProvisioningTest {
               - autoconf
             """);
 
-        final var defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
-        final var imageDef = ImageDef.findByName("tpl-extended", defs);
-        final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final var recorder = new RecordingProvisioner();
+        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
+        final ImageDef imageDef = ImageDef.findByName("tpl-extended", defs);
+        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        final RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, false, "x86_64");
 
@@ -70,10 +72,10 @@ class TemplateProvisioningTest {
     @Test
     void blueHatProvisioningWithBuiltinOpenjdkTemplate() {
 
-        final var defs = ImageDef.loadAll(List.of(), null);
-        final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
-        final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final var recorder = new RecordingProvisioner();
+        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
+        final ImageDef imageDef = ImageDef.findByName("tpl-openjdk", defs);
+        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        final RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, true, "x86_64");
 
@@ -87,7 +89,7 @@ class TemplateProvisioningTest {
 
     @Test
     void blueHatProvisioningWithInheritedTemplate(@TempDir final Path tempDir) throws IOException {
-        final var imagesDir = tempDir.resolve("images");
+        final Path imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
         Files.writeString(imagesDir.resolve("base.yaml"),
                 """
@@ -107,10 +109,10 @@ class TemplateProvisioningTest {
               - autoconf
             """);
 
-        final var defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
-        final var imageDef = ImageDef.findByName("tpl-extended", defs);
-        final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final var recorder = new RecordingProvisioner();
+        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
+        final ImageDef imageDef = ImageDef.findByName("tpl-extended", defs);
+        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        final RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, true, "x86_64");
 
@@ -121,7 +123,7 @@ class TemplateProvisioningTest {
     @Test
     void awsRejectsUnknownTemplateBeforeProvisioning() {
 
-        final var resolved = ImageDef.resolve("tpl-nonexistent");
+        final ResolvedTemplate resolved = ImageDef.resolve("tpl-nonexistent");
 
         assertThat(resolved).isNull();
     }
@@ -129,14 +131,14 @@ class TemplateProvisioningTest {
     @Test
     void blueHatRejectsUnknownTemplateBeforeProvisioning() {
 
-        final var resolved = ImageDef.resolve("tpl-nonexistent");
+        final ResolvedTemplate resolved = ImageDef.resolve("tpl-nonexistent");
 
         assertThat(resolved).isNull();
     }
 
     @Test
     void resolveReturnsPackagesForKnownTemplate() {
-        final var resolved = ImageDef.resolve("tpl-openjdk");
+        final ResolvedTemplate resolved = ImageDef.resolve("tpl-openjdk");
 
         assertThat(resolved).isNotNull();
         assertThat(resolved.imageDef().getName()).isEqualTo("tpl-openjdk");
@@ -145,10 +147,10 @@ class TemplateProvisioningTest {
 
     @Test
     void provisioningWithMinimalTemplateIsNoOp() {
-        final var defs = ImageDef.loadAll(List.of(), null);
-        final var imageDef = ImageDef.findByName("tpl-minimal", defs);
-        final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final var recorder = new RecordingProvisioner();
+        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
+        final ImageDef imageDef = ImageDef.findByName("tpl-minimal", defs);
+        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        final RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, false, "x86_64");
 
@@ -165,13 +167,13 @@ class TemplateProvisioningTest {
         }
 
         @Override
-        public int run(final String command, final int timeoutSeconds) {
+        public int run(String command, int timeoutSeconds) {
             ranCommands.add(command);
             return 0;
         }
 
         @Override
-        public boolean installPackages(final List<String> packages) {
+        public boolean installPackages(List<String> packages) {
             installedPackages.addAll(packages);
             return true;
         }

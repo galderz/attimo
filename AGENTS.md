@@ -21,7 +21,7 @@ Use project-local skills from `.pi/skills/agent-skills` when relevant.
 - **Git commit** each logical unit of work with a descriptive message
 - **Update `PROGRESS.md`** at the end of each session with: completed tasks, new backlog items, decisions made
 - **Format with jfmt** before committing: `./jfmtw src/main/java/... src/test/java/...` (see `SPEC.md`)
-- Follow the code style: K&R braces, `final` on params/locals, jfmt-formatted (see `SPEC.md`)
+- Follow the code style: K&R braces, `final` on locals (not params), explicit types (no `var`), jfmt-formatted (see `SPEC.md`)
 
 ### Intent → Skill Mapping
 

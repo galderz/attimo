@@ -13,7 +13,7 @@ import org.mendrugo.attimo.command.BaseCommand;
 @QuarkusMain
 public class Attimo implements QuarkusApplication {
     @Override
-    public int run(final String... args) {
+    public int run(String... args) {
         if (args.length == 0) {
             System.out.println("attimo " + BuildInfo.instance().version());
             System.out.println("Use 'ato --help' for usage information.");
@@ -21,13 +21,13 @@ public class Attimo implements QuarkusApplication {
         }
 
         try {
-            final var result = AeshRuntimeRunner.builder()
+            final CommandResult result = AeshRuntimeRunner.builder()
                     .command(AttimoCommand.class)
                     .args(args)
                     .execute();
 
             return result != null ? result.getResultValue() : 1;
-        } catch (final Exception e) {
+        } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());
             return 1;
         }
@@ -49,7 +49,7 @@ public class Attimo implements QuarkusApplication {
         @Override
         protected CommandResult doExecute() {
             if (versionRequested) {
-                final var info = BuildInfo.instance();
+                final BuildInfo info = BuildInfo.instance();
                 System.out.println("attimo " + info.version());
                 System.out.println(info.runtime());
                 return CommandResult.SUCCESS;

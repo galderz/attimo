@@ -1,5 +1,7 @@
 package org.mendrugo.attimo.aws;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.mendrugo.attimo.TestKeys;
 import org.mendrugo.attimo.config.InstanceState;
@@ -12,7 +14,9 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeKeyPairsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeKeyPairsResponse;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
@@ -25,23 +29,23 @@ class ResourceCleanerIT {
 
     @Test
     void cleansUpSecurityGroupAndKeyPair() {
-        try (final var ec2 = ec2Client()) {
+        try (Ec2Client ec2 = ec2Client()) {
 
-            final var manager = new SpotManager(ec2, "it-cleanup-test");
-            final var sgId = manager.createSecurityGroup();
-            final var dummyPubKey = TestKeys.generateEd25519PublicKey();
-            final var keyName = manager.importKeyPair(dummyPubKey);
+            final SpotManager manager = new SpotManager(ec2, "it-cleanup-test");
+            final String sgId = manager.createSecurityGroup();
+            final String dummyPubKey = TestKeys.generateEd25519PublicKey();
+            final String keyName = manager.importKeyPair(dummyPubKey);
 
             assertThat(describeSecurityGroup(ec2, sgId)).isTrue();
             assertThat(describeKeyPair(ec2, keyName)).isTrue();
 
-            final var state = new InstanceState();
+            final InstanceState state = new InstanceState();
             state.setInstanceId("");
             state.setSecurityGroupId(sgId);
             state.setKeyPairName(keyName);
 
-            final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state, "aws");
+            final ResourceCleaner cleaner = new ResourceCleaner(ec2);
+            final List<String> errors = cleaner.cleanAll(state, "aws");
 
             assertThat(errors).isEmpty();
 
@@ -52,15 +56,15 @@ class ResourceCleanerIT {
 
     @Test
     void handlesAlreadyDeletedResources() {
-        try (final var ec2 = ec2Client()) {
+        try (Ec2Client ec2 = ec2Client()) {
 
-            final var state = new InstanceState();
+            final InstanceState state = new InstanceState();
             state.setInstanceId("");
             state.setSecurityGroupId("sg-nonexistent");
             state.setKeyPairName("attimo-nonexistent");
 
-            final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state, "aws");
+            final ResourceCleaner cleaner = new ResourceCleaner(ec2);
+            final List<String> errors = cleaner.cleanAll(state, "aws");
 
             assertThat(errors).isNotEmpty();
         }
@@ -68,39 +72,39 @@ class ResourceCleanerIT {
 
     @Test
     void cleanOrphansFindsTaggedSecurityGroup() {
-        try (final var ec2 = ec2Client()) {
+        try (Ec2Client ec2 = ec2Client()) {
 
-            final var manager = new SpotManager(ec2, "it-orphan-test");
-            final var sgId = manager.createSecurityGroup();
+            final SpotManager manager = new SpotManager(ec2, "it-orphan-test");
+            final String sgId = manager.createSecurityGroup();
 
             assertThat(describeSecurityGroup(ec2, sgId)).isTrue();
 
-            final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanOrphans();
+            final ResourceCleaner cleaner = new ResourceCleaner(ec2);
+            final List<String> errors = cleaner.cleanOrphans();
 
             assertThat(errors).isEmpty();
             assertThat(describeSecurityGroup(ec2, sgId)).isFalse();
         }
     }
 
-    private boolean describeSecurityGroup(final Ec2Client ec2, final String sgId) {
+    private boolean describeSecurityGroup(Ec2Client ec2, String sgId) {
         try {
-            final var response = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
+            final DescribeSecurityGroupsResponse response = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
                     .groupIds(sgId)
                     .build());
             return !response.securityGroups().isEmpty();
-        } catch (final Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }
 
-    private boolean describeKeyPair(final Ec2Client ec2, final String keyName) {
+    private boolean describeKeyPair(Ec2Client ec2, String keyName) {
         try {
-            final var response = ec2.describeKeyPairs(DescribeKeyPairsRequest.builder()
+            final DescribeKeyPairsResponse response = ec2.describeKeyPairs(DescribeKeyPairsRequest.builder()
                     .keyNames(keyName)
                     .build());
             return !response.keyPairs().isEmpty();
-        } catch (final Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }

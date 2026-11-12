@@ -30,7 +30,7 @@ public class AwsConfig {
         return continent;
     }
 
-    public void setContinent(final String continent) {
+    public void setContinent(String continent) {
         this.continent = continent == null ? "" : continent;
     }
 
@@ -38,7 +38,7 @@ public class AwsConfig {
         return preferredRegion;
     }
 
-    public void setPreferredRegion(final String preferredRegion) {
+    public void setPreferredRegion(String preferredRegion) {
         this.preferredRegion = preferredRegion == null ? "" : preferredRegion;
     }
 
@@ -46,7 +46,7 @@ public class AwsConfig {
         return sshPublicKey;
     }
 
-    public void setSshPublicKey(final String sshPublicKey) {
+    public void setSshPublicKey(String sshPublicKey) {
         this.sshPublicKey = sshPublicKey == null ? "" : sshPublicKey;
     }
 
@@ -58,7 +58,7 @@ public class AwsConfig {
 
         try {
             return YAML.readValue(configFile.toFile(), AwsConfig.class);
-        } catch (final IOException e) {
+        } catch (IOException e) {
             System.err.println("Warning: could not read AWS config: " + e.getMessage());
             return new AwsConfig();
         }
@@ -76,11 +76,11 @@ public class AwsConfig {
                 tmp.toFile().setWritable(false, false);
                 tmp.toFile().setWritable(true, true);
                 Files.move(tmp, configFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (final Exception e) {
+            } catch (Exception e) {
                 Files.deleteIfExists(tmp);
                 throw e;
             }
-        } catch (final IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException("Failed to save AWS config: " + e.getMessage(), e);
         }
     }

@@ -197,7 +197,8 @@ Run `./jfmtw` to format; a pre-commit hook rejects unformatted code.
 | Braces always required (if/for/while) | jfmt |
 | Imports sorted, unused removed, wildcards expanded | jfmt |
 | Method chains broken at syntactic boundaries | jfmt |
-| `final` on all parameters and locals | Convention |
+| `final` on local variables (not on parameters, catch, or for) | Convention |
+| Explicit types (no `var`) | Convention |
 
 ```java
 public record IsaFeature(String name, String architecture, List<String> instanceFamilies) {}

@@ -1,6 +1,7 @@
 package org.mendrugo.attimo;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 public final class BuildInfo {
@@ -10,13 +11,13 @@ public final class BuildInfo {
 
     private BuildInfo() {
         final Properties props = new Properties();
-        try (final var is = getClass()
+        try (InputStream is = getClass()
                 .getClassLoader()
                 .getResourceAsStream("build.properties")) {
             if (is != null) {
                 props.load(is);
             }
-        } catch (final IOException e) {
+        } catch (IOException e) {
 
         }
 

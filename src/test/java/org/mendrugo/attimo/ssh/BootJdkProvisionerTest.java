@@ -18,9 +18,9 @@ class BootJdkProvisionerTest {
     @Test
     void fedoraKeepsJdkPackageInDnfList() {
 
-        final var packages = List.of("java-latest-openjdk-devel", "gcc", "make");
+        final List<String> packages = List.of("java-latest-openjdk-devel", "gcc", "make");
 
-        final var recorder = new RecordingProvisioner();
+        final RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, true, "x86_64");
 
         assertThat(recorder.installedPackages).contains("java-latest-openjdk-devel", "gcc", "make");
@@ -30,9 +30,9 @@ class BootJdkProvisionerTest {
 
     @Test
     void al2023RemovesJdkPackageFromDnfList() {
-        final var packages = List.of("java-latest-openjdk-devel", "gcc", "make");
+        final List<String> packages = List.of("java-latest-openjdk-devel", "gcc", "make");
 
-        final var recorder = new RecordingProvisioner();
+        final RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "x86_64");
 
         assertThat(recorder.installedPackages)
@@ -49,9 +49,9 @@ class BootJdkProvisionerTest {
 
     @Test
     void al2023UsesAarch64ForArm() {
-        final var packages = List.of("java-latest-openjdk-devel");
+        final List<String> packages = List.of("java-latest-openjdk-devel");
 
-        final var recorder = new RecordingProvisioner();
+        final RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "aarch64");
 
         assertThat(recorder.ranCommands).hasSize(3);
@@ -64,9 +64,9 @@ class BootJdkProvisionerTest {
     @Test
     void noJdkPackageMeansNothingSpecial() {
 
-        final var packages = List.of("gcc", "make");
+        final List<String> packages = List.of("gcc", "make");
 
-        final var recorder = new RecordingProvisioner();
+        final RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "x86_64");
 
         assertThat(recorder.ranCommands).isEmpty();
@@ -75,7 +75,7 @@ class BootJdkProvisionerTest {
 
     @Test
     void emptyPackagesIsNoOp() {
-        final var recorder = new RecordingProvisioner();
+        final RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(List.of(), recorder, false, "x86_64");
         assertThat(recorder.ranCommands).isEmpty();
         assertThat(recorder.installedPackages).isEmpty();
@@ -90,13 +90,13 @@ class BootJdkProvisionerTest {
         }
 
         @Override
-        public int run(final String command, final int timeoutSeconds) {
+        public int run(String command, int timeoutSeconds) {
             ranCommands.add(command);
             return 0;
         }
 
         @Override
-        public boolean installPackages(final List<String> packages) {
+        public boolean installPackages(List<String> packages) {
             installedPackages.addAll(packages);
             return true;
         }

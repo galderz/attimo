@@ -56,7 +56,7 @@ class InstanceSizeTest {
 
     @Test
     void descriptionsAreNonEmpty() {
-        for (final InstanceSize size : InstanceSize.values()) {
+        for (InstanceSize size : InstanceSize.values()) {
             assertThat(size.description()).isNotBlank();
         }
     }

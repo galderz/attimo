@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.util.List;
@@ -21,84 +22,84 @@ public class BlueHatClient {
     private final String baseUrl;
     private final HttpClient httpClient;
 
-    public BlueHatClient(final String hostName) {
+    public BlueHatClient(String hostName) {
         this(hostName, BlueHat.API_PORT);
     }
 
-    public BlueHatClient(final String hostName, final int port) {
+    public BlueHatClient(String hostName, int port) {
         this.baseUrl = "http://" + hostName + ":" + port;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(TIMEOUT)
                 .build();
     }
 
-    public VmResponse requestVm(final VmRequest request) {
+    public VmResponse requestVm(VmRequest request) {
         try {
-            final var body = JSON.writeValueAsString(request);
-            final var httpRequest = HttpRequest.newBuilder()
+            final String body = JSON.writeValueAsString(request);
+            final HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/vm"))
                     .header("Content-Type", "application/json")
                     .POST(BodyPublishers.ofString(body))
                     .timeout(TIMEOUT.multipliedBy(10))
                     .build();
 
-            final var response = httpClient.send(httpRequest, BodyHandlers.ofString());
+            final HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
 
             if (response.statusCode() != 200 && response.statusCode() != 201) {
                 throw new BlueHatException("VM request failed (HTTP " + response.statusCode() + "): " + response.body());
             }
 
             return JSON.readValue(response.body(), VmResponse.class);
-        } catch (final InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BlueHatException("VM request interrupted", e);
-        } catch (final IOException e) {
+        } catch (IOException e) {
             throw new BlueHatException("Failed to request VM: " + e.getMessage(), e);
         }
     }
 
     public List<VmDetails> listVms() {
         try {
-            final var httpRequest = HttpRequest.newBuilder()
+            final HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/vm"))
                     .GET()
                     .timeout(TIMEOUT)
                     .build();
 
-            final var response = httpClient.send(httpRequest, BodyHandlers.ofString());
+            final HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
                 throw new BlueHatException("VM list failed (HTTP " + response.statusCode() + "): " + response.body());
             }
 
             return JSON.readValue(response.body(), new TypeReference<List<VmDetails>>() {});
-        } catch (final InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BlueHatException("List VMs interrupted", e);
-        } catch (final IOException e) {
+        } catch (IOException e) {
             throw new BlueHatException("Failed to list VMs: " + e.getMessage(), e);
         }
     }
 
-    public DestroyResponse destroyVm(final String fqdn) {
+    public DestroyResponse destroyVm(String fqdn) {
         try {
-            final var httpRequest = HttpRequest.newBuilder()
+            final HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/vm/" + fqdn))
                     .DELETE()
                     .timeout(TIMEOUT)
                     .build();
 
-            final var response = httpClient.send(httpRequest, BodyHandlers.ofString());
+            final HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
                 throw new BlueHatException("VM destroy failed (HTTP " + response.statusCode() + "): " + response.body());
             }
 
             return JSON.readValue(response.body(), DestroyResponse.class);
-        } catch (final InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BlueHatException("Destroy VM interrupted", e);
-        } catch (final IOException e) {
+        } catch (IOException e) {
             throw new BlueHatException("Failed to destroy VM: " + e.getMessage(), e);
         }
     }

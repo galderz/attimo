@@ -5,10 +5,12 @@ import java.lang.ProcessBuilder.Redirect;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 
 import org.mendrugo.attimo.Environment;
 
@@ -19,17 +21,17 @@ public final class BlueHatCloudRunner {
     private static final int HEALTH_MAX_RETRIES = 10;
     private static final Duration HEALTH_RETRY_DELAY = Duration.ofMillis(1000);
 
-    public static Path repoDir(final String repository) {
-        final var repoName = extractRepoName(repository);
+    public static Path repoDir(String repository) {
+        final String repoName = extractRepoName(repository);
         return Environment.cacheDir(BlueHat.CLOUD).resolve(repoName);
     }
 
-    public static void cloneAndBuild(final String repository) {
+    public static void cloneAndBuild(String repository) {
         if (repository.isBlank()) {
             throw new BlueHatException("No repository configured.");
         }
 
-        final var targetDir = repoDir(repository);
+        final Path targetDir = repoDir(repository);
 
         try {
             Files.createDirectories(targetDir.getParent());
@@ -47,16 +49,16 @@ public final class BlueHatCloudRunner {
             System.out.println("  Building with Maven...");
             runProcess(targetDir, "mvn", "package", "-DskipTests", "-q");
             System.out.println("  Build complete.");
-        } catch (final BlueHatException e) {
+        } catch (BlueHatException e) {
             throw e;
-        } catch (final Exception e) {
+        } catch (Exception e) {
             throw new BlueHatException("Failed to clone and build: " + e.getMessage(), e);
         }
     }
 
-    public static Process start(final String repository) {
-        final var targetDir = repoDir(repository);
-        final var quarkusJar = targetDir.resolve("target")
+    public static Process start(String repository) {
+        final Path targetDir = repoDir(repository);
+        final Path quarkusJar = targetDir.resolve("target")
                 .resolve("quarkus-app")
                 .resolve("quarkus-run.jar");
 
@@ -64,13 +66,13 @@ public final class BlueHatCloudRunner {
             throw new BlueHatException("Blue Hat cloud not built. Run 'ato bh init' first.\n" + "Expected jar at: " + quarkusJar);
         }
 
-        final var logFile = logFile();
+        final Path logFile = logFile();
 
         try {
             Files.createDirectories(logFile.getParent());
             Files.deleteIfExists(logFile);
             System.out.println("  Starting local Blue Hat cloud...");
-            final var process = new ProcessBuilder("java", "-Dquarkus.http.host=localhost", "-jar", quarkusJar.toString())
+            final Process process = new ProcessBuilder("java", "-Dquarkus.http.host=localhost", "-jar", quarkusJar.toString())
                     .directory(targetDir.toFile())
                     .redirectErrorStream(true)
                     .redirectOutput(Redirect.appendTo(logFile.toFile()))
@@ -83,37 +85,37 @@ public final class BlueHatCloudRunner {
 
             System.out.println("  Local Blue Hat cloud is running.");
             return process;
-        } catch (final BlueHatException e) {
+        } catch (BlueHatException e) {
             throw e;
-        } catch (final IOException e) {
+        } catch (IOException e) {
             throw new BlueHatException("Failed to start local Blue Hat cloud: " + e.getMessage(), e);
         }
     }
 
-    public static boolean healthCheck(final String host, final int port) {
+    public static boolean healthCheck(String host, int port) {
         try {
-            final var client = HttpClient.newBuilder()
+            final HttpClient client = HttpClient.newBuilder()
                     .connectTimeout(HEALTH_TIMEOUT)
                     .build();
 
-            final var request = HttpRequest.newBuilder()
+            final HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("http://" + host + ":" + port + "/vm"))
                     .GET()
                     .timeout(HEALTH_TIMEOUT)
                     .build();
 
-            final var response = client.send(request, BodyHandlers.ofString());
+            final HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 
             return response.statusCode() >= 200
                     && response.statusCode() < 300
                     && response.body() != null
                     && !response.body().isBlank();
-        } catch (final Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }
 
-    public static void stop(final Process process) {
+    public static void stop(Process process) {
         if (process != null && process.isAlive()) {
             System.out.println("  Stopping local Blue Hat cloud...");
             process.destroy();
@@ -122,7 +124,7 @@ public final class BlueHatCloudRunner {
                 if (!processExited) {
                     process.destroyForcibly();
                 }
-            } catch (final InterruptedException e) {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 process.destroyForcibly();
             }
@@ -133,7 +135,7 @@ public final class BlueHatCloudRunner {
         return Environment.cacheDir(BlueHat.CLOUD).resolve("cloud.log");
     }
 
-    private static boolean waitForHealthy(final String host, final int port, final Process process) {
+    private static boolean waitForHealthy(String host, int port, Process process) {
         for (int i = 0; i < HEALTH_MAX_RETRIES; i++) {
             if (!process.isAlive()) {
                 return false;
@@ -145,7 +147,7 @@ public final class BlueHatCloudRunner {
 
             try {
                 Thread.sleep(HEALTH_RETRY_DELAY.toMillis());
-            } catch (final InterruptedException e) {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return false;
             }
@@ -154,8 +156,8 @@ public final class BlueHatCloudRunner {
         return false;
     }
 
-    private static void reportStartupFailure(final Process process, final Path logFile) {
-        final var sb = new StringBuilder();
+    private static void reportStartupFailure(Process process, Path logFile) {
+        final StringBuilder sb = new StringBuilder();
         sb.append("Local Blue Hat cloud failed to start.");
 
         if (!process.isAlive()) {
@@ -172,22 +174,22 @@ public final class BlueHatCloudRunner {
 
         try {
             if (Files.exists(logFile) && Files.size(logFile) > 0) {
-                final var lines = Files.readAllLines(logFile);
-                final var tail = lines.subList(Math.max(0, lines.size() - 20), lines.size());
+                final List<String> lines = Files.readAllLines(logFile);
+                final List<String> tail = lines.subList(Math.max(0, lines.size() - 20), lines.size());
                 sb.append("\n\n  Last output:");
-                for (final var line : tail) {
+                for (String line : tail) {
                     sb.append("\n    ").append(line);
                 }
             }
-        } catch (final IOException ignored) {
+        } catch (IOException ignored) {
 
         }
 
         throw new BlueHatException(sb.toString());
     }
 
-    static String extractRepoName(final String repoUrl) {
-        var name = repoUrl;
+    static String extractRepoName(String repoUrl) {
+        String name = repoUrl;
 
         if (name.endsWith("/")) {
             name = name.substring(0, name.length() - 1);
@@ -197,7 +199,7 @@ public final class BlueHatCloudRunner {
             name = name.substring(0, name.length() - 4);
         }
 
-        final var lastSlash = name.lastIndexOf('/');
+        final int lastSlash = name.lastIndexOf('/');
         if (lastSlash >= 0) {
             name = name.substring(lastSlash + 1);
         }
@@ -205,27 +207,27 @@ public final class BlueHatCloudRunner {
         return name;
     }
 
-    private static void runProcess(final Path workDir, final String... command) {
+    private static void runProcess(Path workDir, String... command) {
         try {
-            final var process = new ProcessBuilder(command)
+            final Process process = new ProcessBuilder(command)
                     .directory(workDir.toFile())
                     .inheritIO()
                     .start();
 
-            final var exitCode = process.waitFor();
+            final int exitCode = process.waitFor();
             if (exitCode != 0) {
                 throw new BlueHatException("Command failed (exit " + exitCode + "): " + String.join(" ", command));
             }
-        } catch (final BlueHatException e) {
+        } catch (BlueHatException e) {
             throw e;
-        } catch (final Exception e) {
+        } catch (Exception e) {
             throw new BlueHatException("Failed to run command '" + String.join(" ", command) + "': " + e.getMessage(), e);
         }
     }
 
-    public static Process ensureCloudRunning(final BlueHatConfig config) {
-        final var hostName = config.effectiveHostName();
-        final var port = BlueHat.API_PORT;
+    public static Process ensureCloudRunning(BlueHatConfig config) {
+        final String hostName = config.effectiveHostName();
+        final int port = BlueHat.API_PORT;
 
         if (config.isLocal()) {
             return BlueHatCloudRunner.start(config.getRepository());

@@ -4,6 +4,7 @@ import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
+import org.mendrugo.attimo.bluehat.BlueHatClient.DestroyResponse;
 import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.command.BaseCommand;
@@ -13,17 +14,17 @@ import org.mendrugo.attimo.config.InstanceState;
 public class BlueHatDestroyCommand extends BaseCommand {
     @Override
     protected CommandResult doExecute() throws Exception {
-        final var state = InstanceState.load(BlueHat.CLOUD);
+        final InstanceState state = InstanceState.load(BlueHat.CLOUD);
 
         if (!state.hasActiveInstance()) {
             System.out.println("No active VM to destroy.");
             return CommandResult.SUCCESS;
         }
 
-        final var fqdn = state.getInstanceId();
-        final var config = BlueHatConfig.load();
-        final var hostName = config.effectiveHostName();
-        final var port = BlueHat.API_PORT;
+        final String fqdn = state.getInstanceId();
+        final BlueHatConfig config = BlueHatConfig.load();
+        final String hostName = config.effectiveHostName();
+        final int port = BlueHat.API_PORT;
 
         Process localProcess = null;
         try {
@@ -34,7 +35,7 @@ public class BlueHatDestroyCommand extends BaseCommand {
         }
     }
 
-    private CommandResult doDestroy(final String fqdn, final String hostName, final int port,
+    private CommandResult doDestroy(String fqdn, String hostName, int port,
             final InstanceState state) {
         System.out.println("=== Destroying Blue Hat VM ===\n");
         System.out.println("FQDN:  " + fqdn);
@@ -42,8 +43,8 @@ public class BlueHatDestroyCommand extends BaseCommand {
         System.out.println();
 
         try {
-            final var client = new BlueHatClient(hostName, port);
-            final var response = client.destroyVm(fqdn);
+            final BlueHatClient client = new BlueHatClient(hostName, port);
+            final DestroyResponse response = client.destroyVm(fqdn);
 
             if ("success".equalsIgnoreCase(response.status())) {
                 System.out.println("  "
@@ -59,7 +60,7 @@ public class BlueHatDestroyCommand extends BaseCommand {
                 System.err.println("  Run 'ato bh destroy' again to retry.");
                 return CommandResult.FAILURE;
             }
-        } catch (final Exception e) {
+        } catch (Exception e) {
             System.err.println("  Destroy failed: " + e.getMessage());
             System.err.println("  Run 'ato bh destroy' again to retry.");
             return CommandResult.FAILURE;

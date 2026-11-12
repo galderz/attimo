@@ -58,7 +58,7 @@ public class InstanceState {
         return instanceId;
     }
 
-    public void setInstanceId(final String instanceId) {
+    public void setInstanceId(String instanceId) {
         this.instanceId = instanceId == null ? "" : instanceId;
     }
 
@@ -66,7 +66,7 @@ public class InstanceState {
         return region;
     }
 
-    public void setRegion(final String region) {
+    public void setRegion(String region) {
         this.region = region == null ? "" : region;
     }
 
@@ -74,7 +74,7 @@ public class InstanceState {
         return availabilityZone;
     }
 
-    public void setAvailabilityZone(final String az) {
+    public void setAvailabilityZone(String az) {
         this.availabilityZone = az == null ? "" : az;
     }
 
@@ -82,7 +82,7 @@ public class InstanceState {
         return instanceType;
     }
 
-    public void setInstanceType(final String instanceType) {
+    public void setInstanceType(String instanceType) {
         this.instanceType = instanceType == null ? "" : instanceType;
     }
 
@@ -90,7 +90,7 @@ public class InstanceState {
         return publicIp;
     }
 
-    public void setPublicIp(final String publicIp) {
+    public void setPublicIp(String publicIp) {
         this.publicIp = publicIp == null ? "" : publicIp;
     }
 
@@ -98,7 +98,7 @@ public class InstanceState {
         return launchedAt;
     }
 
-    public void setLaunchedAt(final String launchedAt) {
+    public void setLaunchedAt(String launchedAt) {
         this.launchedAt = launchedAt == null ? "" : launchedAt;
     }
 
@@ -106,7 +106,7 @@ public class InstanceState {
         return spotPrice;
     }
 
-    public void setSpotPrice(final double spotPrice) {
+    public void setSpotPrice(double spotPrice) {
         this.spotPrice = spotPrice;
     }
 
@@ -114,7 +114,7 @@ public class InstanceState {
         return template;
     }
 
-    public void setTemplate(final String template) {
+    public void setTemplate(String template) {
         this.template = template == null ? "" : template;
     }
 
@@ -122,7 +122,7 @@ public class InstanceState {
         return isaFeature;
     }
 
-    public void setIsaFeature(final String isaFeature) {
+    public void setIsaFeature(String isaFeature) {
         this.isaFeature = isaFeature == null ? "" : isaFeature;
     }
 
@@ -130,7 +130,7 @@ public class InstanceState {
         return amiId;
     }
 
-    public void setAmiId(final String amiId) {
+    public void setAmiId(String amiId) {
         this.amiId = amiId == null ? "" : amiId;
     }
 
@@ -138,7 +138,7 @@ public class InstanceState {
         return securityGroupId;
     }
 
-    public void setSecurityGroupId(final String sgId) {
+    public void setSecurityGroupId(String sgId) {
         this.securityGroupId = sgId == null ? "" : sgId;
     }
 
@@ -146,7 +146,7 @@ public class InstanceState {
         return keyPairName;
     }
 
-    public void setKeyPairName(final String keyPairName) {
+    public void setKeyPairName(String keyPairName) {
         this.keyPairName = keyPairName == null ? "" : keyPairName;
     }
 
@@ -154,7 +154,7 @@ public class InstanceState {
         return sessionId;
     }
 
-    public void setSessionId(final String sessionId) {
+    public void setSessionId(String sessionId) {
         this.sessionId = sessionId == null ? "" : sessionId;
     }
 
@@ -164,7 +164,7 @@ public class InstanceState {
 
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
-    public static InstanceState load(final String cloud) {
+    public static InstanceState load(String cloud) {
         final Path stateFile = Environment.stateFile(cloud);
         if (!Files.exists(stateFile)) {
             return new InstanceState();
@@ -172,13 +172,13 @@ public class InstanceState {
 
         try {
             return YAML.readValue(stateFile.toFile(), InstanceState.class);
-        } catch (final IOException e) {
+        } catch (IOException e) {
             System.err.println("Warning: could not read state: " + e.getMessage());
             return new InstanceState();
         }
     }
 
-    public void save(final String cloud) {
+    public void save(String cloud) {
         final Path stateFile = Environment.stateFile(cloud);
         try {
             Files.createDirectories(stateFile.getParent());
@@ -186,19 +186,19 @@ public class InstanceState {
             try {
                 YAML.writeValue(tmp.toFile(), this);
                 Files.move(tmp, stateFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (final Exception e) {
+            } catch (Exception e) {
                 Files.deleteIfExists(tmp);
                 throw e;
             }
-        } catch (final IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException("Failed to save state: " + e.getMessage(), e);
         }
     }
 
-    public static void clear(final String cloud) {
+    public static void clear(String cloud) {
         try {
             Files.deleteIfExists(Environment.stateFile(cloud));
-        } catch (final IOException e) {
+        } catch (IOException e) {
             System.err.println("Warning: could not clear state: " + e.getMessage());
         }
     }

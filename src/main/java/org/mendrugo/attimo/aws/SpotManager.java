@@ -6,9 +6,12 @@ import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
 import software.amazon.awssdk.services.ec2.model.CreateSecurityGroupRequest;
+import software.amazon.awssdk.services.ec2.model.CreateSecurityGroupResponse;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 import software.amazon.awssdk.services.ec2.model.ImportKeyPairRequest;
+import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.InstanceMarketOptionsRequest;
 import software.amazon.awssdk.services.ec2.model.InstanceStateName;
 import software.amazon.awssdk.services.ec2.model.IpPermission;
@@ -16,6 +19,7 @@ import software.amazon.awssdk.services.ec2.model.IpRange;
 import software.amazon.awssdk.services.ec2.model.MarketType;
 import software.amazon.awssdk.services.ec2.model.ResourceType;
 import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.RunInstancesResponse;
 import software.amazon.awssdk.services.ec2.model.SpotInstanceType;
 import software.amazon.awssdk.services.ec2.model.SpotMarketOptions;
 import software.amazon.awssdk.services.ec2.model.Tag;
@@ -25,12 +29,12 @@ public class SpotManager {
     private final Ec2Client ec2;
     private final String sessionId;
 
-    public SpotManager(final Ec2Client ec2) {
+    public SpotManager(Ec2Client ec2) {
         this.ec2 = ec2;
         this.sessionId = UUID.randomUUID().toString();
     }
 
-    public SpotManager(final Ec2Client ec2, final String sessionId) {
+    public SpotManager(Ec2Client ec2, String sessionId) {
         this.ec2 = ec2;
         this.sessionId = sessionId;
     }
@@ -40,9 +44,9 @@ public class SpotManager {
     }
 
     public String createSecurityGroup() {
-        final var groupName = "attimo-" + sessionId.substring(0, 8);
+        final String groupName = "attimo-" + sessionId.substring(0, 8);
 
-        final var createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
+        final CreateSecurityGroupResponse createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
                 .groupName(groupName)
                 .description("attimo spot instance SSH access")
                 .tagSpecifications(TagSpecification.builder()
@@ -51,7 +55,7 @@ public class SpotManager {
                         .build())
                 .build());
 
-        final var sgId = createResponse.groupId();
+        final String sgId = createResponse.groupId();
 
         ec2.authorizeSecurityGroupIngress(AuthorizeSecurityGroupIngressRequest.builder()
                 .groupId(sgId)
@@ -70,8 +74,8 @@ public class SpotManager {
         return sgId;
     }
 
-    public String importKeyPair(final String publicKeyContent) {
-        final var keyName = "attimo-" + sessionId.substring(0, 8);
+    public String importKeyPair(String publicKeyContent) {
+        final String keyName = "attimo-" + sessionId.substring(0, 8);
 
         ec2.importKeyPair(ImportKeyPairRequest.builder()
                 .keyName(keyName)
@@ -85,9 +89,9 @@ public class SpotManager {
         return keyName;
     }
 
-    public String launchSpotInstance(final String amiId, final String instanceType, final String securityGroupId,
+    public String launchSpotInstance(String amiId, String instanceType, String securityGroupId,
             final String keyPairName) {
-        final var response = ec2.runInstances(
+        final RunInstancesResponse response = ec2.runInstances(
                 RunInstancesRequest.builder()
                         .imageId(amiId)
                         .instanceType(instanceType)
@@ -107,18 +111,18 @@ public class SpotManager {
                                 .build())
                         .build());
 
-        final var instanceId = response.instances()
+        final String instanceId = response.instances()
                 .getFirst()
                 .instanceId();
         return instanceId;
     }
 
-    public String waitForRunning(final String instanceId, final int timeoutSeconds) {
+    public String waitForRunning(String instanceId, int timeoutSeconds) {
         final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
 
         while (System.currentTimeMillis() < deadline) {
             try {
-                final var response = ec2.describeInstances(DescribeInstancesRequest.builder()
+                final DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
                         .instanceIds(instanceId)
                         .build());
 
@@ -126,14 +130,14 @@ public class SpotManager {
                         .getFirst()
                         .instances()
                         .isEmpty()) {
-                    final var instance = response.reservations()
+                    final Instance instance = response.reservations()
                             .getFirst()
                             .instances()
                             .getFirst();
-                    final var state = instance.state().name();
+                    final InstanceStateName state = instance.state().name();
 
                     if (state == InstanceStateName.RUNNING) {
-                        final var publicIp = instance.publicIpAddress();
+                        final String publicIp = instance.publicIpAddress();
                         if (publicIp != null && !publicIp.isBlank()) {
                             return publicIp;
                         }
@@ -141,7 +145,7 @@ public class SpotManager {
                         throw new AwsException("Instance " + instanceId + " terminated unexpectedly (state: " + state + ")");
                     }
                 }
-            } catch (final Ec2Exception e) {
+            } catch (Ec2Exception e) {
 
                 if (e.awsErrorDetails() != null && "InvalidInstanceID.NotFound".equals(e.awsErrorDetails()
                         .errorCode())) {
@@ -153,7 +157,7 @@ public class SpotManager {
 
             try {
                 Thread.sleep(5000);
-            } catch (final InterruptedException e) {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new AwsException("Interrupted while waiting for instance", e);
             }
@@ -162,9 +166,9 @@ public class SpotManager {
         throw new AwsException("Timed out waiting for instance " + instanceId + " to reach running state");
     }
 
-    public boolean isRunning(final String instanceId) {
+    public boolean isRunning(String instanceId) {
         try {
-            final var response = ec2.describeInstances(DescribeInstancesRequest.builder()
+            final DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
                     .instanceIds(instanceId)
                     .build());
 
@@ -172,7 +176,7 @@ public class SpotManager {
                     .getFirst()
                     .instances()
                     .isEmpty()) {
-                final var state = response.reservations()
+                final InstanceStateName state = response.reservations()
                         .getFirst()
                         .instances()
                         .getFirst()
@@ -182,7 +186,7 @@ public class SpotManager {
             }
 
             return false;
-        } catch (final Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }

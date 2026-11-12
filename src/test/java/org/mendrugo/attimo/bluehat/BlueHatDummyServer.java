@@ -1,10 +1,12 @@
 package org.mendrugo.attimo.bluehat;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -36,7 +38,7 @@ public class BlueHatDummyServer implements AutoCloseable {
         this(0);
     }
 
-    public BlueHatDummyServer(final int port) throws IOException {
+    public BlueHatDummyServer(int port) throws IOException {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         this.port = server.getAddress().getPort();
         setupHandlers();
@@ -65,14 +67,14 @@ public class BlueHatDummyServer implements AutoCloseable {
     private void setupHandlers() {
         server.createContext("/vm", exchange -> {
             try {
-                final var method = exchange.getRequestMethod();
-                final var path = exchange.getRequestURI().getPath();
+                final String method = exchange.getRequestMethod();
+                final String path = exchange.getRequestURI().getPath();
 
                 switch (method) {
                     case "POST" -> handleCreateVm(exchange);
                     case "GET" -> handleListVms(exchange);
                     case "DELETE" -> {
-                        final var fqdn = path.substring("/vm/".length());
+                        final String fqdn = path.substring("/vm/".length());
                         handleDestroyVm(exchange, fqdn);
                     }
                     default -> {
@@ -80,11 +82,11 @@ public class BlueHatDummyServer implements AutoCloseable {
                         exchange.getResponseBody().close();
                     }
                 }
-            } catch (final Exception e) {
-                final var error = "{\"error\": \"" + e.getMessage() + "\"}";
-                final var bytes = error.getBytes(StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                final String error = "{\"error\": \"" + e.getMessage() + "\"}";
+                final byte[] bytes = error.getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(500, bytes.length);
-                try (final var os = exchange.getResponseBody()) {
+                try (OutputStream os = exchange.getResponseBody()) {
                     os.write(bytes);
                 }
             }
@@ -92,68 +94,68 @@ public class BlueHatDummyServer implements AutoCloseable {
     }
 
     @SuppressWarnings("unchecked")
-    private void handleCreateVm(final HttpExchange exchange) throws IOException {
-        final var body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+    private void handleCreateVm(HttpExchange exchange) throws IOException {
+        final String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 
-        final var request = JSON.readValue(body, Map.class);
-        final var cpu = (String) request.getOrDefault("cpu", "1");
-        final var memory = (String) request.getOrDefault("memory", "2");
-        final var os = (String) request.getOrDefault("os", "RedHat 10.2");
-        final var description = (String) request.getOrDefault("description", "");
+        final Map request = JSON.readValue(body, Map.class);
+        final String cpu = (String) request.getOrDefault("cpu", "1");
+        final String memory = (String) request.getOrDefault("memory", "2");
+        final String os = (String) request.getOrDefault("os", "RedHat 10.2");
+        final String description = (String) request.getOrDefault("description", "");
 
-        final var vmNumber = VM_COUNTER.incrementAndGet();
-        final var fqdn = "bluehat-vm-" + vmNumber + ".dev.acme.com";
-        final var vmId = "2-" + (3000000 + vmNumber);
-        final var now = OffsetDateTime.now();
+        final long vmNumber = VM_COUNTER.incrementAndGet();
+        final String fqdn = "bluehat-vm-" + vmNumber + ".dev.acme.com";
+        final String vmId = "2-" + (3000000 + vmNumber);
+        final OffsetDateTime now = OffsetDateTime.now();
 
-        final var record = new VmRecord(vmId, description, fqdn, "running", now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+        final VmRecord record = new VmRecord(vmId, description, fqdn, "running", now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME), cpu, memory, os);
 
         vms.put(fqdn, record);
 
-        final var response = "{\"fqdn\": \"" + fqdn + "\"}";
-        final var bytes = response.getBytes(StandardCharsets.UTF_8);
+        final String response = "{\"fqdn\": \"" + fqdn + "\"}";
+        final byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(200, bytes.length);
-        try (final var responseBody = exchange.getResponseBody()) {
+        try (OutputStream responseBody = exchange.getResponseBody()) {
             responseBody.write(bytes);
         }
     }
 
-    private void handleListVms(final HttpExchange exchange) throws IOException {
-        final var vmList = vms.values()
-                              .stream()
-                              .map(
-                                      vm -> Map.of(
-                                              "vm_id",
-                                              vm.vmId(),
-                                              "description",
-                                              vm.description(),
-                                              "fqdn",
-                                              vm.fqdn(),
-                                              "state",
-                                              vm.state(),
-                                              "created",
-                                              vm.created(),
-                                              "created_iso8601",
-                                              vm.createdIso8601()))
-                              .toList();
+    private void handleListVms(HttpExchange exchange) throws IOException {
+        final List<Map<String, String>> vmList = vms.values()
+                .stream()
+                .map(
+                        vm -> Map.of(
+                                "vm_id",
+                                vm.vmId(),
+                                "description",
+                                vm.description(),
+                                "fqdn",
+                                vm.fqdn(),
+                                "state",
+                                vm.state(),
+                                "created",
+                                vm.created(),
+                                "created_iso8601",
+                                vm.createdIso8601()))
+                .toList();
 
-        final var response = JSON.writeValueAsString(vmList);
-        final var bytes = response.getBytes(StandardCharsets.UTF_8);
+        final String response = JSON.writeValueAsString(vmList);
+        final byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(200, bytes.length);
-        try (final var responseBody = exchange.getResponseBody()) {
+        try (OutputStream responseBody = exchange.getResponseBody()) {
             responseBody.write(bytes);
         }
     }
 
-    private void handleDestroyVm(final HttpExchange exchange, final String fqdn) throws IOException {
-        final var vm = vms.get(fqdn);
+    private void handleDestroyVm(HttpExchange exchange, String fqdn) throws IOException {
+        final VmRecord vm = vms.get(fqdn);
 
         if (vm == null) {
-            final var notFound = "{\"status\": \"error\", \"details\": \"VM not found\"}";
-            final var bytes = notFound.getBytes(StandardCharsets.UTF_8);
+            final String notFound = "{\"status\": \"error\", \"details\": \"VM not found\"}";
+            final byte[] bytes = notFound.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(404, bytes.length);
-            try (final var responseBody = exchange.getResponseBody()) {
+            try (OutputStream responseBody = exchange.getResponseBody()) {
                 responseBody.write(bytes);
             }
             return;
@@ -176,9 +178,9 @@ public class BlueHatDummyServer implements AutoCloseable {
                 response = """
             {"status": "success", "details": "vm deletion initiated", "request_id": "%s"}"""
                                 .formatted(vm.vmId());
-        final var bytes = response.getBytes(StandardCharsets.UTF_8);
+        final byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(200, bytes.length);
-        try (final var responseBody = exchange.getResponseBody()) {
+        try (OutputStream responseBody = exchange.getResponseBody()) {
             responseBody.write(bytes);
         }
     }

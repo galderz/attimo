@@ -15,7 +15,7 @@ class AwsConfigTest {
 
     @Test
     void defaultsWhenNoFileExists() {
-        final var config = new AwsConfig();
+        final AwsConfig config = new AwsConfig();
         assertThat(config.getContinent()).isEmpty();
         assertThat(config.getPreferredRegion()).isEmpty();
         assertThat(config.getSshPublicKey()).isEmpty();
@@ -25,14 +25,14 @@ class AwsConfigTest {
     void roundTripSaveAndLoad(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
 
-        final var config = new AwsConfig();
+        final AwsConfig config = new AwsConfig();
         config.setContinent("EMEA");
         config.setPreferredRegion("eu-west-1");
         config.setSshPublicKey("~/.ssh/id_ed25519.pub");
 
         YAML.writeValue(configFile.toFile(), config);
 
-        final var loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
+        final AwsConfig loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
         assertThat(loaded.getContinent()).isEqualTo("EMEA");
         assertThat(loaded.getPreferredRegion()).isEqualTo("eu-west-1");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_ed25519.pub");
@@ -40,7 +40,7 @@ class AwsConfigTest {
 
     @Test
     void nullsSafelyDefaultToEmpty() {
-        final var config = new AwsConfig();
+        final AwsConfig config = new AwsConfig();
         config.setContinent(null);
         config.setPreferredRegion(null);
         config.setSshPublicKey(null);
@@ -60,7 +60,7 @@ class AwsConfigTest {
             unknown-field: should-be-ignored
             """);
 
-        final var loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
+        final AwsConfig loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
         assertThat(loaded.getPreferredRegion()).isEqualTo("us-east-1");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
     }
@@ -70,7 +70,7 @@ class AwsConfigTest {
         final Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile, "---\n");
 
-        final var loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
+        final AwsConfig loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
         if (loaded != null) {
             assertThat(loaded.getContinent()).isEmpty();
             assertThat(loaded.getPreferredRegion()).isEmpty();
@@ -87,7 +87,7 @@ class AwsConfigTest {
             ssh-public-key: ~/.ssh/id_ed25519.pub
             """);
 
-        final var loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
+        final AwsConfig loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
         assertThat(loaded.getContinent()).isEmpty();
         assertThat(loaded.getPreferredRegion()).isEqualTo("eu-west-1");
     }

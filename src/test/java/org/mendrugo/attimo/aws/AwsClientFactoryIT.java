@@ -9,7 +9,9 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeRegionsResponse;
 import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
@@ -23,12 +25,12 @@ class AwsClientFactoryIT {
 
     @Test
     void validateCredentialsAgainstLocalStack() {
-        try (final var sts = StsClient.builder()
+        try (StsClient sts = StsClient.builder()
                 .endpointOverride(LOCALSTACK.getEndpointOverride(STS))
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(LOCALSTACK.getAccessKey(), LOCALSTACK.getSecretKey())))
                 .region(Region.of(LOCALSTACK.getRegion()))
                 .build()) {
-            final var identity = sts.getCallerIdentity();
+            final GetCallerIdentityResponse identity = sts.getCallerIdentity();
             assertThat(identity.account()).isNotBlank();
             assertThat(identity.arn()).isNotBlank();
         }
@@ -36,12 +38,12 @@ class AwsClientFactoryIT {
 
     @Test
     void ec2ClientWorksAgainstLocalStack() {
-        try (final var ec2 = Ec2Client.builder()
+        try (Ec2Client ec2 = Ec2Client.builder()
                 .endpointOverride(LOCALSTACK.getEndpointOverride(EC2))
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(LOCALSTACK.getAccessKey(), LOCALSTACK.getSecretKey())))
                 .region(Region.of(LOCALSTACK.getRegion()))
                 .build()) {
-            final var result = ec2.describeRegions();
+            final DescribeRegionsResponse result = ec2.describeRegions();
             assertThat(result.regions()).isNotEmpty();
         }
     }

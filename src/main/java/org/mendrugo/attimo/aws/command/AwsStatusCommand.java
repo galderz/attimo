@@ -10,6 +10,7 @@ import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.SpotManager;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
+import software.amazon.awssdk.services.ec2.Ec2Client;
 
 @CommandDefinition(
         name = "status",
@@ -18,7 +19,7 @@ import org.mendrugo.attimo.config.InstanceState;
 public class AwsStatusCommand extends BaseCommand {
     @Override
     protected CommandResult doExecute() throws Exception {
-        final var state = InstanceState.load(Aws.CLOUD);
+        final InstanceState state = InstanceState.load(Aws.CLOUD);
 
         if (!state.hasActiveInstance()) {
             System.out.println("No active instance.");
@@ -36,23 +37,23 @@ public class AwsStatusCommand extends BaseCommand {
 
         if (!state.getLaunchedAt().isBlank()) {
             try {
-                final var launchedAt = Instant.parse(state.getLaunchedAt());
-                final var uptime = Duration.between(launchedAt, Instant.now());
-                final var hours = uptime.toMinutes() / 60.0;
-                final var cost = hours * state.getSpotPrice();
+                final Instant launchedAt = Instant.parse(state.getLaunchedAt());
+                final Duration uptime = Duration.between(launchedAt, Instant.now());
+                final double hours = uptime.toMinutes() / 60.0;
+                final double cost = hours * state.getSpotPrice();
 
                 System.out.printf("Uptime:    %dh %dm%n", uptime.toHours(), uptime.toMinutes() % 60);
                 System.out.printf("Cost:      $%.3f (@ $%.4f/hr)%n", cost, state.getSpotPrice());
-            } catch (final Exception e) {
+            } catch (Exception e) {
                 System.out.println("Uptime:    unknown");
             }
         }
 
         System.out.println();
         try {
-            final var factory = new AwsClientFactory();
-            try (final var ec2 = factory.ec2(state.getRegion())) {
-                final var manager = new SpotManager(ec2, state.getSessionId());
+            final AwsClientFactory factory = new AwsClientFactory();
+            try (Ec2Client ec2 = factory.ec2(state.getRegion())) {
+                final SpotManager manager = new SpotManager(ec2, state.getSessionId());
                 if (manager.isRunning(state.getInstanceId())) {
                     System.out.println("Status:    \u001B[32m● Running\u001B[0m");
                 } else {
@@ -60,7 +61,7 @@ public class AwsStatusCommand extends BaseCommand {
                     System.out.println("Run 'ato aws destroy' to clean up resources.");
                 }
             }
-        } catch (final Exception e) {
+        } catch (Exception e) {
             System.out.println("Status:    unknown (could not reach AWS: " + e.getMessage() + ")");
         }
 

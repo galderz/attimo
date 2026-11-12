@@ -1,10 +1,14 @@
 package org.mendrugo.attimo.bluehat.command;
 
+import java.nio.file.Path;
+import java.util.List;
+
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
 import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
+import org.mendrugo.attimo.bluehat.BlueHatClient.VmDetails;
 import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.command.BaseCommand;
@@ -15,17 +19,17 @@ import org.mendrugo.attimo.ssh.SshSession;
 public class BlueHatConnectCommand extends BaseCommand {
     @Override
     protected CommandResult doExecute() throws Exception {
-        final var state = InstanceState.load(BlueHat.CLOUD);
+        final InstanceState state = InstanceState.load(BlueHat.CLOUD);
 
         if (!state.hasActiveInstance()) {
             System.err.println("No active VM. Use 'ato bh request' to launch one.");
             return CommandResult.FAILURE;
         }
 
-        final var fqdn = state.getInstanceId();
-        final var config = BlueHatConfig.load();
-        final var hostName = config.effectiveHostName();
-        final var port = BlueHat.API_PORT;
+        final String fqdn = state.getInstanceId();
+        final BlueHatConfig config = BlueHatConfig.load();
+        final String hostName = config.effectiveHostName();
+        final int port = BlueHat.API_PORT;
 
         Process localProcess = null;
         try {
@@ -36,28 +40,28 @@ public class BlueHatConnectCommand extends BaseCommand {
         }
     }
 
-    private CommandResult doConnect(final String fqdn, final String hostName, final int port) {
+    private CommandResult doConnect(String fqdn, String hostName, int port) {
 
         try {
-            final var client = new BlueHatClient(hostName, port);
-            final var vms = client.listVms();
-            final var isRunning = vms.stream().anyMatch(vm -> fqdn.equals(vm.fqdn()) && "running".equalsIgnoreCase(vm.state()));
+            final BlueHatClient client = new BlueHatClient(hostName, port);
+            final List<VmDetails> vms = client.listVms();
+            final boolean isRunning = vms.stream().anyMatch(vm -> fqdn.equals(vm.fqdn()) && "running".equalsIgnoreCase(vm.state()));
 
             if (!isRunning) {
                 System.err.println("VM " + fqdn + " is not running.");
                 System.err.println("Use 'ato bh destroy' to clean up or 'ato bh request' for a new VM.");
                 return CommandResult.FAILURE;
             }
-        } catch (final Exception e) {
+        } catch (Exception e) {
             System.err.println("Warning: could not verify VM status: " + e.getMessage());
             System.err.println("Attempting to connect anyway...");
         }
 
         System.out.println("Connecting to " + fqdn + "...");
 
-        final var keyFile = Environment.sshKeyFile(BlueHat.CLOUD);
-        final var session = new SshSession(fqdn, BlueHat.SSH_USER, keyFile);
-        final var exitCode = session.connect();
+        final Path keyFile = Environment.sshKeyFile(BlueHat.CLOUD);
+        final SshSession session = new SshSession(fqdn, BlueHat.SSH_USER, keyFile);
+        final int exitCode = session.connect();
 
         return exitCode == 0 ? CommandResult.SUCCESS : CommandResult.valueOf(exitCode);
     }

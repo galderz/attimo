@@ -19,32 +19,32 @@ public class SshSession {
     private final String user;
     private final Path privateKeyPath;
 
-    public SshSession(final String host, final String user, final Path privateKeyPath) {
+    public SshSession(String host, String user, Path privateKeyPath) {
         this.host = host;
         this.user = user;
         this.privateKeyPath = privateKeyPath;
     }
 
-    public SshSession(final String host, final String cloud) {
+    public SshSession(String host, String cloud) {
         this(host, DEFAULT_USER, Environment.sshKeyFile(cloud));
     }
 
-    public boolean waitForSsh(final int timeoutSeconds) {
+    public boolean waitForSsh(int timeoutSeconds) {
         final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
         System.out.println("  Waiting for SSH on " + host + ":" + SSH_PORT + "...");
 
         while (System.currentTimeMillis() < deadline) {
-            try (final var socket = new Socket()) {
+            try (Socket socket = new Socket()) {
                 socket.connect(new InetSocketAddress(host, SSH_PORT), CONNECT_TIMEOUT_MS);
                 System.out.println("  SSH is reachable.");
                 return true;
-            } catch (final IOException e) {
+            } catch (IOException e) {
 
             }
 
             try {
                 Thread.sleep(RETRY_DELAY_MS);
-            } catch (final InterruptedException e) {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return false;
             }
@@ -55,22 +55,22 @@ public class SshSession {
     }
 
     public int connect() {
-        final var command = buildSshCommand();
+        final List<String> command = buildSshCommand();
 
         try {
             System.out.println("  Connecting to " + user + "@" + host + "...\n");
-            final var pb = new ProcessBuilder(command);
+            final ProcessBuilder pb = new ProcessBuilder(command);
             pb.inheritIO();
-            final var process = pb.start();
+            final Process process = pb.start();
             return process.waitFor();
-        } catch (final IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             System.err.println("SSH connection failed: " + e.getMessage());
             return 1;
         }
     }
 
     List<String> buildSshCommand() {
-        final var cmd = new ArrayList<String>();
+        final ArrayList<String> cmd = new ArrayList<String>();
         cmd.add("ssh");
         cmd.add("-i");
         cmd.add(privateKeyPath.toString());

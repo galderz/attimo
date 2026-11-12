@@ -10,11 +10,11 @@ import org.mendrugo.attimo.Environment;
 public final class SshKeyManager {
     private SshKeyManager() {}
 
-    public static boolean exists(final String cloud) {
+    public static boolean exists(String cloud) {
         return Files.exists(Environment.sshKeyFile(cloud)) && Files.exists(Environment.sshPubKeyFile(cloud));
     }
 
-    public static void ensureKeyPairExists(final String cloud) {
+    public static void ensureKeyPairExists(String cloud) {
         if (exists(cloud)) {
             return;
         }
@@ -22,7 +22,7 @@ public final class SshKeyManager {
         try {
             Files.createDirectories(Environment.sshDir(cloud));
 
-            final var pb = new ProcessBuilder(
+            final ProcessBuilder pb = new ProcessBuilder(
                     "ssh-keygen",
                     "-t",
                     "ed25519",
@@ -33,14 +33,14 @@ public final class SshKeyManager {
                     "-C",
                     "attimo managed key");
             pb.redirectErrorStream(true);
-            final var process = pb.start();
+            final Process process = pb.start();
 
             if (!process.waitFor(30, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
                 throw new RuntimeException("ssh-keygen timed out");
             }
 
-            final var output = new String(process.getInputStream().readAllBytes());
+            final String output = new String(process.getInputStream().readAllBytes());
             if (process.exitValue() != 0) {
                 throw new RuntimeException("ssh-keygen failed: " + output);
             }
@@ -49,15 +49,15 @@ public final class SshKeyManager {
             Files.setPosixFilePermissions(Environment.sshPubKeyFile(cloud), PosixFilePermissions.fromString("rw-r--r--"));
 
             System.out.println("  SSH key pair generated at " + Environment.sshDir(cloud));
-        } catch (final IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException("Failed to generate SSH key pair: " + e.getMessage(), e);
         }
     }
 
-    public static String publicKeyContent(final String cloud) {
+    public static String publicKeyContent(String cloud) {
         try {
             return Files.readString(Environment.sshPubKeyFile(cloud)).strip();
-        } catch (final IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException("Failed to read SSH public key: " + e.getMessage(), e);
         }
     }

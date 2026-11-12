@@ -11,7 +11,7 @@ import org.mendrugo.attimo.ssh.SshSession;
 public class AwsConnectCommand extends BaseCommand {
     @Override
     protected CommandResult doExecute() throws Exception {
-        final var state = InstanceState.load(Aws.CLOUD);
+        final InstanceState state = InstanceState.load(Aws.CLOUD);
 
         if (!state.hasActiveInstance()) {
             System.err.println("No active instance. Use 'ato aws request' to launch one.");
@@ -26,8 +26,8 @@ public class AwsConnectCommand extends BaseCommand {
                 + state.getPublicIp()
                 + ")...");
 
-        final var session = new SshSession(state.getPublicIp(), Aws.CLOUD);
-        final var exitCode = session.connect();
+        final SshSession session = new SshSession(state.getPublicIp(), Aws.CLOUD);
+        final int exitCode = session.connect();
 
         return exitCode == 0 ? CommandResult.SUCCESS : CommandResult.valueOf(exitCode);
     }

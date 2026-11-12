@@ -1,5 +1,7 @@
 package org.mendrugo.attimo.aws;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -8,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ContinentTest {
     @Test
     void emeaContainsEuropeanRegions() {
-        final var continent = Continent.forRegion("eu-west-1");
+        final Continent continent = Continent.forRegion("eu-west-1");
         assertThat(continent).isEqualTo(Continent.EMEA);
         assertThat(continent.regions()).contains(Region.EU_WEST_1, Region.EU_WEST_2, Region.EU_CENTRAL_1);
     }
@@ -49,8 +51,8 @@ class ContinentTest {
 
     @Test
     void allContinentRegionsAreKnownInRegionEnum() {
-        for (final Continent continent : Continent.values()) {
-            for (final Region region : continent.regions()) {
+        for (Continent continent : Continent.values()) {
+            for (Region region : continent.regions()) {
                 assertThat(Region.isKnown(region.code()))
                         .as("%s should be a known region", region.code())
                         .isTrue();
@@ -60,7 +62,7 @@ class ContinentTest {
 
     @Test
     void allContinentsHaveAtLeastOneRegion() {
-        for (final Continent continent : Continent.values()) {
+        for (Continent continent : Continent.values()) {
             assertThat(continent.regions())
                     .as("Continent %s should have regions", continent.name())
                     .isNotEmpty();
@@ -69,7 +71,7 @@ class ContinentTest {
 
     @Test
     void allContinentsHaveThreeRepresentatives() {
-        for (final Continent continent : Continent.values()) {
+        for (Continent continent : Continent.values()) {
             assertThat(continent.representatives())
                     .as("Continent %s should have 3 representatives", continent.name())
                     .hasSize(3);
@@ -78,7 +80,7 @@ class ContinentTest {
 
     @Test
     void representativesAreSubsetOfRegions() {
-        for (final Continent continent : Continent.values()) {
+        for (Continent continent : Continent.values()) {
             assertThat(continent.regions())
                     .as("Representatives of %s should be within its regions", continent.name())
                     .containsAll(continent.representatives());
@@ -87,13 +89,13 @@ class ContinentTest {
 
     @Test
     void othersReturnsTwoOtherContinents() {
-        final var emeaOthers = Continent.EMEA.others();
+        final List<Continent> emeaOthers = Continent.EMEA.others();
         assertThat(emeaOthers).containsExactly(Continent.AMERICAS, Continent.ASIA_PACIFIC);
 
-        final var americasOthers = Continent.AMERICAS.others();
+        final List<Continent> americasOthers = Continent.AMERICAS.others();
         assertThat(americasOthers).containsExactly(Continent.EMEA, Continent.ASIA_PACIFIC);
 
-        final var apOthers = Continent.ASIA_PACIFIC.others();
+        final List<Continent> apOthers = Continent.ASIA_PACIFIC.others();
         assertThat(apOthers).containsExactly(Continent.EMEA, Continent.AMERICAS);
     }
 

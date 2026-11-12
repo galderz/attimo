@@ -15,7 +15,7 @@ class BlueHatConfigTest {
 
     @Test
     void defaultsWhenNoFileExists() {
-        final var config = new BlueHatConfig();
+        final BlueHatConfig config = new BlueHatConfig();
         assertThat(config.getRepository()).isEmpty();
         assertThat(config.getHostName()).isEmpty();
         assertThat(config.getSshPublicKey()).isEmpty();
@@ -25,13 +25,13 @@ class BlueHatConfigTest {
     void roundTripWithRepository(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
 
-        final var config = new BlueHatConfig();
+        final BlueHatConfig config = new BlueHatConfig();
         config.setRepository("https://github.com/openjdk/bluehat-cloud.git");
         config.setSshPublicKey("~/.ssh/id_ed25519.pub");
 
         YAML.writeValue(configFile.toFile(), config);
 
-        final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
+        final BlueHatConfig loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
         assertThat(loaded.getRepository()).isEqualTo("https://github.com/openjdk/bluehat-cloud.git");
         assertThat(loaded.getHostName()).isEmpty();
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_ed25519.pub");
@@ -41,13 +41,13 @@ class BlueHatConfigTest {
     void roundTripWithHostName(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
 
-        final var config = new BlueHatConfig();
+        final BlueHatConfig config = new BlueHatConfig();
         config.setHostName("bluehat-proxy.acme.com");
         config.setSshPublicKey("~/.ssh/id_rsa.pub");
 
         YAML.writeValue(configFile.toFile(), config);
 
-        final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
+        final BlueHatConfig loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
         assertThat(loaded.getRepository()).isEmpty();
         assertThat(loaded.getHostName()).isEqualTo("bluehat-proxy.acme.com");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
@@ -55,7 +55,7 @@ class BlueHatConfigTest {
 
     @Test
     void isLocalWhenRepositoryIsSet() {
-        final var config = new BlueHatConfig();
+        final BlueHatConfig config = new BlueHatConfig();
         config.setRepository("https://github.com/openjdk/bluehat-cloud.git");
         assertThat(config.isLocal()).isTrue();
         assertThat(config.hasCloudTarget()).isTrue();
@@ -64,7 +64,7 @@ class BlueHatConfigTest {
 
     @Test
     void isRemoteWhenHostNameIsSet() {
-        final var config = new BlueHatConfig();
+        final BlueHatConfig config = new BlueHatConfig();
         config.setHostName("bluehat-proxy.acme.com");
         assertThat(config.isLocal()).isFalse();
         assertThat(config.hasCloudTarget()).isTrue();
@@ -73,14 +73,14 @@ class BlueHatConfigTest {
 
     @Test
     void hasNoCloudTargetWhenEmpty() {
-        final var config = new BlueHatConfig();
+        final BlueHatConfig config = new BlueHatConfig();
         assertThat(config.isLocal()).isFalse();
         assertThat(config.hasCloudTarget()).isFalse();
     }
 
     @Test
     void nullsSafelyDefaultToEmpty() {
-        final var config = new BlueHatConfig();
+        final BlueHatConfig config = new BlueHatConfig();
         config.setRepository(null);
         config.setHostName(null);
         config.setSshPublicKey(null);
@@ -100,7 +100,7 @@ class BlueHatConfigTest {
             unknown-field: should-be-ignored
             """);
 
-        final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
+        final BlueHatConfig loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
         assertThat(loaded.getRepository()).isEqualTo("https://github.com/openjdk/bluehat-cloud.git");
         assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
     }
@@ -110,7 +110,7 @@ class BlueHatConfigTest {
         final Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile, "---\n");
 
-        final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
+        final BlueHatConfig loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
         if (loaded != null) {
             assertThat(loaded.getRepository()).isEmpty();
             assertThat(loaded.getHostName()).isEmpty();

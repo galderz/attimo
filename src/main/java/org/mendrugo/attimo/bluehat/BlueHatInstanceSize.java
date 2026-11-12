@@ -13,7 +13,7 @@ public enum BlueHatInstanceSize {
     private final int cpus;
     private final int memoryGb;
 
-    BlueHatInstanceSize(final String label, final String description, final int cpus,
+    BlueHatInstanceSize(String label, String description, int cpus,
                         final int memoryGb) {
         this.label = label;
         this.description = description;
@@ -37,8 +37,8 @@ public enum BlueHatInstanceSize {
         return memoryGb;
     }
 
-    public static BlueHatInstanceSize fromLabel(final String label) {
-        for (final BlueHatInstanceSize size : values()) {
+    public static BlueHatInstanceSize fromLabel(String label) {
+        for (BlueHatInstanceSize size : values()) {
             if (size.label.equalsIgnoreCase(label)) {
                 return size;
             }

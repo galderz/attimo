@@ -54,7 +54,7 @@ public enum Continent {
     private final List<Region> representatives;
     private final String displayName;
 
-    Continent(final List<Region> regions, final List<Region> representatives, final String displayName) {
+    Continent(List<Region> regions, List<Region> representatives, String displayName) {
         this.regions = regions;
         this.representatives = representatives;
         this.displayName = displayName;
@@ -84,9 +84,9 @@ public enum Continent {
         return displayName;
     }
 
-    public static Continent forRegion(final String regionCode) {
-        for (final Continent continent : values()) {
-            for (final Region r : continent.regions) {
+    public static Continent forRegion(String regionCode) {
+        for (Continent continent : values()) {
+            for (Region r : continent.regions) {
                 if (r.code().equals(regionCode)) {
                     return continent;
                 }
@@ -97,8 +97,8 @@ public enum Continent {
     }
 
     public List<Continent> others() {
-        final var result = new ArrayList<Continent>();
-        for (final Continent c : values()) {
+        final ArrayList<Continent> result = new ArrayList<Continent>();
+        for (Continent c : values()) {
             if (c != this) {
                 result.add(c);
             }

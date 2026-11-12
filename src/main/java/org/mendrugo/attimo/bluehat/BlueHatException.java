@@ -1,11 +1,11 @@
 package org.mendrugo.attimo.bluehat;
 
 public class BlueHatException extends RuntimeException {
-    public BlueHatException(final String message) {
+    public BlueHatException(String message) {
         super(message);
     }
 
-    public BlueHatException(final String message, final Throwable cause) {
+    public BlueHatException(String message, Throwable cause) {
         super(message, cause);
     }
 }

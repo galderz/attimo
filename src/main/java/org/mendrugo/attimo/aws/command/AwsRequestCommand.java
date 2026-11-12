@@ -1,5 +1,7 @@
 package org.mendrugo.attimo.aws.command;
 
+import java.io.Console;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -21,6 +23,7 @@ import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.ImageDef;
 import org.mendrugo.attimo.config.ImageDef.ResolvedTemplate;
 import org.mendrugo.attimo.config.InstanceState;
+import org.mendrugo.attimo.isa.IsaFeature;
 import org.mendrugo.attimo.isa.IsaMapping;
 import org.mendrugo.attimo.ssh.BootJdkProvisioner;
 import org.mendrugo.attimo.ssh.SshKeyManager;
@@ -28,6 +31,7 @@ import org.mendrugo.attimo.ssh.SshProvisioner;
 import org.mendrugo.attimo.ssh.SshSession;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
+import software.amazon.awssdk.services.ssm.SsmClient;
 
 @CommandDefinition(
         name = "request",
@@ -60,20 +64,20 @@ public class AwsRequestCommand extends BaseCommand {
             return CommandResult.FAILURE;
         }
 
-        final var resolved = ImageDef.resolve(template);
+        final ResolvedTemplate resolved = ImageDef.resolve(template);
         if (resolved == null) {
             return CommandResult.FAILURE;
         }
 
-        final var existingState = InstanceState.load(Aws.CLOUD);
+        final InstanceState existingState = InstanceState.load(Aws.CLOUD);
         if (existingState.hasActiveInstance()) {
             System.err.println("Error: an instance is already active (" + existingState.getInstanceId() + ").");
             System.err.println("Use 'ato aws connect' to reconnect or 'ato aws destroy' to tear it down first.");
             return CommandResult.FAILURE;
         }
 
-        final var config = AwsConfig.load();
-        final var preferredRegion = config.getPreferredRegion();
+        final AwsConfig config = AwsConfig.load();
+        final String preferredRegion = config.getPreferredRegion();
         if (preferredRegion.isBlank()) {
             System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");
             return CommandResult.FAILURE;
@@ -82,8 +86,8 @@ public class AwsRequestCommand extends BaseCommand {
         System.out.println("=== Requesting spot instance ===\n");
         System.out.println("[1/4] Resolving ISA feature: " + isaFeature);
 
-        final var isaMapping = new IsaMapping();
-        final var feature = isaMapping.resolve(isaFeature);
+        final IsaMapping isaMapping = new IsaMapping();
+        final IsaFeature feature = isaMapping.resolve(isaFeature);
         if (feature == null) {
             System.err.println("Error: unknown ISA feature '" + isaFeature + "'.");
             System.err.println("Available features: " + String.join(", ", isaMapping.allFeatureNames()));
@@ -100,16 +104,16 @@ public class AwsRequestCommand extends BaseCommand {
         final InstanceSize instanceSize;
         try {
             instanceSize = InstanceSize.fromLabel(size);
-        } catch (final IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());
             return CommandResult.FAILURE;
         }
 
         System.out.println("\n[2/4] Querying spot prices across continents" + " (size: " + instanceSize.label() + ")...");
 
-        final var factory = new AwsClientFactory();
-        final var advisor = new SpotAdvisor(region -> factory.ec2(region));
-        final var recommendations = advisor.recommend(feature, preferredRegion, instanceSize);
+        final AwsClientFactory factory = new AwsClientFactory();
+        final SpotAdvisor advisor = new SpotAdvisor(region -> factory.ec2(region));
+        final List<SpotRecommendation> recommendations = advisor.recommend(feature, preferredRegion, instanceSize);
 
         if (recommendations.isEmpty()) {
             System.err.println("Error: no spot instances available for " + isaFeature + " across all continents.");
@@ -123,10 +127,10 @@ public class AwsRequestCommand extends BaseCommand {
 
         System.out.println("\n[3/4] Launching spot instance...");
 
-        final var arch = "aarch64".equals(feature.architecture()) ? "arm64" : "x86_64";
-        final var amiResolver = new BaseAmiResolver();
+        final String arch = "aarch64".equals(feature.architecture()) ? "arm64" : "x86_64";
+        final BaseAmiResolver amiResolver = new BaseAmiResolver();
 
-        final var launchResult = launchWithRetry(recommendations, factory, amiResolver, arch);
+        final LaunchResult launchResult = launchWithRetry(recommendations, factory, amiResolver, arch);
 
         if (launchResult == null) {
             System.err.println("Error: failed to launch spot instance after " + Math.min(MAX_LAUNCH_ATTEMPTS, recommendations.size()) + " attempts.");
@@ -134,7 +138,7 @@ public class AwsRequestCommand extends BaseCommand {
             return CommandResult.FAILURE;
         }
 
-        final var rec = launchResult.recommendation;
+        final SpotRecommendation rec = launchResult.recommendation;
         System.out.println("  "
                 + rec.instanceType()
                 + " in "
@@ -150,9 +154,9 @@ public class AwsRequestCommand extends BaseCommand {
         }
     }
 
-    private CommandResult provisionAndConnect(final LaunchResult launchResult, final ResolvedTemplate resolved) {
+    private CommandResult provisionAndConnect(LaunchResult launchResult, ResolvedTemplate resolved) {
 
-        final var state = new InstanceState();
+        final InstanceState state = new InstanceState();
         state.setInstanceId(launchResult.instanceId);
         state.setRegion(launchResult.recommendation.region());
         state.setAvailabilityZone(launchResult.recommendation.availabilityZone());
@@ -169,26 +173,26 @@ public class AwsRequestCommand extends BaseCommand {
 
         System.out.println("\n[4/4] Provisioning and connecting...");
 
-        final var sshUser = BaseAmiResolver.SSH_USER;
-        final var keyFile = Environment.sshKeyFile(Aws.CLOUD);
-        final var sshSession = new SshSession(launchResult.publicIp, sshUser, keyFile);
+        final String sshUser = BaseAmiResolver.SSH_USER;
+        final Path keyFile = Environment.sshKeyFile(Aws.CLOUD);
+        final SshSession sshSession = new SshSession(launchResult.publicIp, sshUser, keyFile);
         if (!sshSession.waitForSsh(300)) {
             System.err.println("Error: SSH not reachable after 5 minutes.");
             System.err.println("Instance is running at " + launchResult.publicIp + ". Use 'ato aws connect' to retry.");
             return CommandResult.FAILURE;
         }
 
-        final var provisioner = new SshProvisioner(launchResult.publicIp, sshUser, keyFile);
-        final var allPackages = resolved.packages();
+        final SshProvisioner provisioner = new SshProvisioner(launchResult.publicIp, sshUser, keyFile);
+        final List<String> allPackages = resolved.packages();
 
-        final var isaMapping = new IsaMapping();
-        final var resolvedFeature = isaMapping.resolve(isaFeature);
-        final var templateArch = resolvedFeature != null && "aarch64".equals(resolvedFeature.architecture())
+        final IsaMapping isaMapping = new IsaMapping();
+        final IsaFeature resolvedFeature = isaMapping.resolve(isaFeature);
+        final String templateArch = resolvedFeature != null && "aarch64".equals(resolvedFeature.architecture())
                 ? "aarch64"
                 : "x86_64";
         BootJdkProvisioner.provision(allPackages, provisioner, false, templateArch);
 
-        final var exitCode = sshSession.connect();
+        final int exitCode = sshSession.connect();
 
         if (exitCode == 0) {
             promptKeepOrDestroy(launchResult.ec2, state);
@@ -197,38 +201,38 @@ public class AwsRequestCommand extends BaseCommand {
         return CommandResult.SUCCESS;
     }
 
-    private LaunchResult launchWithRetry(final List<SpotRecommendation> recommendations, final AwsClientFactory factory, final BaseAmiResolver amiResolver,
+    private LaunchResult launchWithRetry(List<SpotRecommendation> recommendations, AwsClientFactory factory, BaseAmiResolver amiResolver,
             final String arch) {
         final int maxAttempts = Math.min(MAX_LAUNCH_ATTEMPTS, recommendations.size());
 
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            final var recommendation = recommendations.get(attempt);
-            final var region = recommendation.region();
+            final SpotRecommendation recommendation = recommendations.get(attempt);
+            final String region = recommendation.region();
 
             final String amiId;
-            try (final var ssm = factory.ssm(region)) {
+            try (SsmClient ssm = factory.ssm(region)) {
                 amiId = amiResolver.resolve(ssm, arch, region);
-            } catch (final Exception e) {
+            } catch (Exception e) {
                 System.out.println("  ⚠ AMI resolution failed in " + region + ". Trying next option...");
                 continue;
             }
 
             final Ec2Client ec2 = factory.ec2(region);
-            final var spotManager = new SpotManager(ec2);
+            final SpotManager spotManager = new SpotManager(ec2);
 
             String sgId = null;
             String keyPairName = null;
             try {
                 sgId = spotManager.createSecurityGroup();
-                final var pubKey = SshKeyManager.publicKeyContent(Aws.CLOUD);
+                final String pubKey = SshKeyManager.publicKeyContent(Aws.CLOUD);
                 keyPairName = spotManager.importKeyPair(pubKey);
-                final var instanceId = spotManager.launchSpotInstance(amiId, recommendation.instanceType(), sgId, keyPairName);
+                final String instanceId = spotManager.launchSpotInstance(amiId, recommendation.instanceType(), sgId, keyPairName);
 
-                final var publicIp = spotManager.waitForRunning(instanceId, 300);
+                final String publicIp = spotManager.waitForRunning(instanceId, 300);
 
                 return new LaunchResult(instanceId, publicIp, amiId, sgId, keyPairName,
                         spotManager.sessionId(), recommendation, ec2);
-            } catch (final Exception e) {
+            } catch (Exception e) {
                 final boolean isRetryableError = isRetryableLaunchError(e);
 
                 cleanupFailedAttempt(ec2, sgId, keyPairName);
@@ -239,7 +243,7 @@ public class AwsRequestCommand extends BaseCommand {
                     return null;
                 }
 
-                final var reason = retryableReason(e);
+                final String reason = retryableReason(e);
                 if (attempt < maxAttempts - 1) {
                     System.out.println("  ⚠ " + reason + " in " + region + ". Cleaning up and trying next option...");
                 } else {
@@ -253,16 +257,16 @@ public class AwsRequestCommand extends BaseCommand {
 
     static final Set<String> RETRYABLE_ERROR_CODES = Set.of("InsufficientInstanceCapacity", "SpotMaxPriceTooLow", "MaxSpotInstanceCountExceeded", "InvalidAMIID.NotFound");
 
-    static boolean isRetryableLaunchError(final Exception e) {
+    static boolean isRetryableLaunchError(Exception e) {
 
         if (e instanceof Ec2Exception ec2Ex && ec2Ex.awsErrorDetails() != null) {
-            final var code = ec2Ex.awsErrorDetails().errorCode();
+            final String code = ec2Ex.awsErrorDetails().errorCode();
             if (code != null && RETRYABLE_ERROR_CODES.contains(code)) {
                 return true;
             }
         }
 
-        final var msg = e.getMessage();
+        final String msg = e.getMessage();
         if (msg == null) {
             return false;
         }
@@ -273,9 +277,9 @@ public class AwsRequestCommand extends BaseCommand {
                 || msg.contains("does not exist");
     }
 
-    static String retryableReason(final Exception e) {
+    static String retryableReason(Exception e) {
         if (e instanceof Ec2Exception ec2Ex && ec2Ex.awsErrorDetails() != null) {
-            final var code = ec2Ex.awsErrorDetails().errorCode();
+            final String code = ec2Ex.awsErrorDetails().errorCode();
             if (code != null) {
                 return switch (code) {
                     case "InsufficientInstanceCapacity" -> "No spot capacity";
@@ -287,7 +291,7 @@ public class AwsRequestCommand extends BaseCommand {
             }
         }
 
-        final var msg = e.getMessage();
+        final String msg = e.getMessage();
         if (msg != null) {
             if (msg.contains("Insufficient capacity") || msg.contains("no Spot capacity")) {
                 return "No spot capacity";
@@ -303,12 +307,12 @@ public class AwsRequestCommand extends BaseCommand {
         return "Launch failed";
     }
 
-    private void cleanupFailedAttempt(final Ec2Client ec2, final String sgId, final String keyPairName) {
+    private void cleanupFailedAttempt(Ec2Client ec2, String sgId, String keyPairName) {
         try {
             if (keyPairName != null) {
                 ec2.deleteKeyPair(b -> b.keyName(keyPairName));
             }
-        } catch (final Exception ignored) {
+        } catch (Exception ignored) {
 
         }
 
@@ -316,33 +320,33 @@ public class AwsRequestCommand extends BaseCommand {
             if (sgId != null) {
                 ec2.deleteSecurityGroup(b -> b.groupId(sgId));
             }
-        } catch (final Exception ignored) {
+        } catch (Exception ignored) {
 
         }
     }
 
-    private void promptKeepOrDestroy(final Ec2Client ec2, final InstanceState state) {
-        final var console = System.console();
+    private void promptKeepOrDestroy(Ec2Client ec2, InstanceState state) {
+        final Console console = System.console();
         if (console == null) {
             System.out.println("\nInstance is still running. Use 'ato aws destroy' to tear it down.");
             return;
         }
 
         System.out.print("\nKeep instance running? (y/N): ");
-        final var answer = console.readLine().strip();
+        final String answer = console.readLine().strip();
 
         if (answer.equalsIgnoreCase("y")) {
             System.out.println("Instance kept running. Reconnect with 'ato aws connect'.");
         } else {
             System.out.println("Destroying instance...");
-            final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state, Aws.CLOUD);
+            final ResourceCleaner cleaner = new ResourceCleaner(ec2);
+            final List<String> errors = cleaner.cleanAll(state, Aws.CLOUD);
 
             if (errors.isEmpty()) {
                 System.out.println("Instance destroyed. Zero cost footprint.");
             } else {
                 System.err.println("Cleanup completed with errors:");
-                for (final var error : errors) {
+                for (String error : errors) {
                     System.err.println("  - " + error);
                 }
                 System.err.println("Run 'ato aws destroy' to retry.");

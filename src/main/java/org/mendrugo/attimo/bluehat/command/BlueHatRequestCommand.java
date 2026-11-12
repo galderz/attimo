@@ -1,8 +1,11 @@
 package org.mendrugo.attimo.bluehat.command;
 
+import java.io.Console;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -10,7 +13,9 @@ import org.aesh.command.option.Option;
 import org.mendrugo.attimo.Environment;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
+import org.mendrugo.attimo.bluehat.BlueHatClient.DestroyResponse;
 import org.mendrugo.attimo.bluehat.BlueHatClient.VmRequest;
+import org.mendrugo.attimo.bluehat.BlueHatClient.VmResponse;
 import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.bluehat.BlueHatInstanceSize;
@@ -48,19 +53,19 @@ public class BlueHatRequestCommand extends BaseCommand {
             return CommandResult.FAILURE;
         }
 
-        final var resolved = ImageDef.resolve(template);
+        final ResolvedTemplate resolved = ImageDef.resolve(template);
         if (resolved == null) {
             return CommandResult.FAILURE;
         }
 
-        final var existingState = InstanceState.load(BlueHat.CLOUD);
+        final InstanceState existingState = InstanceState.load(BlueHat.CLOUD);
         if (existingState.hasActiveInstance()) {
             System.err.println("Error: a VM is already active (" + existingState.getInstanceId() + ").");
             System.err.println("Use 'ato bh connect' to reconnect or 'ato bh destroy' to tear it down first.");
             return CommandResult.FAILURE;
         }
 
-        final var config = BlueHatConfig.load();
+        final BlueHatConfig config = BlueHatConfig.load();
         if (!config.hasCloudTarget()) {
             System.err.println("Error: no Blue Hat cloud configured. Run 'ato bh init' first.");
             return CommandResult.FAILURE;
@@ -69,13 +74,13 @@ public class BlueHatRequestCommand extends BaseCommand {
         final BlueHatInstanceSize instanceSize;
         try {
             instanceSize = BlueHatInstanceSize.fromLabel(size);
-        } catch (final IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());
             return CommandResult.FAILURE;
         }
 
-        final var hostName = config.effectiveHostName();
-        final var port = BlueHat.API_PORT;
+        final String hostName = config.effectiveHostName();
+        final int port = BlueHat.API_PORT;
 
         Process localProcess = null;
         try {
@@ -86,7 +91,7 @@ public class BlueHatRequestCommand extends BaseCommand {
         }
     }
 
-    private CommandResult doRequest(final String hostName, final int port, final BlueHatInstanceSize instanceSize,
+    private CommandResult doRequest(String hostName, int port, BlueHatInstanceSize instanceSize,
             final ResolvedTemplate resolved) {
         System.out.println("=== Requesting Blue Hat VM ===\n");
         System.out.println("[1/4] Preparing request (size: "
@@ -97,22 +102,22 @@ public class BlueHatRequestCommand extends BaseCommand {
                 + instanceSize.memoryGb()
                 + " GB)...");
 
-        final var pubKey = SshKeyManager.publicKeyContent(BlueHat.CLOUD);
-        final var description = generateDescription();
-        final var request = new VmRequest(String.valueOf(instanceSize.cpus()), String.valueOf(instanceSize.memoryGb()), BlueHat.DEFAULT_OS, description,
+        final String pubKey = SshKeyManager.publicKeyContent(BlueHat.CLOUD);
+        final String description = generateDescription();
+        final VmRequest request = new VmRequest(String.valueOf(instanceSize.cpus()), String.valueOf(instanceSize.memoryGb()), BlueHat.DEFAULT_OS, description,
                 pubKey);
 
         System.out.println("\n[2/4] Requesting VM from Blue Hat (" + hostName + ":" + port + ")...");
-        final var client = new BlueHatClient(hostName, port);
-        final var response = client.requestVm(request);
-        final var fqdn = response.fqdn();
+        final BlueHatClient client = new BlueHatClient(hostName, port);
+        final VmResponse response = client.requestVm(request);
+        final String fqdn = response.fqdn();
         if (!fqdn.matches("[A-Za-z0-9._-]+")) {
             System.err.println("Error: FQDN validation failed: " + fqdn);
             return CommandResult.FAILURE;
         }
         System.out.println("  VM provisioned: " + fqdn);
 
-        final var state = new InstanceState();
+        final InstanceState state = new InstanceState();
         state.setInstanceId(fqdn);
         state.setPublicIp(fqdn);
         state.setInstanceType(instanceSize.label());
@@ -120,8 +125,8 @@ public class BlueHatRequestCommand extends BaseCommand {
         state.save(BlueHat.CLOUD);
 
         System.out.println("\n[3/4] Waiting for SSH...");
-        final var keyFile = Environment.sshKeyFile(BlueHat.CLOUD);
-        final var sshSession = new SshSession(fqdn, BlueHat.SSH_USER, keyFile);
+        final Path keyFile = Environment.sshKeyFile(BlueHat.CLOUD);
+        final SshSession sshSession = new SshSession(fqdn, BlueHat.SSH_USER, keyFile);
         if (!sshSession.waitForSsh(300)) {
             System.err.println("Error: SSH not reachable after 5 minutes.");
             System.err.println("VM is provisioned at " + fqdn + ". Use 'ato bh connect' to retry.");
@@ -129,11 +134,11 @@ public class BlueHatRequestCommand extends BaseCommand {
         }
 
         System.out.println("\n[4/4] Provisioning and connecting...");
-        final var provisioner = new SshProvisioner(fqdn, BlueHat.SSH_USER, keyFile);
-        final var allPackages = resolved.packages();
+        final SshProvisioner provisioner = new SshProvisioner(fqdn, BlueHat.SSH_USER, keyFile);
+        final List<String> allPackages = resolved.packages();
         BootJdkProvisioner.provision(allPackages, provisioner, true, "x86_64");
 
-        final var exitCode = sshSession.connect();
+        final int exitCode = sshSession.connect();
 
         if (exitCode == 0) {
             promptKeepOrDestroy(client, state);
@@ -143,27 +148,27 @@ public class BlueHatRequestCommand extends BaseCommand {
     }
 
     private String generateDescription() {
-        final var formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+        final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
         return "attimo VM created at " + formatter.format(Instant.now());
     }
 
-    private void promptKeepOrDestroy(final BlueHatClient client, final InstanceState state) {
-        final var console = System.console();
+    private void promptKeepOrDestroy(BlueHatClient client, InstanceState state) {
+        final Console console = System.console();
         if (console == null) {
             System.out.println("\nVM is still running. Use 'ato bh destroy' to tear it down.");
             return;
         }
 
         System.out.print("\nKeep VM running? (y/N): ");
-        final var answer = console.readLine().strip();
+        final String answer = console.readLine().strip();
 
         if (answer.equalsIgnoreCase("y")) {
             System.out.println("VM kept running. Reconnect with 'ato bh connect'.");
         } else {
             System.out.println("Destroying VM...");
             try {
-                final var fqdn = state.getInstanceId();
-                final var response = client.destroyVm(fqdn);
+                final String fqdn = state.getInstanceId();
+                final DestroyResponse response = client.destroyVm(fqdn);
 
                 if ("success".equalsIgnoreCase(response.status())) {
                     System.out.println("  "
@@ -177,7 +182,7 @@ public class BlueHatRequestCommand extends BaseCommand {
                     System.err.println("  Unexpected response: " + response.status());
                     System.err.println("  Run 'ato bh destroy' to retry.");
                 }
-            } catch (final Exception e) {
+            } catch (Exception e) {
                 System.err.println("  Destroy failed: " + e.getMessage());
                 System.err.println("  Run 'ato bh destroy' to retry.");
             }

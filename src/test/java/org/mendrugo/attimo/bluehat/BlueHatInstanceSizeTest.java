@@ -11,22 +11,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class BlueHatInstanceSizeTest {
     @ParameterizedTest
     @CsvSource({"micro, 1, 2", "small, 8, 16", "medium, 16, 32", "large, 32, 64"})
-    void mapsSizeToCpuAndMemory(final String label, final int expectedCpus, final int expectedMemory) {
-        final var size = BlueHatInstanceSize.fromLabel(label);
+    void mapsSizeToCpuAndMemory(String label, int expectedCpus, int expectedMemory) {
+        final BlueHatInstanceSize size = BlueHatInstanceSize.fromLabel(label);
         assertThat(size.cpus()).isEqualTo(expectedCpus);
         assertThat(size.memoryGb()).isEqualTo(expectedMemory);
     }
 
     @ParameterizedTest
     @CsvSource({"MICRO, micro", "Small, small", "MEDIUM, medium", "Large, large"})
-    void fromLabelIsCaseInsensitive(final String input, final String expectedLabel) {
-        final var size = BlueHatInstanceSize.fromLabel(input);
+    void fromLabelIsCaseInsensitive(String input, String expectedLabel) {
+        final BlueHatInstanceSize size = BlueHatInstanceSize.fromLabel(input);
         assertThat(size.label()).isEqualTo(expectedLabel);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"tiny", "huge", "xl", ""})
-    void fromLabelRejectsInvalidLabels(final String input) {
+    void fromLabelRejectsInvalidLabels(String input) {
         assertThatThrownBy(() -> BlueHatInstanceSize.fromLabel(input))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown instance size");
@@ -40,7 +40,7 @@ class BlueHatInstanceSizeTest {
     @Test
     void memoryToCpuRatioIsConsistentForDevelopment() {
 
-        for (final BlueHatInstanceSize size : BlueHatInstanceSize.values()) {
+        for (BlueHatInstanceSize size : BlueHatInstanceSize.values()) {
             assertThat(size.memoryGb())
                     .as("Size %s should have memory >= 2x CPUs", size.label())
                     .isGreaterThanOrEqualTo(size.cpus() * 2);
@@ -49,7 +49,7 @@ class BlueHatInstanceSizeTest {
 
     @Test
     void allSizesHaveDescriptions() {
-        for (final BlueHatInstanceSize size : BlueHatInstanceSize.values()) {
+        for (BlueHatInstanceSize size : BlueHatInstanceSize.values()) {
             assertThat(size.description())
                     .as("Size %s should have a description", size.label())
                     .isNotBlank();
@@ -58,7 +58,7 @@ class BlueHatInstanceSizeTest {
 
     @Test
     void cpusAreStrictlyIncreasing() {
-        final var values = BlueHatInstanceSize.values();
+        final BlueHatInstanceSize[] values = BlueHatInstanceSize.values();
         for (int i = 1; i < values.length; i++) {
             assertThat(values[i].cpus())
                     .as("%s should have more CPUs than %s", values[i].label(), values[i - 1].label())

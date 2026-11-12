@@ -13,7 +13,11 @@ import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DeleteKeyPairRequest;
 import software.amazon.awssdk.services.ec2.model.DeleteSecurityGroupRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeKeyPairsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeKeyPairsResponse;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
+import software.amazon.awssdk.services.ec2.model.IpPermission;
+import software.amazon.awssdk.services.ec2.model.SecurityGroup;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
@@ -26,22 +30,22 @@ class SpotManagerIT {
 
     @Test
     void createSecurityGroupWithSshIngress() {
-        try (final var ec2 = ec2Client()) {
-            final var manager = new SpotManager(ec2, "it-test-session");
-            final var sgId = manager.createSecurityGroup();
+        try (Ec2Client ec2 = ec2Client()) {
+            final SpotManager manager = new SpotManager(ec2, "it-test-session");
+            final String sgId = manager.createSecurityGroup();
 
             assertThat(sgId).isNotBlank();
 
-            final var describeResponse = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
+            final DescribeSecurityGroupsResponse describeResponse = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
                     .groupIds(sgId)
                     .build());
 
             assertThat(describeResponse.securityGroups()).hasSize(1);
-            final var sg = describeResponse.securityGroups().getFirst();
+            final SecurityGroup sg = describeResponse.securityGroups().getFirst();
             assertThat(sg.groupName()).startsWith("attimo-");
 
             assertThat(sg.ipPermissions()).isNotEmpty();
-            final var sshRule = sg.ipPermissions().getFirst();
+            final IpPermission sshRule = sg.ipPermissions().getFirst();
             assertThat(sshRule.fromPort()).isEqualTo(22);
             assertThat(sshRule.toPort()).isEqualTo(22);
 
@@ -53,14 +57,14 @@ class SpotManagerIT {
 
     @Test
     void importKeyPairAndVerify() {
-        try (final var ec2 = ec2Client()) {
-            final var manager = new SpotManager(ec2, "it-test-session");
-            final var dummyPubKey = TestKeys.generateEd25519PublicKey();
-            final var keyName = manager.importKeyPair(dummyPubKey);
+        try (Ec2Client ec2 = ec2Client()) {
+            final SpotManager manager = new SpotManager(ec2, "it-test-session");
+            final String dummyPubKey = TestKeys.generateEd25519PublicKey();
+            final String keyName = manager.importKeyPair(dummyPubKey);
 
             assertThat(keyName).startsWith("attimo-");
 
-            final var describeResponse = ec2.describeKeyPairs(DescribeKeyPairsRequest.builder()
+            final DescribeKeyPairsResponse describeResponse = ec2.describeKeyPairs(DescribeKeyPairsRequest.builder()
                     .keyNames(keyName)
                     .build());
 

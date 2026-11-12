@@ -10,8 +10,10 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.CreateSecurityGroupRequest;
+import software.amazon.awssdk.services.ec2.model.CreateSecurityGroupResponse;
 import software.amazon.awssdk.services.ec2.model.DeleteSecurityGroupRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
@@ -24,17 +26,17 @@ class LocalStackSmokeIT {
 
     @Test
     void createAndDescribeSecurityGroup() {
-        final var ec2 = ec2Client();
-        final var groupName = "attimo-smoke-test";
+        final Ec2Client ec2 = ec2Client();
+        final String groupName = "attimo-smoke-test";
 
-        final var createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
+        final CreateSecurityGroupResponse createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
                 .groupName(groupName)
                 .description("Smoke test security group")
                 .build());
 
         assertThat(createResponse.groupId()).isNotBlank();
 
-        final var describeResponse = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
+        final DescribeSecurityGroupsResponse describeResponse = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
                 .groupIds(createResponse.groupId())
                 .build());
 

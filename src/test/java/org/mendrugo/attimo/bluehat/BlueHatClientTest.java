@@ -1,14 +1,19 @@
 package org.mendrugo.attimo.bluehat;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mendrugo.attimo.bluehat.BlueHatClient.DestroyResponse;
+import org.mendrugo.attimo.bluehat.BlueHatClient.VmDetails;
 import org.mendrugo.attimo.bluehat.BlueHatClient.VmRequest;
+import org.mendrugo.attimo.bluehat.BlueHatClient.VmResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,27 +40,27 @@ class BlueHatClientTest {
         server.createContext("/vm", exchange -> {
             if ("POST".equals(exchange.getRequestMethod())) {
 
-                final var body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                final String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
                 assertThat(body).contains("\"cpu\"");
                 assertThat(body).contains("\"memory\"");
                 assertThat(body).contains("\"os\"");
                 assertThat(body).contains("\"ssh-public-key\"");
 
-                final var response =
+                final String response =
                         """
                     {"fqdn": "bluehat-vm-12345.dev.acme.com"}""";
                 exchange.sendResponseHeaders(200, response.length());
-                try (final var os = exchange.getResponseBody()) {
+                try (OutputStream os = exchange.getResponseBody()) {
                     os.write(response.getBytes(StandardCharsets.UTF_8));
                 }
             }
         });
         server.start();
 
-        final var client = new BlueHatClient("localhost", port);
-        final var request = new VmRequest("16", "32", "RedHat 10.2", "test vm", "ssh-ed25519 AAAA...");
+        final BlueHatClient client = new BlueHatClient("localhost", port);
+        final VmRequest request = new VmRequest("16", "32", "RedHat 10.2", "test vm", "ssh-ed25519 AAAA...");
 
-        final var response = client.requestVm(request);
+        final VmResponse response = client.requestVm(request);
         assertThat(response.fqdn()).isEqualTo("bluehat-vm-12345.dev.acme.com");
     }
 
@@ -68,8 +73,8 @@ class BlueHatClientTest {
                 });
         server.start();
 
-        final var client = new BlueHatClient("localhost", port);
-        final var request = new VmRequest("1", "2", "RedHat 10.2", "test", "key");
+        final BlueHatClient client = new BlueHatClient("localhost", port);
+        final VmRequest request = new VmRequest("1", "2", "RedHat 10.2", "test", "key");
 
         assertThatThrownBy(() -> client.requestVm(request))
                 .isInstanceOf(BlueHatException.class)
@@ -80,7 +85,7 @@ class BlueHatClientTest {
     void listVmsReturnsDetails() {
         server.createContext("/vm", exchange -> {
             if ("GET".equals(exchange.getRequestMethod())) {
-                final var response =
+                final String response =
                         """
                     [
                       {
@@ -101,15 +106,15 @@ class BlueHatClientTest {
                       }
                     ]""";
                 exchange.sendResponseHeaders(200, response.length());
-                try (final var os = exchange.getResponseBody()) {
+                try (OutputStream os = exchange.getResponseBody()) {
                     os.write(response.getBytes(StandardCharsets.UTF_8));
                 }
             }
         });
         server.start();
 
-        final var client = new BlueHatClient("localhost", port);
-        final var vms = client.listVms();
+        final BlueHatClient client = new BlueHatClient("localhost", port);
+        final List<VmDetails> vms = client.listVms();
 
         assertThat(vms).hasSize(2);
         assertThat(vms.getFirst().fqdn()).isEqualTo("bluehat-vm-1785494151.dev.acme.com");
@@ -127,7 +132,7 @@ class BlueHatClientTest {
                 });
         server.start();
 
-        final var client = new BlueHatClient("localhost", port);
+        final BlueHatClient client = new BlueHatClient("localhost", port);
 
         assertThatThrownBy(() -> client.listVms())
                 .isInstanceOf(BlueHatException.class)
@@ -136,10 +141,10 @@ class BlueHatClientTest {
 
     @Test
     void destroyVmReturnsSuccess() {
-        final var testFqdn = "bluehat-vm-12345.dev.acme.com";
+        final String testFqdn = "bluehat-vm-12345.dev.acme.com";
         server.createContext("/vm/" + testFqdn, exchange -> {
             if ("DELETE".equals(exchange.getRequestMethod())) {
-                final var response =
+                final String response =
                         """
                     {
                       "status": "success",
@@ -147,15 +152,15 @@ class BlueHatClientTest {
                       "request_id": "2-30931474"
                     }""";
                 exchange.sendResponseHeaders(200, response.length());
-                try (final var os = exchange.getResponseBody()) {
+                try (OutputStream os = exchange.getResponseBody()) {
                     os.write(response.getBytes(StandardCharsets.UTF_8));
                 }
             }
         });
         server.start();
 
-        final var client = new BlueHatClient("localhost", port);
-        final var response = client.destroyVm(testFqdn);
+        final BlueHatClient client = new BlueHatClient("localhost", port);
+        final DestroyResponse response = client.destroyVm(testFqdn);
 
         assertThat(response.status()).isEqualTo("success");
         assertThat(response.details()).isEqualTo("vm deletion initiated");
@@ -171,7 +176,7 @@ class BlueHatClientTest {
                 });
         server.start();
 
-        final var client = new BlueHatClient("localhost", port);
+        final BlueHatClient client = new BlueHatClient("localhost", port);
 
         assertThatThrownBy(() -> client.destroyVm("bad-fqdn"))
                 .isInstanceOf(BlueHatException.class)
@@ -180,22 +185,22 @@ class BlueHatClientTest {
 
     @Test
     void requestVmSendsCorrectJsonFields() {
-        final var capturedBody = new String[1];
+        final String[] capturedBody = new String[1];
         server.createContext("/vm", exchange -> {
             if ("POST".equals(exchange.getRequestMethod())) {
                 capturedBody[0] = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-                final var response =
+                final String response =
                         """
                     {"fqdn": "test.dev.acme.com"}""";
                 exchange.sendResponseHeaders(200, response.length());
-                try (final var os = exchange.getResponseBody()) {
+                try (OutputStream os = exchange.getResponseBody()) {
                     os.write(response.getBytes(StandardCharsets.UTF_8));
                 }
             }
         });
         server.start();
 
-        final var client = new BlueHatClient("localhost", port);
+        final BlueHatClient client = new BlueHatClient("localhost", port);
         client.requestVm(new VmRequest("8", "16", "RedHat 10.2", "attimo VM created at 2026-08-14 10:00:00", "ssh-ed25519 AAAA... attimo managed key"));
 
         assertThat(capturedBody[0])

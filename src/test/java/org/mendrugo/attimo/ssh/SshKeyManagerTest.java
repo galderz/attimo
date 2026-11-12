@@ -15,7 +15,7 @@ class SshKeyManagerTest {
 
         if (SshKeyManager.exists(TEST_CLOUD)) {
 
-            final var pubKey = SshKeyManager.publicKeyContent(TEST_CLOUD);
+            final String pubKey = SshKeyManager.publicKeyContent(TEST_CLOUD);
             assertThat(pubKey).isNotBlank();
             assertThat(pubKey).contains("ssh-ed25519");
         }

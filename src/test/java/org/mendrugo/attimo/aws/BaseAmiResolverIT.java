@@ -26,18 +26,18 @@ class BaseAmiResolverIT {
     @Test
     void ssmClientCanGetAndPutParameters() {
 
-        try (final var ssm = ssmClient()) {
+        try (SsmClient ssm = ssmClient()) {
             ssm.putParameter(PutParameterRequest.builder()
                     .name("/attimo/test/ami")
                     .value("ami-test")
                     .type(ParameterType.STRING)
                     .build());
 
-            final var value = ssm.getParameter(GetParameterRequest.builder()
-                                         .name("/attimo/test/ami")
-                                         .build())
-                                 .parameter()
-                                 .value();
+            final String value = ssm.getParameter(GetParameterRequest.builder()
+                                            .name("/attimo/test/ami")
+                                            .build())
+                                    .parameter()
+                                    .value();
 
             assertThat(value).isEqualTo("ami-test");
         }
@@ -46,9 +46,9 @@ class BaseAmiResolverIT {
     @Test
     void resolverReturnsAmiIdFromSsm() {
 
-        try (final var ssm = ssmClient()) {
-            final var resolver = new BaseAmiResolver();
-            final var amiId = resolver.resolve(ssm, "arm64", LOCALSTACK.getRegion());
+        try (SsmClient ssm = ssmClient()) {
+            final BaseAmiResolver resolver = new BaseAmiResolver();
+            final String amiId = resolver.resolve(ssm, "arm64", LOCALSTACK.getRegion());
             assertThat(amiId).isNotBlank();
         }
     }

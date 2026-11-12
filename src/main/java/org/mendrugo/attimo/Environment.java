@@ -10,7 +10,7 @@ public final class Environment {
     }
 
     public static Path configRoot() {
-        final var xdgConfig = System.getenv("XDG_CONFIG_HOME");
+        final String xdgConfig = System.getenv("XDG_CONFIG_HOME");
         if (xdgConfig != null && !xdgConfig.isBlank()) {
             return Path.of(xdgConfig, "attimo");
         }
@@ -20,12 +20,12 @@ public final class Environment {
                 .resolve("attimo");
     }
 
-    public static Path configDir(final String cloud) {
+    public static Path configDir(String cloud) {
         return configRoot().resolve(cloud);
     }
 
     public static Path cacheRoot() {
-        final var xdgCache = System.getenv("XDG_CACHE_HOME");
+        final String xdgCache = System.getenv("XDG_CACHE_HOME");
         if (xdgCache != null && !xdgCache.isBlank()) {
             return Path.of(xdgCache, "attimo");
         }
@@ -35,27 +35,27 @@ public final class Environment {
                 .resolve("attimo");
     }
 
-    public static Path cacheDir(final String cloud) {
+    public static Path cacheDir(String cloud) {
         return cacheRoot().resolve(cloud);
     }
 
-    public static Path configFile(final String cloud) {
+    public static Path configFile(String cloud) {
         return configDir(cloud).resolve("config.yaml");
     }
 
-    public static Path stateFile(final String cloud) {
+    public static Path stateFile(String cloud) {
         return configDir(cloud).resolve("state.yaml");
     }
 
-    public static Path sshDir(final String cloud) {
+    public static Path sshDir(String cloud) {
         return configDir(cloud).resolve("ssh");
     }
 
-    public static Path sshKeyFile(final String cloud) {
+    public static Path sshKeyFile(String cloud) {
         return sshDir(cloud).resolve("id_ed25519");
     }
 
-    public static Path sshPubKeyFile(final String cloud) {
+    public static Path sshPubKeyFile(String cloud) {
         return sshDir(cloud).resolve("id_ed25519.pub");
     }
 }

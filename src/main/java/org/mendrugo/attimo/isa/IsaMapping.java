@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +26,7 @@ public class IsaMapping {
         loadUserOverrides();
     }
 
-    public IsaFeature resolve(final String featureName) {
+    public IsaFeature resolve(String featureName) {
         return features.get(featureName.toLowerCase());
     }
 
@@ -38,14 +39,14 @@ public class IsaMapping {
     }
 
     private void loadBuiltins() {
-        for (final String filename : BUILTIN_FILES) {
-            try (final InputStream is = getClass()
+        for (String filename : BUILTIN_FILES) {
+            try (InputStream is = getClass()
                     .getClassLoader()
                     .getResourceAsStream("isa-mappings/" + filename)) {
                 if (is != null) {
                     loadFromStream(is);
                 }
-            } catch (final IOException e) {
+            } catch (IOException e) {
                 System.err.println("Warning: could not load ISA mapping " + filename + ": " + e.getMessage());
             }
         }
@@ -57,27 +58,27 @@ public class IsaMapping {
             return;
         }
 
-        try (final DirectoryStream<Path> stream = Files.newDirectoryStream(userDir, "*.yaml")) {
-            for (final Path file : stream) {
-                try (final InputStream is = Files.newInputStream(file)) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(userDir, "*.yaml")) {
+            for (Path file : stream) {
+                try (InputStream is = Files.newInputStream(file)) {
                     loadFromStream(is);
-                } catch (final IOException e) {
+                } catch (IOException e) {
                     System.err.println("Warning: could not load ISA mapping " + file + ": " + e.getMessage());
                 }
             }
-        } catch (final IOException e) {
+        } catch (IOException e) {
             System.err.println("Warning: could not read ISA mappings dir: " + e.getMessage());
         }
     }
 
-    private void loadFromStream(final InputStream is) throws IOException {
+    private void loadFromStream(InputStream is) throws IOException {
         final MappingFile mappingFile = YAML.readValue(is, MappingFile.class);
         if (mappingFile == null || mappingFile.features == null) {
             return;
         }
 
         final String arch = mappingFile.architecture != null ? mappingFile.architecture : "unknown";
-        for (final var entry : mappingFile.features.entrySet()) {
+        for (Entry<String, FeatureEntry> entry : mappingFile.features.entrySet()) {
             final String name = entry.getKey().toLowerCase();
             final FeatureEntry fe = entry.getValue();
             features.put(

@@ -14,7 +14,7 @@ public enum InstanceSize {
     private final String description;
     private final List<String> awsSizes;
 
-    InstanceSize(final String label, final String description, final List<String> awsSizes) {
+    InstanceSize(String label, String description, List<String> awsSizes) {
         this.label = label;
         this.description = description;
         this.awsSizes = awsSizes;
@@ -32,8 +32,8 @@ public enum InstanceSize {
         return awsSizes;
     }
 
-    public static InstanceSize fromLabel(final String label) {
-        for (final InstanceSize size : values()) {
+    public static InstanceSize fromLabel(String label) {
+        for (InstanceSize size : values()) {
             if (size.label.equalsIgnoreCase(label)) {
                 return size;
             }

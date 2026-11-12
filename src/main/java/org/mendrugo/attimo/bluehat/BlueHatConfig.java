@@ -30,7 +30,7 @@ public class BlueHatConfig {
         return repository;
     }
 
-    public void setRepository(final String repository) {
+    public void setRepository(String repository) {
         this.repository = repository == null ? "" : repository;
     }
 
@@ -38,7 +38,7 @@ public class BlueHatConfig {
         return hostName;
     }
 
-    public void setHostName(final String hostName) {
+    public void setHostName(String hostName) {
         this.hostName = hostName == null ? "" : hostName;
     }
 
@@ -46,7 +46,7 @@ public class BlueHatConfig {
         return sshPublicKey;
     }
 
-    public void setSshPublicKey(final String sshPublicKey) {
+    public void setSshPublicKey(String sshPublicKey) {
         this.sshPublicKey = sshPublicKey == null ? "" : sshPublicKey;
     }
 
@@ -70,7 +70,7 @@ public class BlueHatConfig {
 
         try {
             return YAML.readValue(configFile.toFile(), BlueHatConfig.class);
-        } catch (final IOException e) {
+        } catch (IOException e) {
             System.err.println("Warning: could not read Blue Hat config: " + e.getMessage());
             return new BlueHatConfig();
         }
@@ -88,11 +88,11 @@ public class BlueHatConfig {
                 tmp.toFile().setWritable(false, false);
                 tmp.toFile().setWritable(true, true);
                 Files.move(tmp, configFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (final Exception e) {
+            } catch (Exception e) {
                 Files.deleteIfExists(tmp);
                 throw e;
             }
-        } catch (final IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException("Failed to save Blue Hat config: " + e.getMessage(), e);
         }
     }

@@ -27,7 +27,7 @@ public class AttimoConfig {
         return searchPaths;
     }
 
-    public void setSearchPaths(final List<String> searchPaths) {
+    public void setSearchPaths(List<String> searchPaths) {
         this.searchPaths = searchPaths == null ? List.of() : searchPaths;
     }
 
@@ -39,7 +39,7 @@ public class AttimoConfig {
 
         try {
             return YAML.readValue(configFile.toFile(), AttimoConfig.class);
-        } catch (final IOException e) {
+        } catch (IOException e) {
             System.err.println("Warning: could not read attimo config: " + e.getMessage());
             return new AttimoConfig();
         }
@@ -57,23 +57,23 @@ public class AttimoConfig {
                 tmp.toFile().setWritable(false, false);
                 tmp.toFile().setWritable(true, true);
                 Files.move(tmp, configFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (final Exception e) {
+            } catch (Exception e) {
                 Files.deleteIfExists(tmp);
                 throw e;
             }
-        } catch (final IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException("Failed to save attimo config: " + e.getMessage(), e);
         }
     }
 
-    public static void setupSearchPaths(final Console console) {
+    public static void setupSearchPaths(Console console) {
         System.out.println("  Local directories where attimo looks for custom image");
         System.out.println("  definitions. Each directory should contain an images/");
         System.out.println("  subdirectory with YAML template files.");
         System.out.println();
 
-        final var config = load();
-        final var existing = config.getSearchPaths();
+        final AttimoConfig config = load();
+        final List<String> existing = config.getSearchPaths();
 
         if (!existing.isEmpty()) {
             System.out.println("  Current search paths:");
@@ -89,15 +89,15 @@ public class AttimoConfig {
             return;
         }
 
-        final var paths = new ArrayList<>(existing);
+        final ArrayList<String> paths = new ArrayList<>(existing);
         while (true) {
-            final var hasEntries = !paths.isEmpty();
+            final boolean hasEntries = !paths.isEmpty();
             System.out.print("  Add a local directory"
                     + (hasEntries ? " or # to remove" : "")
                     + " (or press Enter to "
                     + (hasEntries ? "finish" : "skip")
                     + "): ");
-            final var input = console.readLine().strip();
+            final String input = console.readLine().strip();
             if (input.isEmpty()) {
                 break;
             }
@@ -112,8 +112,8 @@ public class AttimoConfig {
                 continue;
             }
 
-            final var expanded = ImageDef.expandTilde(input);
-            final var path = Path.of(expanded)
+            final String expanded = ImageDef.expandTilde(input);
+            final String path = Path.of(expanded)
                     .toAbsolutePath()
                     .normalize()
                     .toString();
