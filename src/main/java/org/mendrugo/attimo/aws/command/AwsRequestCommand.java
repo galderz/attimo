@@ -13,7 +13,8 @@ import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.aws.AwsConfig;
 import org.mendrugo.attimo.config.InstanceState;
 import org.mendrugo.attimo.isa.IsaMapping;
-import org.mendrugo.attimo.ssh.OsPackages;
+import org.mendrugo.attimo.config.ImageDef;
+import org.mendrugo.attimo.ssh.BootJdkProvisioner;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.mendrugo.attimo.ssh.SshProvisioner;
 import org.mendrugo.attimo.ssh.SshSession;
@@ -24,8 +25,8 @@ import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 
 import java.time.Instant;
-import java.util.Set;
 import java.util.List;
+import java.util.Set;
 
 @CommandDefinition(
     name = "request"
@@ -52,6 +53,13 @@ public class AwsRequestCommand extends BaseCommand
     )
     String size;
 
+    @Option(
+        name = "template"
+        , description = "Image template to use for provisioning (default: tpl-openjdk)"
+        , defaultValue = "tpl-openjdk"
+    )
+    String template;
+
     @Override
     protected CommandResult doExecute() throws Exception
     {
@@ -59,6 +67,13 @@ public class AwsRequestCommand extends BaseCommand
         if (!AwsInitCommand.hasBeenInitialized())
         {
             System.err.println("Error: AWS has not been initialized. Run 'ato aws init' first.");
+            return CommandResult.FAILURE;
+        }
+
+        // Validate template before any cloud resources are created
+        final var resolved = ImageDef.resolve(template);
+        if (resolved == null)
+        {
             return CommandResult.FAILURE;
         }
 
@@ -167,11 +182,14 @@ public class AwsRequestCommand extends BaseCommand
 
         try (launchResult)
         {
-            return provisionAndConnect(launchResult);
+            return provisionAndConnect(launchResult, resolved);
         }
     }
 
-    private CommandResult provisionAndConnect(final LaunchResult launchResult)
+    private CommandResult provisionAndConnect(
+        final LaunchResult launchResult
+        , final ImageDef.ResolvedTemplate resolved
+    )
     {
         // Save state for reconnection
         final var state = new InstanceState();
@@ -203,22 +221,21 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // Provision packages
+        // Provision packages from template (including inherited ancestor packages)
         final var provisioner = new SshProvisioner(launchResult.publicIp, sshUser, keyFile);
-
-        // Install Corretto 25 (not in default AL2023 repos)
-        System.out.println("  Installing Amazon Corretto 25...");
-        for (final var cmd : OsPackages.CORRETTO_25_INSTALL_COMMANDS)
-        {
-            final var rc = provisioner.run(cmd);
-            if (rc != 0)
-            {
-                System.err.println("  Warning: Corretto 25 install failed (exit " + rc + ").");
-                break;
-            }
-        }
-
-        provisioner.installPackages(OsPackages.JDK_DEV_PACKAGES);
+        final var allPackages = resolved.packages();
+        // Derive arch from ISA feature for Adoptium API
+        final var isaMapping = new IsaMapping();
+        final var resolvedFeature = isaMapping.resolve(isaFeature);
+        final var templateArch = resolvedFeature != null
+            && "aarch64".equals(resolvedFeature.architecture())
+            ? "aarch64" : "x86_64";
+        BootJdkProvisioner.provision(
+            allPackages
+            , provisioner
+            , false  // AL2023, not Fedora
+            , templateArch
+        );
 
         // Connect
         final var exitCode = sshSession.connect();

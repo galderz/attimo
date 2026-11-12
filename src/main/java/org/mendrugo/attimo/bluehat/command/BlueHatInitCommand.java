@@ -5,6 +5,7 @@ import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.command.BaseCommand;
+import org.mendrugo.attimo.config.AttimoConfig;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -66,6 +67,7 @@ public class BlueHatInitCommand extends BaseCommand
 
         setupCloudMode(console, config);
         setupSshKey(console, config);
+        setupSearchPaths(console);
 
         config.save();
 
@@ -193,6 +195,12 @@ public class BlueHatInitCommand extends BaseCommand
             config.setSshPublicKey("~/.ssh/id_ed25519.pub");
             System.out.println("  Defaulting to ~/.ssh/id_ed25519.pub");
         }
+    }
+
+    private void setupSearchPaths(final Console console)
+    {
+        System.out.println("\nTemplate search paths...");
+        AttimoConfig.setupSearchPaths(console);
     }
 
     private void printNextSteps()

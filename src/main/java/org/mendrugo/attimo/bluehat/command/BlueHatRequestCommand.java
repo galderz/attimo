@@ -8,7 +8,8 @@ import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.bluehat.BlueHatInstanceSize;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
-import org.mendrugo.attimo.ssh.OsPackages;
+import org.mendrugo.attimo.config.ImageDef;
+import org.mendrugo.attimo.ssh.BootJdkProvisioner;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.mendrugo.attimo.ssh.SshProvisioner;
 import org.mendrugo.attimo.ssh.SshSession;
@@ -35,6 +36,13 @@ public class BlueHatRequestCommand extends BaseCommand
     )
     String size;
 
+    @Option(
+        name = "template"
+        , description = "Image template to use for provisioning (default: tpl-openjdk)"
+        , defaultValue = "tpl-openjdk"
+    )
+    String template;
+
     @Override
     protected CommandResult doExecute() throws Exception
     {
@@ -42,6 +50,13 @@ public class BlueHatRequestCommand extends BaseCommand
         if (!BlueHatInitCommand.hasBeenInitialized())
         {
             System.err.println("Error: Blue Hat has not been initialized. Run 'ato bh init' first.");
+            return CommandResult.FAILURE;
+        }
+
+        // Validate template before any cloud resources are created
+        final var resolved = ImageDef.resolve(template);
+        if (resolved == null)
+        {
             return CommandResult.FAILURE;
         }
 
@@ -81,7 +96,7 @@ public class BlueHatRequestCommand extends BaseCommand
         try
         {
             localProcess = BlueHatCloudRunner.ensureCloudRunning(config);
-            return doRequest(hostName, port, instanceSize);
+            return doRequest(hostName, port, instanceSize, resolved);
         }
         finally
         {
@@ -93,6 +108,7 @@ public class BlueHatRequestCommand extends BaseCommand
         final String hostName
         , final int port
         , final BlueHatInstanceSize instanceSize
+        , final ImageDef.ResolvedTemplate resolved
     )
     {
         System.out.println("=== Requesting Blue Hat VM ===\n");
@@ -142,25 +158,16 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // Provision packages (same as AWS)
+        // Provision packages from template (including inherited ancestor packages)
         System.out.println("\n[4/4] Provisioning and connecting...");
         final var provisioner = new SshProvisioner(fqdn, BlueHat.SSH_USER, keyFile);
-
-        // Install Corretto 25
-        System.out.println("  Installing Amazon Corretto 25...");
-        for (final var cmd : OsPackages.CORRETTO_25_INSTALL_COMMANDS)
-        {
-            final var rc = provisioner.run(cmd);
-            if (rc != 0)
-            {
-                System.err.println("  Warning: Corretto 25 install failed (exit " + rc + ").");
-                break;
-            }
-        }
-
-        // Any errors during provisioning are not treated as fatal.
-        // Inspect the logs for any warning messages if issues encountered during provisioning.
-        provisioner.installPackages(OsPackages.JDK_DEV_PACKAGES);
+        final var allPackages = resolved.packages();
+        BootJdkProvisioner.provision(
+            allPackages
+            , provisioner
+            , true  // Fedora
+            , "x86_64"  // Blue Hat default arch
+        );
 
         // Connect via SSH
         final var exitCode = sshSession.connect();

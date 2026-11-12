@@ -7,6 +7,7 @@ import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.aws.Continent;
 import org.mendrugo.attimo.aws.Region;
 import org.mendrugo.attimo.aws.AwsConfig;
+import org.mendrugo.attimo.config.AttimoConfig;
 import org.mendrugo.attimo.ssh.SshKeyManager;
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
@@ -46,6 +47,7 @@ public class AwsInitCommand extends BaseCommand
 
         setupRegion(console, config);
         setupSshKey(console, config);
+        setupSearchPaths(console);
 
         config.save();
 
@@ -61,7 +63,7 @@ public class AwsInitCommand extends BaseCommand
         , final AwsConfig config
     )
     {
-        System.out.println("[1/3] Checking AWS authentication...");
+        System.out.println("[1/4] Checking AWS authentication...");
         final var factory = new AwsClientFactory();
         final var error = factory.validateCredentials();
 
@@ -185,7 +187,7 @@ public class AwsInitCommand extends BaseCommand
         , final AwsConfig config
     )
     {
-        System.out.println("\n[2/3] Configuring preferred AWS region...");
+        System.out.println("\n[2/4] Configuring preferred AWS region...");
 
         if (!config.getPreferredRegion().isBlank())
         {
@@ -278,7 +280,7 @@ public class AwsInitCommand extends BaseCommand
         , final AwsConfig config
     )
     {
-        System.out.println("\n[3/3] Configuring SSH key...");
+        System.out.println("\n[3/4] Configuring SSH key...");
 
         // Generate managed key pair
         if (SshKeyManager.exists(Aws.CLOUD))
@@ -316,5 +318,11 @@ public class AwsInitCommand extends BaseCommand
             config.setSshPublicKey("~/.ssh/id_ed25519.pub");
             System.out.println("  Defaulting to ~/.ssh/id_ed25519.pub");
         }
+    }
+
+    private void setupSearchPaths(final Console console)
+    {
+        System.out.println("\n[4/4] Template search paths...");
+        AttimoConfig.setupSearchPaths(console);
     }
 }

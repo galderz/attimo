@@ -1,0 +1,21 @@
+name: tpl-openjdk
+description: OpenJDK build + test environment
+parent: tpl-minimal
+packages:
+  - java-latest-openjdk-devel
+  - gcc
+  - gcc-c++
+  - make
+  - autoconf
+  - cups-devel
+  - libX11-devel
+  - libXt-devel
+  - libXrender-devel
+  - libXrandr-devel
+  - libXi-devel
+  - libXtst-devel
+  - alsa-lib-devel
+  - fontconfig-devel
+  - freetype-devel
+  - capstone
+  - capstone-devel

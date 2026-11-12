@@ -1,7 +1,7 @@
 # Attimo — Progress & Backlog
 
-**Last updated:** 2026-08-18
-**Last session:** Blue Hat cloud integration
+**Last updated:** 2026-11-05
+**Last session:** Template system (ImageDef + BootJdkProvisioner)
 
 ## How to Resume
 
@@ -122,14 +122,16 @@ If you're a new agent session picking up this project:
 ### Base OS & Provisioning
 - **Amazon Linux 2023** — base AMI for AWS, resolved via SSM Parameter Store (works in every region)
 - **RedHat 10.2** — default OS for Blue Hat VMs
-- **Amazon Corretto 25** — boot JDK, installed from `yum.corretto.aws` repo
+- **Boot JDK** — Adoptium Temurin tarball on AL2023 (downloaded to `/opt/jdk-{version}`), `java-latest-openjdk-devel` on Fedora
+- **Package list** — defined in `src/main/resources/images/openjdk.yaml` template
+- **Template search paths** — built-in → search paths → project-local (`.attimo/images/`), configured via `~/.config/attimo/config.yaml`
 - **capstone** — `capstone`, `capstone-devel` from AL2023 repos
 - **SSH user** — `ec2-user` (AWS), `root` (Blue Hat)
 - **Package manager** — `dnf`
 
 ### Test Counts
-- **168 unit tests** — all pass, no cloud interaction needed
-- **17 integration tests** — all pass (10 AWS via LocalStack + Podman, 7 Blue Hat via dummy server)
+- **203 unit tests** — all pass, no cloud interaction needed
+- **17 integration tests** — 7 Blue Hat pass, 10 AWS require LocalStack + Podman
 
 ### Key Technical Decisions Made During Implementation
 - **UrlConnectionHttpClient** instead of Apache HTTP client (avoids commons-logging dependency with Quarkus)
@@ -139,6 +141,7 @@ If you're a new agent session picking up this project:
 - **Orphan resource scan** — tag-based search across all regions in group, gracefully skips opt-in regions
 - **Test keys generated programmatically** — never stored in source, ephemeral ed25519 via Java KeyPairGenerator
 - **Multi-cloud subcommand architecture** — all cloud commands under `ato <cloud> ...`, cloud-specific config at `~/.config/attimo/<cloud>/`, shared ISA/SSH/config infrastructure, no new Maven modules needed per cloud
+- **Template system (incus-spawn pattern)** — ImageDef with name/description/parent/packages, search path resolution (built-in → search paths → project-local), `--template` option on request commands, BootJdkProvisioner for OS-aware boot JDK installation
 - **Blue Hat uses java.net.http.HttpClient** — standard JDK HTTP client, no extra dependencies
 - **Blue Hat dummy server for testing** — uses `com.sun.net.httpserver.HttpServer` (built into JDK), no container runtime needed for Blue Hat integration tests
 - **Blue Hat SSH user is root** — provisioning via `sudo` still works (no-op as root)
@@ -159,8 +162,19 @@ If you're a new agent session picking up this project:
 - [ ] **Task 19:** CostTracker + `ato cost` command
 - [ ] **Task 20:** TUI main view (Tamboui)
 
-### Phase 8: Template System
-- [ ] **Task 21:** Image template + tool YAML system (incus-spawn style)
+### Phase 8: Template System ✅
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| — | ImageDef record + tpl-minimal + tpl-openjdk YAML | `f51a18e` |
+| — | BootJdkProvisioner: OS-aware boot JDK (Adoptium tarball on AL2023, dnf on Fedora) | `505b7c7` |
+| — | Wire templates into AwsRequestCommand + BlueHatRequestCommand | `505b7c7` |
+| — | Remove OsPackages (replaced by ImageDef + BootJdkProvisioner) | `a1b5862` |
+| — | AttimoConfig with search paths, ImageDef directory loading (incus-spawn pattern) | `ffee9f5` |
+| — | --template option on request commands, search path setup in init commands | `abfd572` |
+| — | README.md updated: template docs, boot JDK, search paths, custom templates | `1a98f20` |
+| — | Fix Adoptium grep pattern (space after colon), single API call, AdoptiumApiIT | `455d74a` |
+| — | PR #24 review: collectAllPackages (parent inheritance), early --template validation, cycle detection | `2a9e3e5` |
 
 ## Backlog — New Ideas & Improvements
 
@@ -202,8 +216,7 @@ org.mendrugo.attimo/
 ├── isa/          # CPU ISA feature mapping (shared across clouds)
 ├── ssh/          # SSH key management, sessions, provisioning (shared)
 ├── cost/         # (planned) Cost tracking
-├── tui/          # (planned) TUI components
-└── tool/         # (planned) Tool/template system
+└── tui/          # (planned) TUI components
 ```
 
 ### Multi-Cloud Architecture

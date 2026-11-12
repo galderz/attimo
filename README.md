@@ -99,8 +99,9 @@ This will:
    - If credentials are missing, offers platform-specific install instructions and the option to enter an access key directly
 2. **Set your preferred region** — the region closest to you (e.g., `eu-west-1`). Attimo also checks nearby regions for better spot prices
 3. **Configure your SSH key** — generates a managed ed25519 key pair at `~/.config/attimo/aws/ssh/` and asks for the path to your personal SSH public key
+4. **Template search paths** — optionally add local directories containing custom image template definitions
 
-Configuration is saved to `~/.config/attimo/aws/config.yaml` with owner-only permissions.
+AWS configuration is saved to `~/.config/attimo/aws/config.yaml`. Template search paths are saved to `~/.config/attimo/config.yaml` (shared across clouds).
 
 ### Request a spot instance
 
@@ -117,8 +118,14 @@ This will:
 5. Create a security group (SSH-only) and import your SSH key
 6. Launch a spot instance
 7. Wait for the instance to be ready
-8. Install OpenJDK build dependencies (gcc, make, autoconf, JDK 25, capstone, etc.)
+8. Provision using the selected template (default: `tpl-openjdk`)
 9. Open an interactive SSH session
+
+Use `--template` to select a different image template:
+
+```bash
+ato aws request --isa avx512 --template tpl-openjdk
+```
 
 When you exit the SSH session, attimo asks whether to keep the instance running or destroy it.
 
@@ -217,27 +224,35 @@ Your preferred region (set during `ato aws init`) determines which regions are s
 | Africa | af-south-1 |
 | Canada | ca-central-1, ca-west-1 |
 
-### Pre-installed software
+### Image templates
 
-Instances are provisioned with an Amazon Linux 2023 base image and the following packages:
+Instances are provisioned using image templates. The default template `tpl-openjdk` sets up a complete OpenJDK build environment.
 
-**Build tools:** gcc, gcc-c++, make, autoconf
+**`tpl-openjdk`** provisions on Amazon Linux 2023:
 
-**Java:** Amazon Corretto 25
+- **Boot JDK:** Adoptium Temurin (latest GA, downloaded to `~/opt/java-<version>`, symlinked as `~/opt/java`)
+- **Build tools:** gcc, gcc-c++, make, autoconf
+- **OpenJDK build dependencies:** cups-devel, libX11-devel, libXt-devel, libXrender-devel, libXrandr-devel, libXi-devel, libXtst-devel, alsa-lib-devel, fontconfig-devel, freetype-devel
+- **Disassembly:** capstone, capstone-devel
 
-**OpenJDK build dependencies:** cups-devel, libX11-devel, libXt-devel, libXrender-devel, libXrandr-devel, libXi-devel, libXtst-devel, alsa-lib-devel, fontconfig-devel, freetype-devel
-
-**Disassembly:** capstone, capstone-devel
+Templates are YAML files with `name`, `description`, `parent`, and `packages` fields. See [Image Templates](#image-templates-1) below for details.
 
 ### Configuration
 
 | Path | Purpose |
 |------|---------|
+| `~/.config/attimo/config.yaml` | Shared config: template search paths |
 | `~/.config/attimo/aws/config.yaml` | Preferred region, SSH key path |
 | `~/.config/attimo/aws/state.yaml` | Active instance tracking (auto-managed) |
 | `~/.config/attimo/aws/ssh/id_ed25519` | Managed SSH private key |
 | `~/.config/attimo/aws/ssh/id_ed25519.pub` | Managed SSH public key |
 | `~/.config/attimo/isa-mappings/*.yaml` | User ISA mapping overrides |
+
+```yaml
+# ~/.config/attimo/config.yaml (shared)
+search-paths:
+  - ~/my-templates
+```
 
 ```yaml
 # ~/.config/attimo/aws/config.yaml
@@ -269,7 +284,7 @@ Spot instances can be interrupted by AWS with 2 minutes notice. If this happens,
 | Command | Description |
 |---------|-------------|
 | `ato aws init` | One-time setup: AWS credentials, region, SSH key |
-| `ato aws request --isa <feature> [--size <size>]` | Request a spot instance with specific CPU ISA (size: micro/small/medium/large) |
+| `ato aws request --isa <feature> [--size <size>] [--template <name>]` | Request a spot instance with specific CPU ISA |
 | `ato aws status` | Show active instance status, uptime, cost |
 | `ato aws connect` | SSH into the active instance |
 | `ato aws destroy` | Tear down instance and all AWS resources |
@@ -299,7 +314,7 @@ exit
 # attimo will prompt you after exit
 ```
 
-Note: jtreg is pre-installed at `/opt/jtreg` on provisioned instances. You can also install it manually:
+To install jtreg manually on the instance:
 
 ```bash
 # Primary source (Adoptium)
@@ -361,8 +376,9 @@ After choosing a mode, init will also:
 
 - **Generate an SSH key pair** — creates a managed ed25519 key pair at `~/.config/attimo/bh/ssh/`
 - **Ask for your personal SSH public key path** — defaults to `~/.ssh/id_ed25519.pub`
+- **Template search paths** — optionally add local directories with custom image templates
 
-Configuration is saved to `~/.config/attimo/bh/config.yaml` with owner-only permissions.
+Configuration is saved to `~/.config/attimo/bh/config.yaml` with owner-only permissions. Template search paths are saved to `~/.config/attimo/config.yaml` (shared across clouds).
 
 ### Request a VM
 
@@ -421,20 +437,24 @@ Sends an HTTP DELETE to the Blue Hat cloud and clears the local state file.
 
 ### Pre-installed software
 
-VMs are provisioned with the same OpenJDK development packages as AWS:
+VMs are provisioned using the same image templates as AWS. The default `tpl-openjdk` template provisions:
 
-**Build tools:** gcc, gcc-c++, make, autoconf
+- **Boot JDK:** `java-latest-openjdk-devel` (installed via dnf on Fedora)
+- **Build tools:** gcc, gcc-c++, make, autoconf
+- **OpenJDK build dependencies:** cups-devel, libX11-devel, libXt-devel, libXrender-devel, libXrandr-devel, libXi-devel, libXtst-devel, alsa-lib-devel, fontconfig-devel, freetype-devel
+- **Disassembly:** capstone, capstone-devel
 
-**Java:** Amazon Corretto 25
+Use `--template` to select a different template:
 
-**OpenJDK build dependencies:** cups-devel, libX11-devel, libXt-devel, libXrender-devel, libXrandr-devel, libXi-devel, libXtst-devel, alsa-lib-devel, fontconfig-devel, freetype-devel
-
-**Disassembly:** capstone, capstone-devel
+```bash
+ato bh request --template tpl-openjdk
+```
 
 ### Configuration
 
 | Path | Purpose |
 |------|---------|
+| `~/.config/attimo/config.yaml` | Shared config: template search paths |
 | `~/.config/attimo/bh/config.yaml` | Cloud mode: repository or host-name |
 | `~/.config/attimo/bh/state.yaml` | Active VM tracking (auto-managed) |
 | `~/.config/attimo/bh/ssh/id_ed25519` | Managed SSH private key |
@@ -457,11 +477,109 @@ ssh-public-key: ~/.ssh/id_ed25519.pub
 | Command | Description |
 |---------|-------------|
 | `ato bh init` | One-time setup: choose cloud mode (git repo or remote host), SSH key |
-| `ato bh request [--size <size>]` | Request a VM (size: micro/small/medium/large) |
+| `ato bh request [--size <size>] [--template <name>]` | Request a VM (size: micro/small/medium/large) |
 | `ato bh status` | Show active VM status: FQDN, state, uptime |
 | `ato bh connect` | SSH into the active Blue Hat VM |
 | `ato bh destroy` | Destroy the active Blue Hat VM |
 | `ato bh --help` | Show Blue Hat-specific commands |
+
+---
+
+## Image Templates
+
+Attimo uses YAML image templates to define what packages are installed on provisioned instances. Templates follow the same pattern as [incus-spawn](https://github.com/galderz/incus-spawn).
+
+### Built-in templates
+
+| Template | Description |
+|----------|-------------|
+| `tpl-minimal` | Base OS only (root template, no packages) |
+| `tpl-openjdk` | OpenJDK build + test environment (default) |
+
+### Template format
+
+```yaml
+name: tpl-openjdk
+description: OpenJDK build + test environment
+parent: tpl-minimal
+packages:
+  - java-latest-openjdk-devel
+  - gcc
+  - gcc-c++
+  - make
+  - autoconf
+  - cups-devel
+  # ... more packages
+```
+
+Fields:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | yes | Template name (e.g. `tpl-openjdk`) |
+| `description` | no | Human-readable description |
+| `parent` | no | Parent template to inherit from. If absent, this is a root template |
+| `packages` | no | List of packages to install via dnf |
+
+### Boot JDK handling
+
+The `java-latest-openjdk-devel` package receives special treatment depending on the target OS:
+
+| OS | Behavior |
+|----|----------|
+| **Fedora** (Blue Hat) | Installed directly via `dnf install` (native package) |
+| **Amazon Linux 2023** (AWS) | Intercepted by attimo: downloads latest Adoptium Temurin tarball to `~/opt/java-<version>` (symlinked as `~/opt/java`) |
+
+All other packages are installed via `dnf install` on both platforms.
+
+### Template search paths
+
+Templates are loaded in this order (later definitions override earlier ones):
+
+1. **Built-in** — bundled with attimo (`src/main/resources/images/`)
+2. **Search paths** — directories listed in `~/.config/attimo/config.yaml`, each with an `images/` subdirectory
+3. **Project-local** — `.attimo/images/` in the current directory
+
+> **Note:** project-local templates are loaded from the current working directory. Running `ato` in an untrusted directory could cause its templates to be used for provisioning. This is low risk for ephemeral instances but worth being aware of.
+
+Configure search paths during `ato aws init` / `ato bh init`, or edit directly:
+
+```yaml
+# ~/.config/attimo/config.yaml
+search-paths:
+  - ~/my-attimo-templates
+  - /opt/shared-templates
+```
+
+Each search path directory should contain an `images/` subdirectory with `.yaml` files:
+
+```
+~/my-attimo-templates/
+└── images/
+    └── custom.yaml
+```
+
+### Creating a custom template
+
+```yaml
+# ~/my-attimo-templates/images/custom.yaml
+name: tpl-custom
+description: Custom template with extra tools
+parent: tpl-minimal
+packages:
+  - java-latest-openjdk-devel
+  - gcc
+  - make
+  - vim
+  - htop
+```
+
+Then use it:
+
+```bash
+ato aws request --isa avx512 --template tpl-custom
+ato bh request --template tpl-custom
+```
 
 ---
 
@@ -536,14 +654,14 @@ src/main/java/org/mendrugo/attimo/
 ├── command/                       # Shared CLI base
 │   └── BaseCommand.java
 ├── config/                        # Configuration
-│   ├── AttimoConfig.java
-│   ├── InstanceState.java
-│   └── RegionGroup.java
+│   ├── AttimoConfig.java          # Shared config (search paths)
+│   ├── ImageDef.java              # Image template definitions
+│   └── InstanceState.java
 ├── isa/                           # CPU ISA feature mapping (shared)
 │   ├── IsaFeature.java
 │   └── IsaMapping.java
 └── ssh/                           # SSH management (shared)
-    ├── OsPackages.java
+    ├── BootJdkProvisioner.java
     ├── SshKeyManager.java
     ├── SshProvisioner.java
     └── SshSession.java
@@ -558,7 +676,7 @@ The Blue Hat integration serves as a reference implementation for adding a new c
 3. Implement cloud-specific commands (init, request, status, connect, destroy)
 4. Register the group command in `Attimo.AttimoCommand.groupCommands`
 5. Use `Environment.configDir("gcp")` for cloud-specific configuration paths
-6. Reuse shared code: `BaseCommand`, `SshSession`, `SshKeyManager`, `SshProvisioner`, `OsPackages`, `AttimoConfig`, `InstanceState`
+6. Reuse shared code: `BaseCommand`, `SshSession`, `SshKeyManager`, `SshProvisioner`, `BootJdkProvisioner`, `ImageDef`, `AttimoConfig`, `InstanceState`
 
 No new Maven modules are needed — cloud provider code lives alongside existing code.
 
@@ -568,7 +686,7 @@ No new Maven modules are needed — cloud provider code lives alongside existing
 - [ ] **Spot interruption recovery** — automatically request a replacement instance when AWS reclaims the spot
 - [ ] **Cost tracking** — `ato aws cost` command, running cost display in status and on destroy
 - [ ] **TUI** — interactive terminal UI (like incus-spawn) for managing instances
-- [ ] **Template system** — YAML-defined image templates with custom packages and tools
+- [x] **Template system** — YAML-defined image templates with custom packages and search paths
 - [ ] **`ato aws build-ami`** — pre-build AMIs without launching a spot instance
 - [x] **Blue Hat cloud provider** — `ato bh init/request/status/connect/destroy`
 - [ ] **Additional cloud providers** — GCP, Azure, etc.
