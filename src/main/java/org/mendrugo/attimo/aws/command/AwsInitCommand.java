@@ -366,7 +366,7 @@ public class AwsInitCommand extends BaseCommand
                 break;
             }
 
-            if (input.matches("\\d+"))
+            if (input.matches("\\d{1,2}"))
             {
                 final int index = Integer.parseInt(input) - 1;
                 if (index >= 0 && index < paths.size())
