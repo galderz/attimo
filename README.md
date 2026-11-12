@@ -540,6 +540,8 @@ Templates are loaded in this order (later definitions override earlier ones):
 2. **Search paths** — directories listed in `~/.config/attimo/config.yaml`, each with an `images/` subdirectory
 3. **Project-local** — `.attimo/images/` in the current directory
 
+> **Note:** project-local templates are loaded from the current working directory. Running `ato` in an untrusted directory could cause its templates to be used for provisioning. This is low risk for ephemeral instances but worth being aware of.
+
 Configure search paths during `ato aws init` / `ato bh init`, or edit directly:
 
 ```yaml
