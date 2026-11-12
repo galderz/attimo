@@ -1,22 +1,20 @@
 package org.mendrugo.attimo.aws;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
-class AwsConfigTest
-{
+class AwsConfigTest {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     @Test
-    void defaultsWhenNoFileExists()
-    {
+    void defaultsWhenNoFileExists() {
         final var config = new AwsConfig();
         assertThat(config.getContinent()).isEmpty();
         assertThat(config.getPreferredRegion()).isEmpty();
@@ -24,8 +22,7 @@ class AwsConfigTest
     }
 
     @Test
-    void roundTripSaveAndLoad(@TempDir final Path tempDir) throws Exception
-    {
+    void roundTripSaveAndLoad(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
 
         final var config = new AwsConfig();
@@ -42,8 +39,7 @@ class AwsConfigTest
     }
 
     @Test
-    void nullsSafelyDefaultToEmpty()
-    {
+    void nullsSafelyDefaultToEmpty() {
         final var config = new AwsConfig();
         config.setContinent(null);
         config.setPreferredRegion(null);
@@ -55,10 +51,10 @@ class AwsConfigTest
     }
 
     @Test
-    void ignoresUnknownFields(@TempDir final Path tempDir) throws Exception
-    {
+    void ignoresUnknownFields(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
-        Files.writeString(configFile, """
+        Files.writeString(configFile,
+                """
             preferred-region: us-east-1
             ssh-public-key: ~/.ssh/id_rsa.pub
             unknown-field: should-be-ignored
@@ -70,14 +66,12 @@ class AwsConfigTest
     }
 
     @Test
-    void parsesEmptyFile(@TempDir final Path tempDir) throws Exception
-    {
+    void parsesEmptyFile(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile, "---\n");
 
         final var loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
-        if (loaded != null)
-        {
+        if (loaded != null) {
             assertThat(loaded.getContinent()).isEmpty();
             assertThat(loaded.getPreferredRegion()).isEmpty();
             assertThat(loaded.getSshPublicKey()).isEmpty();
@@ -85,10 +79,10 @@ class AwsConfigTest
     }
 
     @Test
-    void backwardCompatWithoutContinentField(@TempDir final Path tempDir) throws Exception
-    {
+    void backwardCompatWithoutContinentField(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
-        Files.writeString(configFile, """
+        Files.writeString(configFile,
+                """
             preferred-region: eu-west-1
             ssh-public-key: ~/.ssh/id_ed25519.pub
             """);

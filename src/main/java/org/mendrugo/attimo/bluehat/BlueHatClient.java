@@ -1,179 +1,119 @@
 package org.mendrugo.attimo.bluehat;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.time.Duration;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.List;
-
-public class BlueHatClient
-{
+public class BlueHatClient {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
 
     private final String baseUrl;
     private final HttpClient httpClient;
 
-    public BlueHatClient(final String hostName)
-    {
+    public BlueHatClient(final String hostName) {
         this(hostName, BlueHat.API_PORT);
     }
 
-    public BlueHatClient(final String hostName, final int port)
-    {
+    public BlueHatClient(final String hostName, final int port) {
         this.baseUrl = "http://" + hostName + ":" + port;
         this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(TIMEOUT)
-            .build();
+                .connectTimeout(TIMEOUT)
+                .build();
     }
 
-    public VmResponse requestVm(final VmRequest request)
-    {
-        try
-        {
+    public VmResponse requestVm(final VmRequest request) {
+        try {
             final var body = JSON.writeValueAsString(request);
             final var httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/vm"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .uri(URI.create(baseUrl + "/vm"))
+                    .header("Content-Type", "application/json")
+                    .POST(BodyPublishers.ofString(body))
+                    .timeout(TIMEOUT.multipliedBy(10))
+                    .build();
 
-                .timeout(TIMEOUT.multipliedBy(10))
-                .build();
+            final var response = httpClient.send(httpRequest, BodyHandlers.ofString());
 
-            final var response = httpClient.send(
-                httpRequest
-                , HttpResponse.BodyHandlers.ofString()
-            );
-
-            if (response.statusCode() != 200 && response.statusCode() != 201)
-            {
-                throw new BlueHatException(
-                    "VM request failed (HTTP " + response.statusCode() + "): " + response.body()
-                );
+            if (response.statusCode() != 200 && response.statusCode() != 201) {
+                throw new BlueHatException("VM request failed (HTTP " + response.statusCode() + "): " + response.body());
             }
 
             return JSON.readValue(response.body(), VmResponse.class);
-        }
-        catch (final InterruptedException e)
-        {
+        } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BlueHatException("VM request interrupted", e);
-        }
-        catch (final IOException e)
-        {
+        } catch (final IOException e) {
             throw new BlueHatException("Failed to request VM: " + e.getMessage(), e);
         }
     }
 
-    public List<VmDetails> listVms()
-    {
-        try
-        {
+    public List<VmDetails> listVms() {
+        try {
             final var httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/vm"))
-                .GET()
-                .timeout(TIMEOUT)
-                .build();
+                    .uri(URI.create(baseUrl + "/vm"))
+                    .GET()
+                    .timeout(TIMEOUT)
+                    .build();
 
-            final var response = httpClient.send(
-                httpRequest
-                , HttpResponse.BodyHandlers.ofString()
-            );
+            final var response = httpClient.send(httpRequest, BodyHandlers.ofString());
 
-            if (response.statusCode() != 200)
-            {
-                throw new BlueHatException(
-                    "VM list failed (HTTP " + response.statusCode() + "): " + response.body()
-                );
+            if (response.statusCode() != 200) {
+                throw new BlueHatException("VM list failed (HTTP " + response.statusCode() + "): " + response.body());
             }
 
             return JSON.readValue(response.body(), new TypeReference<List<VmDetails>>() {});
-        }
-        catch (final InterruptedException e)
-        {
+        } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BlueHatException("List VMs interrupted", e);
-        }
-        catch (final IOException e)
-        {
+        } catch (final IOException e) {
             throw new BlueHatException("Failed to list VMs: " + e.getMessage(), e);
         }
     }
 
-    public DestroyResponse destroyVm(final String fqdn)
-    {
-        try
-        {
+    public DestroyResponse destroyVm(final String fqdn) {
+        try {
             final var httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/vm/" + fqdn))
-                .DELETE()
-                .timeout(TIMEOUT)
-                .build();
+                    .uri(URI.create(baseUrl + "/vm/" + fqdn))
+                    .DELETE()
+                    .timeout(TIMEOUT)
+                    .build();
 
-            final var response = httpClient.send(
-                httpRequest
-                , HttpResponse.BodyHandlers.ofString()
-            );
+            final var response = httpClient.send(httpRequest, BodyHandlers.ofString());
 
-            if (response.statusCode() != 200)
-            {
-                throw new BlueHatException(
-                    "VM destroy failed (HTTP " + response.statusCode() + "): " + response.body()
-                );
+            if (response.statusCode() != 200) {
+                throw new BlueHatException("VM destroy failed (HTTP " + response.statusCode() + "): " + response.body());
             }
 
             return JSON.readValue(response.body(), DestroyResponse.class);
-        }
-        catch (final InterruptedException e)
-        {
+        } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BlueHatException("Destroy VM interrupted", e);
-        }
-        catch (final IOException e)
-        {
+        } catch (final IOException e) {
             throw new BlueHatException("Failed to destroy VM: " + e.getMessage(), e);
         }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record VmRequest(
-        @JsonProperty("cpu") String cpu
-        , @JsonProperty("memory") String memory
-        , @JsonProperty("os") String os
-        , @JsonProperty("description") String description
-        , @JsonProperty("ssh-public-key") String sshPublicKey
-    )
-    {}
+    public record VmRequest(@JsonProperty("cpu") String cpu, @JsonProperty("memory") String memory, @JsonProperty("os") String os,
+                            @JsonProperty("description") String description, @JsonProperty("ssh-public-key") String sshPublicKey) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record VmResponse(
-        @JsonProperty("fqdn") String fqdn
-    )
-    {}
+    public record VmResponse(@JsonProperty("fqdn") String fqdn) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record VmDetails(
-        @JsonProperty("vm_id") String vmId
-        , @JsonProperty("description") String description
-        , @JsonProperty("fqdn") String fqdn
-        , @JsonProperty("state") String state
-        , @JsonProperty("created") String created
-        , @JsonProperty("created_iso8601") String createdIso8601
-    )
-    {}
+    public record VmDetails(@JsonProperty("vm_id") String vmId, @JsonProperty("description") String description, @JsonProperty("fqdn") String fqdn,
+                            @JsonProperty("state") String state, @JsonProperty("created") String created, @JsonProperty("created_iso8601") String createdIso8601) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record DestroyResponse(
-        @JsonProperty("status") String status
-        , @JsonProperty("details") String details
-        , @JsonProperty("request_id") String requestId
-    )
-    {}
+    public record DestroyResponse(@JsonProperty("status") String status, @JsonProperty("details") String details, @JsonProperty("request_id") String requestId) {}
 }

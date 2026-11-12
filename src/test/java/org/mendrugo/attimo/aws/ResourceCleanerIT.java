@@ -1,6 +1,7 @@
 package org.mendrugo.attimo.aws;
 
 import org.junit.jupiter.api.Test;
+import org.mendrugo.attimo.TestKeys;
 import org.mendrugo.attimo.config.InstanceState;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -17,23 +18,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
 
 @Testcontainers
-class ResourceCleanerIT
-{
+class ResourceCleanerIT {
     @Container
-    static final LocalStackContainer LOCALSTACK = new LocalStackContainer(
-        DockerImageName.parse("localstack/localstack:4.4")
-    )
-        .withServices(EC2);
+    static final LocalStackContainer LOCALSTACK = new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.4"))
+            .withServices(EC2);
 
     @Test
-    void cleansUpSecurityGroupAndKeyPair()
-    {
-        try (final var ec2 = ec2Client())
-        {
+    void cleansUpSecurityGroupAndKeyPair() {
+        try (final var ec2 = ec2Client()) {
 
             final var manager = new SpotManager(ec2, "it-cleanup-test");
             final var sgId = manager.createSecurityGroup();
-            final var dummyPubKey = org.mendrugo.attimo.TestKeys.generateEd25519PublicKey();
+            final var dummyPubKey = TestKeys.generateEd25519PublicKey();
             final var keyName = manager.importKeyPair(dummyPubKey);
 
             assertThat(describeSecurityGroup(ec2, sgId)).isTrue();
@@ -55,10 +51,8 @@ class ResourceCleanerIT
     }
 
     @Test
-    void handlesAlreadyDeletedResources()
-    {
-        try (final var ec2 = ec2Client())
-        {
+    void handlesAlreadyDeletedResources() {
+        try (final var ec2 = ec2Client()) {
 
             final var state = new InstanceState();
             state.setInstanceId("");
@@ -73,10 +67,8 @@ class ResourceCleanerIT
     }
 
     @Test
-    void cleanOrphansFindsTaggedSecurityGroup()
-    {
-        try (final var ec2 = ec2Client())
-        {
+    void cleanOrphansFindsTaggedSecurityGroup() {
+        try (final var ec2 = ec2Client()) {
 
             final var manager = new SpotManager(ec2, "it-orphan-test");
             final var sgId = manager.createSecurityGroup();
@@ -91,53 +83,33 @@ class ResourceCleanerIT
         }
     }
 
-    private boolean describeSecurityGroup(final Ec2Client ec2, final String sgId)
-    {
-        try
-        {
-            final var response = ec2.describeSecurityGroups(
-                DescribeSecurityGroupsRequest.builder()
+    private boolean describeSecurityGroup(final Ec2Client ec2, final String sgId) {
+        try {
+            final var response = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
                     .groupIds(sgId)
-                    .build()
-            );
+                    .build());
             return !response.securityGroups().isEmpty();
-        }
-        catch (final Exception e)
-        {
+        } catch (final Exception e) {
             return false;
         }
     }
 
-    private boolean describeKeyPair(final Ec2Client ec2, final String keyName)
-    {
-        try
-        {
-            final var response = ec2.describeKeyPairs(
-                DescribeKeyPairsRequest.builder()
+    private boolean describeKeyPair(final Ec2Client ec2, final String keyName) {
+        try {
+            final var response = ec2.describeKeyPairs(DescribeKeyPairsRequest.builder()
                     .keyNames(keyName)
-                    .build()
-            );
+                    .build());
             return !response.keyPairs().isEmpty();
-        }
-        catch (final Exception e)
-        {
+        } catch (final Exception e) {
             return false;
         }
     }
 
-    private Ec2Client ec2Client()
-    {
+    private Ec2Client ec2Client() {
         return Ec2Client.builder()
-            .endpointOverride(LOCALSTACK.getEndpointOverride(EC2))
-            .credentialsProvider(
-                StaticCredentialsProvider.create(
-                    AwsBasicCredentials.create(
-                        LOCALSTACK.getAccessKey()
-                        , LOCALSTACK.getSecretKey()
-                    )
-                )
-            )
-            .region(Region.of(LOCALSTACK.getRegion()))
-            .build();
+                .endpointOverride(LOCALSTACK.getEndpointOverride(EC2))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(LOCALSTACK.getAccessKey(), LOCALSTACK.getSecretKey())))
+                .region(Region.of(LOCALSTACK.getRegion()))
+                .build();
     }
 }

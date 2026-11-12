@@ -1,21 +1,19 @@
 package org.mendrugo.attimo.config;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ImageDefTest
-{
+class ImageDefTest {
     @Test
-    void minimalIsRoot()
-    {
+    void minimalIsRoot() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var minimal = defs.get("tpl-minimal");
         assertThat(minimal).isNotNull();
@@ -26,8 +24,7 @@ class ImageDefTest
     }
 
     @Test
-    void openjdkHasParent()
-    {
+    void openjdkHasParent() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         assertThat(openjdk).isNotNull();
@@ -37,51 +34,36 @@ class ImageDefTest
     }
 
     @Test
-    void openjdkPackagesIncludeBuildEssentials()
-    {
+    void openjdkPackagesIncludeBuildEssentials() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
-        assertThat(openjdk.getPackages())
-            .contains("gcc", "gcc-c++", "make", "autoconf");
+        assertThat(openjdk.getPackages()).contains("gcc", "gcc-c++", "make", "autoconf");
     }
 
     @Test
-    void openjdkPackagesIncludeJdk()
-    {
+    void openjdkPackagesIncludeJdk() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
-        assertThat(openjdk.getPackages())
-            .contains("java-latest-openjdk-devel");
+        assertThat(openjdk.getPackages()).contains("java-latest-openjdk-devel");
     }
 
     @Test
-    void openjdkPackagesIncludeXLibs()
-    {
+    void openjdkPackagesIncludeXLibs() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
-        assertThat(openjdk.getPackages())
-            .contains(
-                "libX11-devel"
-                , "libXt-devel"
-                , "libXrender-devel"
-                , "libXrandr-devel"
-                , "libXi-devel"
-                , "libXtst-devel"
-            );
+        assertThat(openjdk.getPackages()).contains("libX11-devel", "libXt-devel", "libXrender-devel",
+                "libXrandr-devel", "libXi-devel", "libXtst-devel");
     }
 
     @Test
-    void openjdkPackagesIncludeCapstone()
-    {
+    void openjdkPackagesIncludeCapstone() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
-        assertThat(openjdk.getPackages())
-            .contains("capstone", "capstone-devel");
+        assertThat(openjdk.getPackages()).contains("capstone", "capstone-devel");
     }
 
     @Test
-    void ancestorsOfOpenjdkIsMinimal()
-    {
+    void ancestorsOfOpenjdkIsMinimal() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         final var ancestors = ImageDef.ancestors(openjdk, defs);
@@ -90,8 +72,7 @@ class ImageDefTest
     }
 
     @Test
-    void ancestorsOfMinimalIsEmpty()
-    {
+    void ancestorsOfMinimalIsEmpty() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var minimal = defs.get("tpl-minimal");
         final var ancestors = ImageDef.ancestors(minimal, defs);
@@ -99,15 +80,13 @@ class ImageDefTest
     }
 
     @Test
-    void loadAllReturnsAllBuiltins()
-    {
+    void loadAllReturnsAllBuiltins() {
         final var defs = ImageDef.loadAll(List.of(), null);
         assertThat(defs).containsKeys("tpl-minimal", "tpl-openjdk");
     }
 
     @Test
-    void findByNameReturnsCorrectDef()
-    {
+    void findByNameReturnsCorrectDef() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var found = ImageDef.findByName("tpl-openjdk", defs);
         assertThat(found).isNotNull();
@@ -115,17 +94,16 @@ class ImageDefTest
     }
 
     @Test
-    void findByNameReturnsNullForUnknown()
-    {
+    void findByNameReturnsNullForUnknown() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var found = ImageDef.findByName("tpl-nonexistent", defs);
         assertThat(found).isNull();
     }
 
     @Test
-    void parseYamlWithNoParent() throws IOException
-    {
-        final var yaml = """
+    void parseYamlWithNoParent() throws IOException {
+        final var yaml =
+                """
             name: tpl-test
             description: Test template
             """;
@@ -136,9 +114,9 @@ class ImageDefTest
     }
 
     @Test
-    void parseYamlWithParentAndPackages() throws IOException
-    {
-        final var yaml = """
+    void parseYamlWithParentAndPackages() throws IOException {
+        final var yaml =
+                """
             name: tpl-child
             description: Child template
             parent: tpl-test
@@ -154,9 +132,9 @@ class ImageDefTest
     }
 
     @Test
-    void parseYamlIgnoresUnknownFields() throws IOException
-    {
-        final var yaml = """
+    void parseYamlIgnoresUnknownFields() throws IOException {
+        final var yaml =
+                """
             name: tpl-test
             description: Test
             unknown_field: should be ignored
@@ -166,9 +144,9 @@ class ImageDefTest
     }
 
     @Test
-    void isRootWithBlankParent() throws IOException
-    {
-        final var yaml = """
+    void isRootWithBlankParent() throws IOException {
+        final var yaml =
+                """
             name: tpl-test
             parent: ""
             """;
@@ -177,23 +155,20 @@ class ImageDefTest
     }
 
     @Test
-    void ancestorChainStopsOnMissingParent()
-    {
-        final var defs = Map.of(
-            "child", createDef("child", "missing-parent")
-        );
+    void ancestorChainStopsOnMissingParent() {
+        final var defs = Map.of("child", createDef("child", "missing-parent"));
         final var child = defs.get("child");
         final var ancestors = ImageDef.ancestors(child, defs);
         assertThat(ancestors).isEmpty();
     }
 
     @Test
-    void searchPathLoadsExternalTemplates(@TempDir final Path tempDir) throws IOException
-    {
+    void searchPathLoadsExternalTemplates(@TempDir final Path tempDir) throws IOException {
 
         final var imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
-        Files.writeString(imagesDir.resolve("custom.yaml"), """
+        Files.writeString(imagesDir.resolve("custom.yaml"),
+                """
             name: tpl-custom
             description: Custom template
             parent: tpl-minimal
@@ -212,11 +187,11 @@ class ImageDefTest
     }
 
     @Test
-    void searchPathOverridesBuiltin(@TempDir final Path tempDir) throws IOException
-    {
+    void searchPathOverridesBuiltin(@TempDir final Path tempDir) throws IOException {
         final var imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
-        Files.writeString(imagesDir.resolve("openjdk.yaml"), """
+        Files.writeString(imagesDir.resolve("openjdk.yaml"),
+                """
             name: tpl-openjdk
             description: Overridden OpenJDK
             parent: tpl-minimal
@@ -231,37 +206,32 @@ class ImageDefTest
     }
 
     @Test
-    void emptySearchPathsLoadsOnlyBuiltins()
-    {
+    void emptySearchPathsLoadsOnlyBuiltins() {
         final var defs = ImageDef.loadAll(List.of(), null);
         assertThat(defs).containsOnlyKeys("tpl-minimal", "tpl-openjdk");
     }
 
     @Test
-    void nonExistentSearchPathIsIgnored()
-    {
+    void nonExistentSearchPathIsIgnored() {
         final var defs = ImageDef.loadAll(List.of("/nonexistent/path"));
         assertThat(defs).containsKeys("tpl-minimal", "tpl-openjdk");
     }
 
     @Test
-    void expandTildeExpandsHome()
-    {
+    void expandTildeExpandsHome() {
         final var expanded = ImageDef.expandTilde("~/templates");
         assertThat(expanded).startsWith(System.getProperty("user.home"));
         assertThat(expanded).endsWith("/templates");
     }
 
     @Test
-    void expandTildeIgnoresAbsolutePath()
-    {
+    void expandTildeIgnoresAbsolutePath() {
         final var path = "/opt/templates";
         assertThat(ImageDef.expandTilde(path)).isEqualTo(path);
     }
 
     @Test
-    void ancestorChainStopsOnCycle()
-    {
+    void ancestorChainStopsOnCycle() {
         final var a = createDef("a", "b");
         final var b = createDef("b", "a");
         final var defs = Map.of("a", a, "b", b);
@@ -272,8 +242,7 @@ class ImageDefTest
     }
 
     @Test
-    void ancestorChainStopsOnSelfReference()
-    {
+    void ancestorChainStopsOnSelfReference() {
         final var self = createDef("self", "self");
         final var defs = Map.of("self", self);
         final var ancestors = ImageDef.ancestors(self, defs);
@@ -281,11 +250,9 @@ class ImageDefTest
     }
 
     @Test
-    void collectAllPackagesFromLeafOnly()
-    {
+    void collectAllPackagesFromLeafOnly() {
         final var root = createDef("root", null);
-        final var child = createDefWithPackages("child", "root"
-            , List.of("gcc", "make"));
+        final var child = createDefWithPackages("child", "root", List.of("gcc", "make"));
         final var defs = Map.of("root", root, "child", child);
 
         final var packages = ImageDef.collectAllPackages(child, defs);
@@ -293,12 +260,9 @@ class ImageDefTest
     }
 
     @Test
-    void collectAllPackagesInheritsFromParent()
-    {
-        final var root = createDefWithPackages("root", null
-            , List.of("base-pkg"));
-        final var child = createDefWithPackages("child", "root"
-            , List.of("child-pkg"));
+    void collectAllPackagesInheritsFromParent() {
+        final var root = createDefWithPackages("root", null, List.of("base-pkg"));
+        final var child = createDefWithPackages("child", "root", List.of("child-pkg"));
         final var defs = Map.of("root", root, "child", child);
 
         final var packages = ImageDef.collectAllPackages(child, defs);
@@ -307,12 +271,9 @@ class ImageDefTest
     }
 
     @Test
-    void collectAllPackagesDeduplicates()
-    {
-        final var root = createDefWithPackages("root", null
-            , List.of("gcc", "make"));
-        final var child = createDefWithPackages("child", "root"
-            , List.of("make", "autoconf"));
+    void collectAllPackagesDeduplicates() {
+        final var root = createDefWithPackages("root", null, List.of("gcc", "make"));
+        final var child = createDefWithPackages("child", "root", List.of("make", "autoconf"));
         final var defs = Map.of("root", root, "child", child);
 
         final var packages = ImageDef.collectAllPackages(child, defs);
@@ -321,24 +282,18 @@ class ImageDefTest
     }
 
     @Test
-    void collectAllPackagesThreeLevelChain()
-    {
-        final var gp = createDefWithPackages("gp", null
-            , List.of("gp-pkg"));
-        final var p = createDefWithPackages("parent", "gp"
-            , List.of("parent-pkg"));
-        final var child = createDefWithPackages("child", "parent"
-            , List.of("child-pkg"));
+    void collectAllPackagesThreeLevelChain() {
+        final var gp = createDefWithPackages("gp", null, List.of("gp-pkg"));
+        final var p = createDefWithPackages("parent", "gp", List.of("parent-pkg"));
+        final var child = createDefWithPackages("child", "parent", List.of("child-pkg"));
         final var defs = Map.of("gp", gp, "parent", p, "child", child);
 
         final var packages = ImageDef.collectAllPackages(child, defs);
-        assertThat(packages).containsExactly(
-            "gp-pkg", "parent-pkg", "child-pkg");
+        assertThat(packages).containsExactly("gp-pkg", "parent-pkg", "child-pkg");
     }
 
     @Test
-    void collectAllPackagesBuiltinOpenjdkInheritsMinimal()
-    {
+    void collectAllPackagesBuiltinOpenjdkInheritsMinimal() {
         final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         final var packages = ImageDef.collectAllPackages(openjdk, defs);
@@ -346,43 +301,34 @@ class ImageDefTest
     }
 
     @Test
-    void collectAllPackagesRootTemplate()
-    {
-        final var root = createDefWithPackages("root", null
-            , List.of("pkg1"));
+    void collectAllPackagesRootTemplate() {
+        final var root = createDefWithPackages("root", null, List.of("pkg1"));
         final var defs = Map.of("root", root);
         final var packages = ImageDef.collectAllPackages(root, defs);
         assertThat(packages).containsExactly("pkg1");
     }
 
     @Test
-    void setPackagesNullDefaultsToEmpty() throws IOException
-    {
-        final var yaml = """
+    void setPackagesNullDefaultsToEmpty() throws IOException {
+        final var yaml =
+                """
             name: tpl-test
             packages:
             """;
         final var def = ImageDef.parseYaml(yaml);
-        assertThat(def.getPackages()).isNotNull().isEmpty();
+        assertThat(def.getPackages())
+                .isNotNull()
+                .isEmpty();
     }
 
-    private static ImageDef createDef(
-        final String name
-        , final String parent
-    )
-    {
+    private static ImageDef createDef(final String name, final String parent) {
         final var def = new ImageDef();
         def.setName(name);
         def.setParent(parent);
         return def;
     }
 
-    private static ImageDef createDefWithPackages(
-        final String name
-        , final String parent
-        , final List<String> packages
-    )
-    {
+    private static ImageDef createDefWithPackages(final String name, final String parent, final List<String> packages) {
         final var def = new ImageDef();
         def.setName(name);
         def.setParent(parent);

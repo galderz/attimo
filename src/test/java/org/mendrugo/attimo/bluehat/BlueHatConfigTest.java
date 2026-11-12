@@ -1,22 +1,20 @@
 package org.mendrugo.attimo.bluehat;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
-class BlueHatConfigTest
-{
+class BlueHatConfigTest {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     @Test
-    void defaultsWhenNoFileExists()
-    {
+    void defaultsWhenNoFileExists() {
         final var config = new BlueHatConfig();
         assertThat(config.getRepository()).isEmpty();
         assertThat(config.getHostName()).isEmpty();
@@ -24,8 +22,7 @@ class BlueHatConfigTest
     }
 
     @Test
-    void roundTripWithRepository(@TempDir final Path tempDir) throws Exception
-    {
+    void roundTripWithRepository(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
 
         final var config = new BlueHatConfig();
@@ -41,8 +38,7 @@ class BlueHatConfigTest
     }
 
     @Test
-    void roundTripWithHostName(@TempDir final Path tempDir) throws Exception
-    {
+    void roundTripWithHostName(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
 
         final var config = new BlueHatConfig();
@@ -58,8 +54,7 @@ class BlueHatConfigTest
     }
 
     @Test
-    void isLocalWhenRepositoryIsSet()
-    {
+    void isLocalWhenRepositoryIsSet() {
         final var config = new BlueHatConfig();
         config.setRepository("https://github.com/openjdk/bluehat-cloud.git");
         assertThat(config.isLocal()).isTrue();
@@ -68,8 +63,7 @@ class BlueHatConfigTest
     }
 
     @Test
-    void isRemoteWhenHostNameIsSet()
-    {
+    void isRemoteWhenHostNameIsSet() {
         final var config = new BlueHatConfig();
         config.setHostName("bluehat-proxy.acme.com");
         assertThat(config.isLocal()).isFalse();
@@ -78,16 +72,14 @@ class BlueHatConfigTest
     }
 
     @Test
-    void hasNoCloudTargetWhenEmpty()
-    {
+    void hasNoCloudTargetWhenEmpty() {
         final var config = new BlueHatConfig();
         assertThat(config.isLocal()).isFalse();
         assertThat(config.hasCloudTarget()).isFalse();
     }
 
     @Test
-    void nullsSafelyDefaultToEmpty()
-    {
+    void nullsSafelyDefaultToEmpty() {
         final var config = new BlueHatConfig();
         config.setRepository(null);
         config.setHostName(null);
@@ -99,10 +91,10 @@ class BlueHatConfigTest
     }
 
     @Test
-    void ignoresUnknownFields(@TempDir final Path tempDir) throws Exception
-    {
+    void ignoresUnknownFields(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
-        Files.writeString(configFile, """
+        Files.writeString(configFile,
+                """
             repository: https://github.com/openjdk/bluehat-cloud.git
             ssh-public-key: ~/.ssh/id_rsa.pub
             unknown-field: should-be-ignored
@@ -114,14 +106,12 @@ class BlueHatConfigTest
     }
 
     @Test
-    void parsesEmptyFile(@TempDir final Path tempDir) throws Exception
-    {
+    void parsesEmptyFile(@TempDir final Path tempDir) throws Exception {
         final Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile, "---\n");
 
         final var loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
-        if (loaded != null)
-        {
+        if (loaded != null) {
             assertThat(loaded.getRepository()).isEmpty();
             assertThat(loaded.getHostName()).isEmpty();
             assertThat(loaded.getSshPublicKey()).isEmpty();

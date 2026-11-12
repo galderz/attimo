@@ -1,21 +1,15 @@
 package org.mendrugo.attimo.ssh;
 
-import org.junit.jupiter.api.Test;
-
 import java.nio.file.Path;
+
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SshSessionTest
-{
+class SshSessionTest {
     @Test
-    void buildsSshCommandWithCorrectOptions()
-    {
-        final var session = new SshSession(
-            "3.10.45.67"
-            , "fedora"
-            , Path.of("/home/user/.config/attimo/ssh/id_ed25519")
-        );
+    void buildsSshCommandWithCorrectOptions() {
+        final var session = new SshSession("3.10.45.67", "fedora", Path.of("/home/user/.config/attimo/ssh/id_ed25519"));
 
         final var cmd = session.buildSshCommand();
 
@@ -28,8 +22,7 @@ class SshSessionTest
     }
 
     @Test
-    void defaultUserIsEc2User()
-    {
+    void defaultUserIsEc2User() {
         final var session = new SshSession("1.2.3.4", "aws");
         final var cmd = session.buildSshCommand();
 
@@ -37,8 +30,7 @@ class SshSessionTest
     }
 
     @Test
-    void suppressesHostKeyWarnings()
-    {
+    void suppressesHostKeyWarnings() {
         final var session = new SshSession("1.2.3.4", "aws");
         final var cmd = session.buildSshCommand();
 
@@ -47,8 +39,7 @@ class SshSessionTest
     }
 
     @Test
-    void setsServerAliveForConnectionMonitoring()
-    {
+    void setsServerAliveForConnectionMonitoring() {
         final var session = new SshSession("1.2.3.4", "aws");
         final var cmd = session.buildSshCommand();
 

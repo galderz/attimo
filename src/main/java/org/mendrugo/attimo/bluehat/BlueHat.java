@@ -1,7 +1,6 @@
 package org.mendrugo.attimo.bluehat;
 
-public final class BlueHat
-{
+public final class BlueHat {
     private BlueHat() {}
 
     public static final String CLOUD = "bh";

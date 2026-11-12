@@ -10,12 +10,10 @@ import software.amazon.awssdk.services.ec2.model.AuthorizeSecurityGroupIngressRe
 import software.amazon.awssdk.services.ec2.model.AuthorizeSecurityGroupIngressResponse;
 import software.amazon.awssdk.services.ec2.model.CreateSecurityGroupRequest;
 import software.amazon.awssdk.services.ec2.model.CreateSecurityGroupResponse;
-import software.amazon.awssdk.services.ec2.model.ImportKeyPairRequest;
-import software.amazon.awssdk.services.ec2.model.ImportKeyPairResponse;
-import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
-import software.amazon.awssdk.services.ec2.model.RunInstancesResponse;
 import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.MarketType;
+import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.RunInstancesResponse;
 import software.amazon.awssdk.services.ec2.model.Tag;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,22 +22,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class SpotManagerTest
-{
+class SpotManagerTest {
     @Mock
     Ec2Client ec2;
 
     @Test
-    void createSecurityGroupAllowsSSH()
-    {
-        when(ec2.createSecurityGroup(any(CreateSecurityGroupRequest.class)))
-            .thenReturn(
-                CreateSecurityGroupResponse.builder()
-                    .groupId("sg-test123")
-                    .build()
-            );
-        when(ec2.authorizeSecurityGroupIngress(any(AuthorizeSecurityGroupIngressRequest.class)))
-            .thenReturn(AuthorizeSecurityGroupIngressResponse.builder().build());
+    void createSecurityGroupAllowsSSH() {
+        when(ec2.createSecurityGroup(any(CreateSecurityGroupRequest.class))).thenReturn(CreateSecurityGroupResponse.builder()
+                .groupId("sg-test123")
+                .build());
+        when(ec2.authorizeSecurityGroupIngress(any(AuthorizeSecurityGroupIngressRequest.class))).thenReturn(AuthorizeSecurityGroupIngressResponse.builder()
+                .build());
 
         final var manager = new SpotManager(ec2, "test-session-id");
         final var sgId = manager.createSecurityGroup();
@@ -51,17 +44,23 @@ class SpotManagerTest
 
         final var ingress = ingressCaptor.getValue();
         assertThat(ingress.ipPermissions()).hasSize(1);
-        assertThat(ingress.ipPermissions().getFirst().fromPort()).isEqualTo(22);
-        assertThat(ingress.ipPermissions().getFirst().toPort()).isEqualTo(22);
+        assertThat(ingress.ipPermissions()
+                          .getFirst()
+                          .fromPort())
+                .isEqualTo(22);
+        assertThat(ingress.ipPermissions()
+                          .getFirst()
+                          .toPort())
+                .isEqualTo(22);
     }
 
     @Test
-    void securityGroupTaggedWithAttimoMetadata()
-    {
-        when(ec2.createSecurityGroup(any(CreateSecurityGroupRequest.class)))
-            .thenReturn(CreateSecurityGroupResponse.builder().groupId("sg-test").build());
-        when(ec2.authorizeSecurityGroupIngress(any(AuthorizeSecurityGroupIngressRequest.class)))
-            .thenReturn(AuthorizeSecurityGroupIngressResponse.builder().build());
+    void securityGroupTaggedWithAttimoMetadata() {
+        when(ec2.createSecurityGroup(any(CreateSecurityGroupRequest.class))).thenReturn(CreateSecurityGroupResponse.builder()
+                .groupId("sg-test")
+                .build());
+        when(ec2.authorizeSecurityGroupIngress(any(AuthorizeSecurityGroupIngressRequest.class))).thenReturn(AuthorizeSecurityGroupIngressResponse.builder()
+                .build());
 
         final var manager = new SpotManager(ec2, "test-session-id");
         manager.createSecurityGroup();
@@ -69,31 +68,25 @@ class SpotManagerTest
         final var captor = ArgumentCaptor.forClass(CreateSecurityGroupRequest.class);
         verify(ec2).createSecurityGroup(captor.capture());
 
-        final var tags = captor.getValue().tagSpecifications().getFirst().tags();
-        assertThat(tags).extracting(Tag::key).contains("attimo:managed", "attimo:session-id");
+        final var tags = captor.getValue()
+                               .tagSpecifications()
+                               .getFirst()
+                               .tags();
+        assertThat(tags)
+                .extracting(Tag::key)
+                .contains("attimo:managed", "attimo:session-id");
     }
 
     @Test
-    void launchSpotInstanceUsesModernApi()
-    {
-        when(ec2.runInstances(any(RunInstancesRequest.class)))
-            .thenReturn(
-                RunInstancesResponse.builder()
-                    .instances(
-                        Instance.builder()
-                            .instanceId("i-test123")
-                            .build()
-                    )
-                    .build()
-            );
+    void launchSpotInstanceUsesModernApi() {
+        when(ec2.runInstances(any(RunInstancesRequest.class))).thenReturn(RunInstancesResponse.builder()
+                .instances(Instance.builder()
+                        .instanceId("i-test123")
+                        .build())
+                .build());
 
         final var manager = new SpotManager(ec2, "test-session-id");
-        final var instanceId = manager.launchSpotInstance(
-            "ami-test"
-            , "c7i.xlarge"
-            , "sg-test"
-            , "attimo-key"
-        );
+        final var instanceId = manager.launchSpotInstance("ami-test", "c7i.xlarge", "sg-test", "attimo-key");
 
         assertThat(instanceId).isEqualTo("i-test123");
 
@@ -109,14 +102,12 @@ class SpotManagerTest
     }
 
     @Test
-    void launchTagsInstanceWithAttimoMetadata()
-    {
-        when(ec2.runInstances(any(RunInstancesRequest.class)))
-            .thenReturn(
-                RunInstancesResponse.builder()
-                    .instances(Instance.builder().instanceId("i-test").build())
-                    .build()
-            );
+    void launchTagsInstanceWithAttimoMetadata() {
+        when(ec2.runInstances(any(RunInstancesRequest.class))).thenReturn(RunInstancesResponse.builder()
+                .instances(Instance.builder()
+                        .instanceId("i-test")
+                        .build())
+                .build());
 
         final var manager = new SpotManager(ec2, "test-session-id");
         manager.launchSpotInstance("ami-test", "c7i.xlarge", "sg-test", "key-test");
@@ -124,14 +115,20 @@ class SpotManagerTest
         final var captor = ArgumentCaptor.forClass(RunInstancesRequest.class);
         verify(ec2).runInstances(captor.capture());
 
-        final var tags = captor.getValue().tagSpecifications().getFirst().tags();
-        assertThat(tags).extracting(Tag::key).contains("attimo:managed", "attimo:session-id");
-        assertThat(tags).extracting(Tag::value).contains("true", "test-session-id");
+        final var tags = captor.getValue()
+                               .tagSpecifications()
+                               .getFirst()
+                               .tags();
+        assertThat(tags)
+                .extracting(Tag::key)
+                .contains("attimo:managed", "attimo:session-id");
+        assertThat(tags)
+                .extracting(Tag::value)
+                .contains("true", "test-session-id");
     }
 
     @Test
-    void sessionIdIsPreserved()
-    {
+    void sessionIdIsPreserved() {
         final var manager = new SpotManager(ec2, "my-session");
         assertThat(manager.sessionId()).isEqualTo("my-session");
     }

@@ -24,18 +24,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ResourceCleanerTest
-{
+class ResourceCleanerTest {
     @Mock
     Ec2Client ec2;
 
     @Test
-    void cleansAllResources()
-    {
-        when(ec2.terminateInstances(any(TerminateInstancesRequest.class)))
-            .thenReturn(TerminateInstancesResponse.builder().build());
-        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
-            .thenReturn(terminatedResponse());
+    void cleansAllResources() {
+        when(ec2.terminateInstances(any(TerminateInstancesRequest.class))).thenReturn(TerminateInstancesResponse.builder()
+                .build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(terminatedResponse());
 
         final var state = createTestState();
         final var cleaner = new ResourceCleaner(ec2);
@@ -48,15 +45,14 @@ class ResourceCleanerTest
     }
 
     @Test
-    void continuesOnPartialFailure()
-    {
-        when(ec2.terminateInstances(any(TerminateInstancesRequest.class)))
-            .thenReturn(TerminateInstancesResponse.builder().build());
-        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
-            .thenReturn(terminatedResponse());
+    void continuesOnPartialFailure() {
+        when(ec2.terminateInstances(any(TerminateInstancesRequest.class))).thenReturn(TerminateInstancesResponse.builder()
+                .build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(terminatedResponse());
 
         doThrow(new RuntimeException("Access denied"))
-            .when(ec2).deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
+                .when(ec2)
+                .deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
 
         final var state = createTestState();
         final var cleaner = new ResourceCleaner(ec2);
@@ -68,26 +64,23 @@ class ResourceCleanerTest
     }
 
     @Test
-    void stateNotClearedOnError()
-    {
-        when(ec2.terminateInstances(any(TerminateInstancesRequest.class)))
-            .thenReturn(TerminateInstancesResponse.builder().build());
-        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
-            .thenReturn(terminatedResponse());
+    void stateNotClearedOnError() {
+        when(ec2.terminateInstances(any(TerminateInstancesRequest.class))).thenReturn(TerminateInstancesResponse.builder()
+                .build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(terminatedResponse());
         doThrow(new RuntimeException("SG still in use"))
-            .when(ec2).deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
+                .when(ec2)
+                .deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
 
         final var state = createTestState();
         final var cleaner = new ResourceCleaner(ec2);
         final var errors = cleaner.cleanAll(state, "aws");
 
         assertThat(errors).isNotEmpty();
-
     }
 
     @Test
-    void handlesEmptyState()
-    {
+    void handlesEmptyState() {
         final var state = new org.mendrugo.attimo.config.InstanceState();
         final var cleaner = new ResourceCleaner(ec2);
         final var errors = cleaner.cleanAll(state, "aws");
@@ -96,12 +89,11 @@ class ResourceCleanerTest
     }
 
     @Test
-    void cleanOrphansScansForTaggedResources()
-    {
-        when(ec2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class)))
-            .thenReturn(DescribeSecurityGroupsResponse.builder().build());
-        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
-            .thenReturn(DescribeInstancesResponse.builder().build());
+    void cleanOrphansScansForTaggedResources() {
+        when(ec2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class))).thenReturn(DescribeSecurityGroupsResponse.builder()
+                .build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(DescribeInstancesResponse.builder()
+                .build());
 
         final var cleaner = new ResourceCleaner(ec2);
         final var errors = cleaner.cleanOrphans();
@@ -111,8 +103,7 @@ class ResourceCleanerTest
         verify(ec2).describeInstances(any(DescribeInstancesRequest.class));
     }
 
-    private org.mendrugo.attimo.config.InstanceState createTestState()
-    {
+    private org.mendrugo.attimo.config.InstanceState createTestState() {
         final var state = new org.mendrugo.attimo.config.InstanceState();
         state.setInstanceId("i-test123");
         state.setSecurityGroupId("sg-test456");
@@ -121,23 +112,16 @@ class ResourceCleanerTest
         return state;
     }
 
-    private DescribeInstancesResponse terminatedResponse()
-    {
+    private DescribeInstancesResponse terminatedResponse() {
         return DescribeInstancesResponse.builder()
-            .reservations(
-                Reservation.builder()
-                    .instances(
-                        Instance.builder()
-                            .instanceId("i-test123")
-                            .state(
-                                software.amazon.awssdk.services.ec2.model.InstanceState.builder()
-                                    .name(InstanceStateName.TERMINATED)
-                                    .build()
-                            )
-                            .build()
-                    )
-                    .build()
-            )
-            .build();
+                .reservations(Reservation.builder()
+                        .instances(Instance.builder()
+                                .instanceId("i-test123")
+                                .state(software.amazon.awssdk.services.ec2.model.InstanceState.builder()
+                                        .name(InstanceStateName.TERMINATED)
+                                        .build())
+                                .build())
+                        .build())
+                .build();
     }
 }

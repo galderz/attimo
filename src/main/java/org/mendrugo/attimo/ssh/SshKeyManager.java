@@ -1,81 +1,63 @@
 package org.mendrugo.attimo.ssh;
 
-import org.mendrugo.attimo.Environment;
-
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.concurrent.TimeUnit;
 
-public final class SshKeyManager
-{
+import org.mendrugo.attimo.Environment;
+
+public final class SshKeyManager {
     private SshKeyManager() {}
 
-    public static boolean exists(final String cloud)
-    {
-        return Files.exists(Environment.sshKeyFile(cloud))
-            && Files.exists(Environment.sshPubKeyFile(cloud));
+    public static boolean exists(final String cloud) {
+        return Files.exists(Environment.sshKeyFile(cloud)) && Files.exists(Environment.sshPubKeyFile(cloud));
     }
 
-    public static void ensureKeyPairExists(final String cloud)
-    {
-        if (exists(cloud))
-        {
+    public static void ensureKeyPairExists(final String cloud) {
+        if (exists(cloud)) {
             return;
         }
 
-        try
-        {
+        try {
             Files.createDirectories(Environment.sshDir(cloud));
 
             final var pb = new ProcessBuilder(
-                "ssh-keygen"
-                , "-t", "ed25519"
-                , "-f", Environment.sshKeyFile(cloud).toString()
-                , "-N", ""
-                , "-C", "attimo managed key"
-            );
+                    "ssh-keygen",
+                    "-t",
+                    "ed25519",
+                    "-f",
+                    Environment.sshKeyFile(cloud).toString(),
+                    "-N",
+                    "",
+                    "-C",
+                    "attimo managed key");
             pb.redirectErrorStream(true);
             final var process = pb.start();
 
-            if (!process.waitFor(30, TimeUnit.SECONDS))
-            {
+            if (!process.waitFor(30, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
                 throw new RuntimeException("ssh-keygen timed out");
             }
 
             final var output = new String(process.getInputStream().readAllBytes());
-            if (process.exitValue() != 0)
-            {
+            if (process.exitValue() != 0) {
                 throw new RuntimeException("ssh-keygen failed: " + output);
             }
 
-            Files.setPosixFilePermissions(
-                Environment.sshKeyFile(cloud)
-                , PosixFilePermissions.fromString("rw-------")
-            );
-            Files.setPosixFilePermissions(
-                Environment.sshPubKeyFile(cloud)
-                , PosixFilePermissions.fromString("rw-r--r--")
-            );
+            Files.setPosixFilePermissions(Environment.sshKeyFile(cloud), PosixFilePermissions.fromString("rw-------"));
+            Files.setPosixFilePermissions(Environment.sshPubKeyFile(cloud), PosixFilePermissions.fromString("rw-r--r--"));
 
             System.out.println("  SSH key pair generated at " + Environment.sshDir(cloud));
-        }
-        catch (final IOException | InterruptedException e)
-        {
+        } catch (final IOException | InterruptedException e) {
             throw new RuntimeException("Failed to generate SSH key pair: " + e.getMessage(), e);
         }
     }
 
-    public static String publicKeyContent(final String cloud)
-    {
-        try
-        {
+    public static String publicKeyContent(final String cloud) {
+        try {
             return Files.readString(Environment.sshPubKeyFile(cloud)).strip();
-        }
-        catch (final IOException e)
-        {
+        } catch (final IOException e) {
             throw new RuntimeException("Failed to read SSH public key: " + e.getMessage(), e);
         }
     }

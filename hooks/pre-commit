@@ -21,9 +21,59 @@ if [ -z "$staged_files" ]; then
     exit 0
 fi
 
-# Run jfmt --check on all staged files at once
-# shellcheck disable=SC2086
-if ! "$jfmtw" --check $staged_files; then
+# Resolve classpath (cached in target/, regenerated when pom.xml changes)
+cp_cache="$repo_root/target/jfmt-classpath.txt"
+pom_file="$repo_root/pom.xml"
+
+if [ ! -f "$cp_cache" ] || [ "$pom_file" -nt "$cp_cache" ]; then
+    mvn -f "$pom_file" dependency:build-classpath \
+        -Dmdep.outputFile="$cp_cache" -q 2>/dev/null || true
+fi
+
+classpath=""
+if [ -f "$cp_cache" ]; then
+    classpath="$(cat "$cp_cache")"
+fi
+
+# Split staged files into main and test sources, check each with its source-path
+main_files=""
+test_files=""
+for f in $staged_files; do
+    case "$f" in
+        src/main/java/*) main_files="$main_files $f" ;;
+        src/test/java/*) test_files="$test_files $f" ;;
+        *) ;; # ignore files outside src
+    esac
+done
+
+failed=0
+
+if [ -n "$main_files" ] && [ -n "$classpath" ]; then
+    # shellcheck disable=SC2086
+    if ! "$jfmtw" --source-path src/main/java --class-path "$classpath" --check $main_files 2>/dev/null; then
+        failed=1
+    fi
+elif [ -n "$main_files" ]; then
+    # shellcheck disable=SC2086
+    if ! "$jfmtw" --check $main_files 2>/dev/null; then
+        failed=1
+    fi
+fi
+
+if [ -n "$test_files" ] && [ -n "$classpath" ]; then
+    test_cp="$classpath:$repo_root/target/classes"
+    # shellcheck disable=SC2086
+    if ! "$jfmtw" --source-path src/test/java --class-path "$test_cp" --check $test_files 2>/dev/null; then
+        failed=1
+    fi
+elif [ -n "$test_files" ]; then
+    # shellcheck disable=SC2086
+    if ! "$jfmtw" --check $test_files 2>/dev/null; then
+        failed=1
+    fi
+fi
+
+if [ "$failed" -ne 0 ]; then
     echo "" >&2
     echo "Commit rejected: some files are not formatted." >&2
     echo "Run:  ./jfmtw $staged_files" >&2

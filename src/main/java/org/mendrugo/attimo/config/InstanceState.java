@@ -1,5 +1,10 @@
 package org.mendrugo.attimo.config;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,16 +12,9 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import org.mendrugo.attimo.Environment;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.time.Instant;
-
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class InstanceState
-{
+public class InstanceState {
     @JsonProperty("instance-id")
     private String instanceId = "";
 
@@ -56,103 +54,151 @@ public class InstanceState
     @JsonProperty("session-id")
     private String sessionId = "";
 
-    public String getInstanceId() { return instanceId; }
-    public void setInstanceId(final String instanceId) { this.instanceId = instanceId == null ? "" : instanceId; }
+    public String getInstanceId() {
+        return instanceId;
+    }
 
-    public String getRegion() { return region; }
-    public void setRegion(final String region) { this.region = region == null ? "" : region; }
+    public void setInstanceId(final String instanceId) {
+        this.instanceId = instanceId == null ? "" : instanceId;
+    }
 
-    public String getAvailabilityZone() { return availabilityZone; }
-    public void setAvailabilityZone(final String az) { this.availabilityZone = az == null ? "" : az; }
+    public String getRegion() {
+        return region;
+    }
 
-    public String getInstanceType() { return instanceType; }
-    public void setInstanceType(final String instanceType) { this.instanceType = instanceType == null ? "" : instanceType; }
+    public void setRegion(final String region) {
+        this.region = region == null ? "" : region;
+    }
 
-    public String getPublicIp() { return publicIp; }
-    public void setPublicIp(final String publicIp) { this.publicIp = publicIp == null ? "" : publicIp; }
+    public String getAvailabilityZone() {
+        return availabilityZone;
+    }
 
-    public String getLaunchedAt() { return launchedAt; }
-    public void setLaunchedAt(final String launchedAt) { this.launchedAt = launchedAt == null ? "" : launchedAt; }
+    public void setAvailabilityZone(final String az) {
+        this.availabilityZone = az == null ? "" : az;
+    }
 
-    public double getSpotPrice() { return spotPrice; }
-    public void setSpotPrice(final double spotPrice) { this.spotPrice = spotPrice; }
+    public String getInstanceType() {
+        return instanceType;
+    }
 
-    public String getTemplate() { return template; }
-    public void setTemplate(final String template) { this.template = template == null ? "" : template; }
+    public void setInstanceType(final String instanceType) {
+        this.instanceType = instanceType == null ? "" : instanceType;
+    }
 
-    public String getIsaFeature() { return isaFeature; }
-    public void setIsaFeature(final String isaFeature) { this.isaFeature = isaFeature == null ? "" : isaFeature; }
+    public String getPublicIp() {
+        return publicIp;
+    }
 
-    public String getAmiId() { return amiId; }
-    public void setAmiId(final String amiId) { this.amiId = amiId == null ? "" : amiId; }
+    public void setPublicIp(final String publicIp) {
+        this.publicIp = publicIp == null ? "" : publicIp;
+    }
 
-    public String getSecurityGroupId() { return securityGroupId; }
-    public void setSecurityGroupId(final String sgId) { this.securityGroupId = sgId == null ? "" : sgId; }
+    public String getLaunchedAt() {
+        return launchedAt;
+    }
 
-    public String getKeyPairName() { return keyPairName; }
-    public void setKeyPairName(final String keyPairName) { this.keyPairName = keyPairName == null ? "" : keyPairName; }
+    public void setLaunchedAt(final String launchedAt) {
+        this.launchedAt = launchedAt == null ? "" : launchedAt;
+    }
 
-    public String getSessionId() { return sessionId; }
-    public void setSessionId(final String sessionId) { this.sessionId = sessionId == null ? "" : sessionId; }
+    public double getSpotPrice() {
+        return spotPrice;
+    }
 
-    public boolean hasActiveInstance()
-    {
+    public void setSpotPrice(final double spotPrice) {
+        this.spotPrice = spotPrice;
+    }
+
+    public String getTemplate() {
+        return template;
+    }
+
+    public void setTemplate(final String template) {
+        this.template = template == null ? "" : template;
+    }
+
+    public String getIsaFeature() {
+        return isaFeature;
+    }
+
+    public void setIsaFeature(final String isaFeature) {
+        this.isaFeature = isaFeature == null ? "" : isaFeature;
+    }
+
+    public String getAmiId() {
+        return amiId;
+    }
+
+    public void setAmiId(final String amiId) {
+        this.amiId = amiId == null ? "" : amiId;
+    }
+
+    public String getSecurityGroupId() {
+        return securityGroupId;
+    }
+
+    public void setSecurityGroupId(final String sgId) {
+        this.securityGroupId = sgId == null ? "" : sgId;
+    }
+
+    public String getKeyPairName() {
+        return keyPairName;
+    }
+
+    public void setKeyPairName(final String keyPairName) {
+        this.keyPairName = keyPairName == null ? "" : keyPairName;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(final String sessionId) {
+        this.sessionId = sessionId == null ? "" : sessionId;
+    }
+
+    public boolean hasActiveInstance() {
         return !instanceId.isBlank();
     }
 
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
-    public static InstanceState load(final String cloud)
-    {
+    public static InstanceState load(final String cloud) {
         final Path stateFile = Environment.stateFile(cloud);
-        if (!Files.exists(stateFile))
-        {
+        if (!Files.exists(stateFile)) {
             return new InstanceState();
         }
 
-        try
-        {
+        try {
             return YAML.readValue(stateFile.toFile(), InstanceState.class);
-        }
-        catch (final IOException e)
-        {
+        } catch (final IOException e) {
             System.err.println("Warning: could not read state: " + e.getMessage());
             return new InstanceState();
         }
     }
 
-    public void save(final String cloud)
-    {
+    public void save(final String cloud) {
         final Path stateFile = Environment.stateFile(cloud);
-        try
-        {
+        try {
             Files.createDirectories(stateFile.getParent());
             final Path tmp = Files.createTempFile(stateFile.getParent(), ".attimo-state-", ".tmp");
-            try
-            {
+            try {
                 YAML.writeValue(tmp.toFile(), this);
                 Files.move(tmp, stateFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            }
-            catch (final Exception e)
-            {
+            } catch (final Exception e) {
                 Files.deleteIfExists(tmp);
                 throw e;
             }
-        }
-        catch (final IOException e)
-        {
+        } catch (final IOException e) {
             throw new RuntimeException("Failed to save state: " + e.getMessage(), e);
         }
     }
 
-    public static void clear(final String cloud)
-    {
-        try
-        {
+    public static void clear(final String cloud) {
+        try {
             Files.deleteIfExists(Environment.stateFile(cloud));
-        }
-        catch (final IOException e)
-        {
+        } catch (final IOException e) {
             System.err.println("Warning: could not clear state: " + e.getMessage());
         }
     }

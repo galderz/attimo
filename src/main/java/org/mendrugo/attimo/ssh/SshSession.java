@@ -1,7 +1,5 @@
 package org.mendrugo.attimo.ssh;
 
-import org.mendrugo.attimo.Environment;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -9,8 +7,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SshSession
-{
+import org.mendrugo.attimo.Environment;
+
+public class SshSession {
     private static final int SSH_PORT = 22;
     private static final int CONNECT_TIMEOUT_MS = 3000;
     private static final int RETRY_DELAY_MS = 5000;
@@ -20,49 +19,32 @@ public class SshSession
     private final String user;
     private final Path privateKeyPath;
 
-    public SshSession(
-        final String host
-        , final String user
-        , final Path privateKeyPath
-    )
-    {
+    public SshSession(final String host, final String user, final Path privateKeyPath) {
         this.host = host;
         this.user = user;
         this.privateKeyPath = privateKeyPath;
     }
 
-    public SshSession(
-        final String host
-        , final String cloud
-    )
-    {
+    public SshSession(final String host, final String cloud) {
         this(host, DEFAULT_USER, Environment.sshKeyFile(cloud));
     }
 
-    public boolean waitForSsh(final int timeoutSeconds)
-    {
+    public boolean waitForSsh(final int timeoutSeconds) {
         final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
         System.out.println("  Waiting for SSH on " + host + ":" + SSH_PORT + "...");
 
-        while (System.currentTimeMillis() < deadline)
-        {
-            try (final var socket = new Socket())
-            {
+        while (System.currentTimeMillis() < deadline) {
+            try (final var socket = new Socket()) {
                 socket.connect(new InetSocketAddress(host, SSH_PORT), CONNECT_TIMEOUT_MS);
                 System.out.println("  SSH is reachable.");
                 return true;
-            }
-            catch (final IOException e)
-            {
+            } catch (final IOException e) {
 
             }
 
-            try
-            {
+            try {
                 Thread.sleep(RETRY_DELAY_MS);
-            }
-            catch (final InterruptedException e)
-            {
+            } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return false;
             }
@@ -72,27 +54,22 @@ public class SshSession
         return false;
     }
 
-    public int connect()
-    {
+    public int connect() {
         final var command = buildSshCommand();
 
-        try
-        {
+        try {
             System.out.println("  Connecting to " + user + "@" + host + "...\n");
             final var pb = new ProcessBuilder(command);
             pb.inheritIO();
             final var process = pb.start();
             return process.waitFor();
-        }
-        catch (final IOException | InterruptedException e)
-        {
+        } catch (final IOException | InterruptedException e) {
             System.err.println("SSH connection failed: " + e.getMessage());
             return 1;
         }
     }
 
-    List<String> buildSshCommand()
-    {
+    List<String> buildSshCommand() {
         final var cmd = new ArrayList<String>();
         cmd.add("ssh");
         cmd.add("-i");

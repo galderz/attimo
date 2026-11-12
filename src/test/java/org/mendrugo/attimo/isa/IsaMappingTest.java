@@ -4,13 +4,11 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class IsaMappingTest
-{
+class IsaMappingTest {
     private final IsaMapping mapping = new IsaMapping();
 
     @Test
-    void resolvesAvx512ToX86Families()
-    {
+    void resolvesAvx512ToX86Families() {
         final var feature = mapping.resolve("avx512");
         assertThat(feature).isNotNull();
         assertThat(feature.architecture()).isEqualTo("x86_64");
@@ -19,8 +17,7 @@ class IsaMappingTest
     }
 
     @Test
-    void resolvesAvx512VnniToSubsetOfFamilies()
-    {
+    void resolvesAvx512VnniToSubsetOfFamilies() {
         final var feature = mapping.resolve("avx512_vnni");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c6i", "c7i");
@@ -29,8 +26,7 @@ class IsaMappingTest
     }
 
     @Test
-    void resolvesSveToGraviton3Families()
-    {
+    void resolvesSveToGraviton3Families() {
         final var feature = mapping.resolve("sve");
         assertThat(feature).isNotNull();
         assertThat(feature.architecture()).isEqualTo("aarch64");
@@ -40,8 +36,7 @@ class IsaMappingTest
     }
 
     @Test
-    void resolvesSve2ToGraviton4Families()
-    {
+    void resolvesSve2ToGraviton4Families() {
         final var feature = mapping.resolve("sve2");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c8g", "m8g");
@@ -50,8 +45,7 @@ class IsaMappingTest
     }
 
     @Test
-    void resolvesAmxToSapphireRapidsFamilies()
-    {
+    void resolvesAmxToSapphireRapidsFamilies() {
         final var feature = mapping.resolve("amx");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c7i", "m7i");
@@ -59,36 +53,31 @@ class IsaMappingTest
     }
 
     @Test
-    void caseInsensitiveLookup()
-    {
+    void caseInsensitiveLookup() {
         assertThat(mapping.resolve("AVX512")).isNotNull();
         assertThat(mapping.resolve("Sve")).isNotNull();
         assertThat(mapping.resolve("NEON")).isNotNull();
     }
 
     @Test
-    void unknownFeatureReturnsNull()
-    {
+    void unknownFeatureReturnsNull() {
         assertThat(mapping.resolve("nonexistent_feature")).isNull();
     }
 
     @Test
-    void allFeatureNamesNotEmpty()
-    {
+    void allFeatureNamesNotEmpty() {
         final var names = mapping.allFeatureNames();
         assertThat(names).isNotEmpty();
         assertThat(names).contains("avx512", "sve", "neon", "amx");
     }
 
     @Test
-    void allFeaturesMatchAllNames()
-    {
+    void allFeaturesMatchAllNames() {
         assertThat(mapping.allFeatures()).hasSameSizeAs(mapping.allFeatureNames());
     }
 
     @Test
-    void neonIncludesAllGravitonGenerations()
-    {
+    void neonIncludesAllGravitonGenerations() {
         final var feature = mapping.resolve("neon");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c6g", "c7g", "c8g");

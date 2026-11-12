@@ -1,10 +1,13 @@
 package org.mendrugo.attimo.aws;
 
-import org.mendrugo.attimo.config.InstanceState;
+import java.util.UUID;
+
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
 import software.amazon.awssdk.services.ec2.model.CreateSecurityGroupRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 import software.amazon.awssdk.services.ec2.model.ImportKeyPairRequest;
 import software.amazon.awssdk.services.ec2.model.InstanceMarketOptionsRequest;
 import software.amazon.awssdk.services.ec2.model.InstanceStateName;
@@ -13,238 +16,186 @@ import software.amazon.awssdk.services.ec2.model.IpRange;
 import software.amazon.awssdk.services.ec2.model.MarketType;
 import software.amazon.awssdk.services.ec2.model.ResourceType;
 import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
-import software.amazon.awssdk.services.ec2.model.SpotMarketOptions;
 import software.amazon.awssdk.services.ec2.model.SpotInstanceType;
+import software.amazon.awssdk.services.ec2.model.SpotMarketOptions;
 import software.amazon.awssdk.services.ec2.model.Tag;
 import software.amazon.awssdk.services.ec2.model.TagSpecification;
-import software.amazon.awssdk.core.SdkBytes;
 
-import java.time.Instant;
-import java.util.Base64;
-import java.util.UUID;
-
-public class SpotManager
-{
+public class SpotManager {
     private final Ec2Client ec2;
     private final String sessionId;
 
-    public SpotManager(final Ec2Client ec2)
-    {
+    public SpotManager(final Ec2Client ec2) {
         this.ec2 = ec2;
         this.sessionId = UUID.randomUUID().toString();
     }
 
-    public SpotManager(final Ec2Client ec2, final String sessionId)
-    {
+    public SpotManager(final Ec2Client ec2, final String sessionId) {
         this.ec2 = ec2;
         this.sessionId = sessionId;
     }
 
-    public String sessionId()
-    {
+    public String sessionId() {
         return sessionId;
     }
 
-    public String createSecurityGroup()
-    {
+    public String createSecurityGroup() {
         final var groupName = "attimo-" + sessionId.substring(0, 8);
 
-        final var createResponse = ec2.createSecurityGroup(
-            CreateSecurityGroupRequest.builder()
+        final var createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
                 .groupName(groupName)
                 .description("attimo spot instance SSH access")
-                .tagSpecifications(
-                    TagSpecification.builder()
+                .tagSpecifications(TagSpecification.builder()
                         .resourceType(ResourceType.SECURITY_GROUP)
                         .tags(attimoTags())
-                        .build()
-                )
-                .build()
-        );
+                        .build())
+                .build());
 
         final var sgId = createResponse.groupId();
 
-        ec2.authorizeSecurityGroupIngress(
-            AuthorizeSecurityGroupIngressRequest.builder()
+        ec2.authorizeSecurityGroupIngress(AuthorizeSecurityGroupIngressRequest.builder()
                 .groupId(sgId)
                 .ipPermissions(
-                    IpPermission.builder()
-                        .ipProtocol("tcp")
-                        .fromPort(22)
-                        .toPort(22)
-                        .ipRanges(
-                            IpRange.builder()
-                                .cidrIp("0.0.0.0/0")
-                                .description("SSH access")
-                                .build()
-                        )
-                        .build()
-                )
-                .build()
-        );
+                        IpPermission.builder()
+                                .ipProtocol("tcp")
+                                .fromPort(22)
+                                .toPort(22)
+                                .ipRanges(IpRange.builder()
+                                        .cidrIp("0.0.0.0/0")
+                                        .description("SSH access")
+                                        .build())
+                                .build())
+                .build());
 
         return sgId;
     }
 
-    public String importKeyPair(final String publicKeyContent)
-    {
+    public String importKeyPair(final String publicKeyContent) {
         final var keyName = "attimo-" + sessionId.substring(0, 8);
 
-        ec2.importKeyPair(
-            ImportKeyPairRequest.builder()
+        ec2.importKeyPair(ImportKeyPairRequest.builder()
                 .keyName(keyName)
                 .publicKeyMaterial(SdkBytes.fromUtf8String(publicKeyContent))
-                .tagSpecifications(
-                    TagSpecification.builder()
+                .tagSpecifications(TagSpecification.builder()
                         .resourceType(ResourceType.KEY_PAIR)
                         .tags(attimoTags())
-                        .build()
-                )
-                .build()
-        );
+                        .build())
+                .build());
 
         return keyName;
     }
 
-    public String launchSpotInstance(
-        final String amiId
-        , final String instanceType
-        , final String securityGroupId
-        , final String keyPairName
-    )
-    {
+    public String launchSpotInstance(final String amiId, final String instanceType, final String securityGroupId,
+            final String keyPairName) {
         final var response = ec2.runInstances(
-            RunInstancesRequest.builder()
-                .imageId(amiId)
-                .instanceType(instanceType)
-                .keyName(keyPairName)
-                .securityGroupIds(securityGroupId)
-                .instanceMarketOptions(
-                    InstanceMarketOptionsRequest.builder()
-                        .marketType(MarketType.SPOT)
-                        .spotOptions(
-                            SpotMarketOptions.builder()
-                                .spotInstanceType(SpotInstanceType.ONE_TIME)
-                                .build()
-                        )
-                        .build()
-                )
-                .minCount(1)
-                .maxCount(1)
-                .tagSpecifications(
-                    TagSpecification.builder()
-                        .resourceType(ResourceType.INSTANCE)
-                        .tags(attimoTags())
-                        .build()
-                )
-                .build()
-        );
+                RunInstancesRequest.builder()
+                        .imageId(amiId)
+                        .instanceType(instanceType)
+                        .keyName(keyPairName)
+                        .securityGroupIds(securityGroupId)
+                        .instanceMarketOptions(InstanceMarketOptionsRequest.builder()
+                                .marketType(MarketType.SPOT)
+                                .spotOptions(SpotMarketOptions.builder()
+                                        .spotInstanceType(SpotInstanceType.ONE_TIME)
+                                        .build())
+                                .build())
+                        .minCount(1)
+                        .maxCount(1)
+                        .tagSpecifications(TagSpecification.builder()
+                                .resourceType(ResourceType.INSTANCE)
+                                .tags(attimoTags())
+                                .build())
+                        .build());
 
-        final var instanceId = response.instances().getFirst().instanceId();
+        final var instanceId = response.instances()
+                .getFirst()
+                .instanceId();
         return instanceId;
     }
 
-    public String waitForRunning(
-        final String instanceId
-        , final int timeoutSeconds
-    )
-    {
+    public String waitForRunning(final String instanceId, final int timeoutSeconds) {
         final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
 
-        while (System.currentTimeMillis() < deadline)
-        {
-            try
-            {
-                final var response = ec2.describeInstances(
-                    DescribeInstancesRequest.builder()
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                final var response = ec2.describeInstances(DescribeInstancesRequest.builder()
                         .instanceIds(instanceId)
-                        .build()
-                );
+                        .build());
 
-                if (!response.reservations().isEmpty()
-                    && !response.reservations().getFirst().instances().isEmpty())
-                {
-                    final var instance = response.reservations().getFirst().instances().getFirst();
+                if (!response.reservations().isEmpty() && !response.reservations()
+                        .getFirst()
+                        .instances()
+                        .isEmpty()) {
+                    final var instance = response.reservations()
+                            .getFirst()
+                            .instances()
+                            .getFirst();
                     final var state = instance.state().name();
 
-                    if (state == InstanceStateName.RUNNING)
-                    {
+                    if (state == InstanceStateName.RUNNING) {
                         final var publicIp = instance.publicIpAddress();
-                        if (publicIp != null && !publicIp.isBlank())
-                        {
+                        if (publicIp != null && !publicIp.isBlank()) {
                             return publicIp;
                         }
-                    }
-                    else if (state == InstanceStateName.TERMINATED
-                        || state == InstanceStateName.SHUTTING_DOWN)
-                    {
-                        throw new AwsException(
-                            "Instance " + instanceId + " terminated unexpectedly (state: " + state + ")"
-                        );
+                    } else if (state == InstanceStateName.TERMINATED || state == InstanceStateName.SHUTTING_DOWN) {
+                        throw new AwsException("Instance " + instanceId + " terminated unexpectedly (state: " + state + ")");
                     }
                 }
-            }
-            catch (final software.amazon.awssdk.services.ec2.model.Ec2Exception e)
-            {
+            } catch (final Ec2Exception e) {
 
-                if (e.awsErrorDetails() != null
-                    && "InvalidInstanceID.NotFound".equals(e.awsErrorDetails().errorCode()))
-                {
+                if (e.awsErrorDetails() != null && "InvalidInstanceID.NotFound".equals(e.awsErrorDetails()
+                        .errorCode())) {
 
-                }
-                else
-                {
+                } else {
                     throw e;
                 }
             }
 
-            try
-            {
+            try {
                 Thread.sleep(5000);
-            }
-            catch (final InterruptedException e)
-            {
+            } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new AwsException("Interrupted while waiting for instance", e);
             }
         }
 
-        throw new AwsException(
-            "Timed out waiting for instance " + instanceId + " to reach running state"
-        );
+        throw new AwsException("Timed out waiting for instance " + instanceId + " to reach running state");
     }
 
-    public boolean isRunning(final String instanceId)
-    {
-        try
-        {
-            final var response = ec2.describeInstances(
-                DescribeInstancesRequest.builder()
+    public boolean isRunning(final String instanceId) {
+        try {
+            final var response = ec2.describeInstances(DescribeInstancesRequest.builder()
                     .instanceIds(instanceId)
-                    .build()
-            );
+                    .build());
 
-            if (!response.reservations().isEmpty()
-                && !response.reservations().getFirst().instances().isEmpty())
-            {
-                final var state = response.reservations().getFirst()
-                    .instances().getFirst().state().name();
+            if (!response.reservations().isEmpty() && !response.reservations()
+                    .getFirst()
+                    .instances()
+                    .isEmpty()) {
+                final var state = response.reservations()
+                        .getFirst()
+                        .instances()
+                        .getFirst()
+                        .state()
+                        .name();
                 return state == InstanceStateName.RUNNING;
             }
 
             return false;
-        }
-        catch (final Exception e)
-        {
+        } catch (final Exception e) {
             return false;
         }
     }
 
-    private Tag[] attimoTags()
-    {
-        return new Tag[]{
-            Tag.builder().key("attimo:managed").value("true").build()
-            , Tag.builder().key("attimo:session-id").value(sessionId).build()
+    private Tag[] attimoTags() {
+        return new Tag[] {Tag.builder()
+                .key("attimo:managed")
+                .value("true")
+                .build(),
+            Tag.builder()
+                .key("attimo:session-id")
+                .value(sessionId)
+                .build()
         };
     }
 }

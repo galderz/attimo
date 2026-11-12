@@ -17,59 +17,43 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
 
 @Testcontainers
-class LocalStackSmokeIT
-{
+class LocalStackSmokeIT {
     @Container
-    static final LocalStackContainer LOCALSTACK = new LocalStackContainer(
-        DockerImageName.parse("localstack/localstack:4.4")
-    )
-        .withServices(EC2);
+    static final LocalStackContainer LOCALSTACK = new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.4"))
+            .withServices(EC2);
 
     @Test
-    void createAndDescribeSecurityGroup()
-    {
+    void createAndDescribeSecurityGroup() {
         final var ec2 = ec2Client();
         final var groupName = "attimo-smoke-test";
 
-        final var createResponse = ec2.createSecurityGroup(
-            CreateSecurityGroupRequest.builder()
+        final var createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
                 .groupName(groupName)
                 .description("Smoke test security group")
-                .build()
-        );
+                .build());
 
         assertThat(createResponse.groupId()).isNotBlank();
 
-        final var describeResponse = ec2.describeSecurityGroups(
-            DescribeSecurityGroupsRequest.builder()
+        final var describeResponse = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
                 .groupIds(createResponse.groupId())
-                .build()
-        );
+                .build());
 
         assertThat(describeResponse.securityGroups()).hasSize(1);
-        assertThat(describeResponse.securityGroups().getFirst().groupName())
-            .isEqualTo(groupName);
+        assertThat(describeResponse.securityGroups()
+                .getFirst()
+                .groupName())
+                .isEqualTo(groupName);
 
-        ec2.deleteSecurityGroup(
-            DeleteSecurityGroupRequest.builder()
+        ec2.deleteSecurityGroup(DeleteSecurityGroupRequest.builder()
                 .groupId(createResponse.groupId())
-                .build()
-        );
+                .build());
     }
 
-    private Ec2Client ec2Client()
-    {
+    private Ec2Client ec2Client() {
         return Ec2Client.builder()
-            .endpointOverride(LOCALSTACK.getEndpointOverride(EC2))
-            .credentialsProvider(
-                StaticCredentialsProvider.create(
-                    AwsBasicCredentials.create(
-                        LOCALSTACK.getAccessKey()
-                        , LOCALSTACK.getSecretKey()
-                    )
-                )
-            )
-            .region(Region.of(LOCALSTACK.getRegion()))
-            .build();
+                .endpointOverride(LOCALSTACK.getEndpointOverride(EC2))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(LOCALSTACK.getAccessKey(), LOCALSTACK.getSecretKey())))
+                .region(Region.of(LOCALSTACK.getRegion()))
+                .build();
     }
 }
