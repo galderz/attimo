@@ -180,12 +180,7 @@ src/test/java/org/mendrugo/attimo/
 
 Source is formatted by [jfmt](https://github.com/Netflix/jfmt), Netflix's Java source formatter.
 A pre-commit hook enforces formatting — commits with unformatted Java are rejected.
-
-### Setup (one-time)
-
-```bash
-ln -sf ../../hooks/pre-commit .git/hooks/pre-commit
-```
+The hook is installed automatically when you run `mvn compile` (or any Maven goal).
 
 ### Formatting
 

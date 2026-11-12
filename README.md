@@ -604,10 +604,7 @@ Source is formatted by [jfmt](https://github.com/Netflix/jfmt). The `jfmtw` wrap
 formatter on first use:
 
 ```bash
-# One-time: install the pre-commit hook
-ln -sf ../../hooks/pre-commit .git/hooks/pre-commit
-
-# Format files
+# Format files (the pre-commit hook is installed automatically by Maven)
 ./jfmtw src/main/java/org/mendrugo/attimo/Attimo.java
 
 # Check formatting without modifying

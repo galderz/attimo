@@ -178,6 +178,28 @@
                 </executions>
             </plugin>
             <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>install-git-hooks</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <exec executable="git" dir="${project.basedir}"
+                                      failonerror="false">
+                                    <arg value="config"/>
+                                    <arg value="core.hooksPath"/>
+                                    <arg value="hooks"/>
+                                </exec>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${compiler-plugin.version}</version>
                 <configuration>
