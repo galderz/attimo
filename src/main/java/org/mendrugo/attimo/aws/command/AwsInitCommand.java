@@ -32,8 +32,8 @@ public class AwsInitCommand extends BaseCommand {
     protected CommandResult doExecute() throws Exception {
         System.out.println("=== attimo aws init ===\n");
 
-        final AwsConfig config = AwsConfig.load();
-        final Console console = System.console();
+        AwsConfig config = AwsConfig.load();
+        Console console = System.console();
 
         if (!checkAwsCredentials(console, config)) {
             return CommandResult.FAILURE;
@@ -54,8 +54,8 @@ public class AwsInitCommand extends BaseCommand {
 
     private boolean checkAwsCredentials(Console console, AwsConfig config) {
         System.out.println("[1/4] Checking AWS authentication...");
-        final AwsClientFactory factory = new AwsClientFactory();
-        final String error = factory.validateCredentials();
+        AwsClientFactory factory = new AwsClientFactory();
+        String error = factory.validateCredentials();
 
         if (error == null) {
             System.out.println("  AWS credentials verified.");
@@ -97,7 +97,7 @@ public class AwsInitCommand extends BaseCommand {
         }
 
         System.out.print("  Choose (a/B): ");
-        final String choice = console.readLine().strip();
+        String choice = console.readLine().strip();
 
         if (choice.equalsIgnoreCase("a")) {
             System.out.println("  Install the AWS CLI, run 'aws configure', then re-run 'ato aws init'.");
@@ -109,25 +109,25 @@ public class AwsInitCommand extends BaseCommand {
 
     private boolean enterAccessKeys(Console console) {
         System.out.print("  AWS Access Key ID: ");
-        final String accessKey = console.readLine().strip();
+        String accessKey = console.readLine().strip();
         if (accessKey.isBlank()) {
             System.out.println("  Skipped. Configure AWS credentials and re-run 'ato aws init'.");
             return false;
         }
 
         System.out.print("  AWS Secret Access Key: ");
-        final String secretKey = new String(console.readPassword()).strip();
+        String secretKey = new String(console.readPassword()).strip();
         if (secretKey.isBlank()) {
             System.out.println("  Skipped. Configure AWS credentials and re-run 'ato aws init'.");
             return false;
         }
 
         try {
-            final Path awsDir = Path.of(System.getProperty("user.home"), ".aws");
+            Path awsDir = Path.of(System.getProperty("user.home"), ".aws");
             Files.createDirectories(awsDir);
-            final Path credFile = awsDir.resolve("credentials");
+            Path credFile = awsDir.resolve("credentials");
 
-            final var
+            var
                     content = """
                 [default]
                 aws_access_key_id = %s
@@ -142,8 +142,8 @@ public class AwsInitCommand extends BaseCommand {
             credFile.toFile().setWritable(true, true);
             System.out.println("  Credentials saved to ~/.aws/credentials");
 
-            final AwsClientFactory factory = new AwsClientFactory();
-            final String verifyError = factory.validateCredentials();
+            AwsClientFactory factory = new AwsClientFactory();
+            String verifyError = factory.validateCredentials();
             if (verifyError != null) {
                 System.out.println("  Warning: " + verifyError);
                 System.out.println("  Credentials saved but could not be verified. Continuing...");
@@ -165,7 +165,7 @@ public class AwsInitCommand extends BaseCommand {
             System.out.println("  Current region: " + config.getPreferredRegion());
             if (console != null) {
                 System.out.print("  Keep this region? (Y/n): ");
-                final String answer = console.readLine().strip();
+                String answer = console.readLine().strip();
                 if (!answer.equalsIgnoreCase("n")) {
                     return;
                 }
@@ -174,10 +174,10 @@ public class AwsInitCommand extends BaseCommand {
             }
         }
 
-        final Continent continent = selectContinent(console);
+        Continent continent = selectContinent(console);
         config.setContinent(continent.name());
 
-        final String region = selectRegion(console, continent);
+        String region = selectRegion(console, continent);
         config.setPreferredRegion(region);
     }
 
@@ -194,7 +194,7 @@ public class AwsInitCommand extends BaseCommand {
         }
 
         System.out.print("  Continent [1]: ");
-        final String input = console.readLine().strip();
+        String input = console.readLine().strip();
         return switch (input) {
             case "2" -> Continent.AMERICAS;
             case "3" -> Continent.ASIA_PACIFIC;
@@ -207,9 +207,9 @@ public class AwsInitCommand extends BaseCommand {
         System.out.println();
         System.out.println("  Regions in " + continent.displayName() + ":");
 
-        final List<Region> regions = continent.regions();
+        List<Region> regions = continent.regions();
         for (Region r : regions) {
-            final String padding = " ".repeat(Math.max(1, 17 - r.code().length()));
+            String padding = " ".repeat(Math.max(1, 17 - r.code().length()));
             System.out.println("    "
                     + r.code()
                     + padding
@@ -220,7 +220,7 @@ public class AwsInitCommand extends BaseCommand {
 
         System.out.println();
 
-        final String defaultRegion = regions.getFirst().code();
+        String defaultRegion = regions.getFirst().code();
 
         if (console == null) {
             System.out.println("  Defaulting to " + defaultRegion + " (no console available).");
@@ -228,8 +228,8 @@ public class AwsInitCommand extends BaseCommand {
         }
 
         System.out.print("  Region [" + defaultRegion + "]: ");
-        final String input = console.readLine().strip();
-        final String region = input.isBlank() ? defaultRegion : input;
+        String input = console.readLine().strip();
+        String region = input.isBlank() ? defaultRegion : input;
 
         System.out.println("  Region set to: " + region);
         return region;
@@ -252,9 +252,9 @@ public class AwsInitCommand extends BaseCommand {
         if (!config.getSshPublicKey().isBlank()) {
             System.out.println("  Personal SSH public key: " + config.getSshPublicKey());
         } else if (console != null) {
-            final String defaultKey = "~/.ssh/id_ed25519.pub";
+            String defaultKey = "~/.ssh/id_ed25519.pub";
             System.out.print("  Path to your SSH public key [" + defaultKey + "]: ");
-            final String input = console.readLine().strip();
+            String input = console.readLine().strip();
             config.setSshPublicKey(input.isBlank() ? defaultKey : input);
             System.out.println("  SSH public key set to: " + config.getSshPublicKey());
         } else {

@@ -11,7 +11,7 @@ class IsaMappingTest {
 
     @Test
     void resolvesAvx512ToX86Families() {
-        final IsaFeature feature = mapping.resolve("avx512");
+        IsaFeature feature = mapping.resolve("avx512");
         assertThat(feature).isNotNull();
         assertThat(feature.architecture()).isEqualTo("x86_64");
         assertThat(feature.families()).contains("c5", "c6i", "c7i", "m5");
@@ -20,7 +20,7 @@ class IsaMappingTest {
 
     @Test
     void resolvesAvx512VnniToSubsetOfFamilies() {
-        final IsaFeature feature = mapping.resolve("avx512_vnni");
+        IsaFeature feature = mapping.resolve("avx512_vnni");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c6i", "c7i");
 
@@ -29,7 +29,7 @@ class IsaMappingTest {
 
     @Test
     void resolvesSveToGraviton3Families() {
-        final IsaFeature feature = mapping.resolve("sve");
+        IsaFeature feature = mapping.resolve("sve");
         assertThat(feature).isNotNull();
         assertThat(feature.architecture()).isEqualTo("aarch64");
         assertThat(feature.families()).contains("c7g", "m7g", "r7g");
@@ -39,7 +39,7 @@ class IsaMappingTest {
 
     @Test
     void resolvesSve2ToGraviton4Families() {
-        final IsaFeature feature = mapping.resolve("sve2");
+        IsaFeature feature = mapping.resolve("sve2");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c8g", "m8g");
 
@@ -48,7 +48,7 @@ class IsaMappingTest {
 
     @Test
     void resolvesAmxToSapphireRapidsFamilies() {
-        final IsaFeature feature = mapping.resolve("amx");
+        IsaFeature feature = mapping.resolve("amx");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c7i", "m7i");
         assertThat(feature.families()).doesNotContain("c6i");
@@ -68,7 +68,7 @@ class IsaMappingTest {
 
     @Test
     void allFeatureNamesNotEmpty() {
-        final List<String> names = mapping.allFeatureNames();
+        List<String> names = mapping.allFeatureNames();
         assertThat(names).isNotEmpty();
         assertThat(names).contains("avx512", "sve", "neon", "amx");
     }
@@ -80,7 +80,7 @@ class IsaMappingTest {
 
     @Test
     void neonIncludesAllGravitonGenerations() {
-        final IsaFeature feature = mapping.resolve("neon");
+        IsaFeature feature = mapping.resolve("neon");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c6g", "c7g", "c8g");
     }

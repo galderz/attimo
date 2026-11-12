@@ -28,7 +28,7 @@ public class AwsDestroyCommand extends BaseCommand {
 
     @Override
     protected CommandResult doExecute() throws Exception {
-        final InstanceState state = InstanceState.load(Aws.CLOUD);
+        InstanceState state = InstanceState.load(Aws.CLOUD);
 
         if (state.hasActiveInstance()) {
             return destroyActiveInstance(state);
@@ -45,10 +45,10 @@ public class AwsDestroyCommand extends BaseCommand {
         System.out.println("IP:       " + state.getPublicIp());
         System.out.println();
 
-        final AwsClientFactory factory = new AwsClientFactory();
+        AwsClientFactory factory = new AwsClientFactory();
         try (Ec2Client ec2 = factory.ec2(state.getRegion())) {
-            final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-            final List<String> errors = cleaner.cleanAll(state, Aws.CLOUD);
+            ResourceCleaner cleaner = new ResourceCleaner(ec2);
+            List<String> errors = cleaner.cleanAll(state, Aws.CLOUD);
 
             if (errors.isEmpty()) {
                 System.out.println("\nAll resources cleaned up. Zero cost footprint.");
@@ -68,18 +68,18 @@ public class AwsDestroyCommand extends BaseCommand {
         System.out.println("No active instance in state file.");
         System.out.println("Scanning for orphaned attimo resources...\n");
 
-        final AwsConfig config = AwsConfig.load();
-        final String preferredRegion = config.getPreferredRegion();
+        AwsConfig config = AwsConfig.load();
+        String preferredRegion = config.getPreferredRegion();
 
         if (preferredRegion.isBlank()) {
             System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");
             return CommandResult.FAILURE;
         }
 
-        final AwsClientFactory factory = new AwsClientFactory();
+        AwsClientFactory factory = new AwsClientFactory();
 
-        final Continent continent = Continent.forRegion(preferredRegion);
-        final List<String> regionsToScan = scanAllRegions ? continent.regionCodes() : continent.representativeCodes();
+        Continent continent = Continent.forRegion(preferredRegion);
+        List<String> regionsToScan = scanAllRegions ? continent.regionCodes() : continent.representativeCodes();
 
         System.out.println("Scanning "
                 + regionsToScan.size()
@@ -93,8 +93,8 @@ public class AwsDestroyCommand extends BaseCommand {
         for (String region : regionsToScan) {
             try (Ec2Client ec2 = factory.ec2(region)) {
                 System.out.println("Checking " + region + "...");
-                final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-                final List<String> errors = cleaner.cleanOrphans();
+                ResourceCleaner cleaner = new ResourceCleaner(ec2);
+                List<String> errors = cleaner.cleanOrphans();
 
                 if (!errors.isEmpty()) {
                     foundAny = true;
@@ -103,7 +103,7 @@ public class AwsDestroyCommand extends BaseCommand {
                     }
                 }
             } catch (Exception e) {
-                final String msg = e.getMessage();
+                String msg = e.getMessage();
                 if (msg != null
                         && (msg.contains("401") || msg.contains("AuthFailure") || msg.contains("OptInRequired"))) {
                     System.out.println("  Skipped (region not enabled in your account)");

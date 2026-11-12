@@ -53,7 +53,7 @@ public class IsaMapping {
     }
 
     private void loadUserOverrides() {
-        final Path userDir = Environment.configRoot().resolve("isa-mappings");
+        Path userDir = Environment.configRoot().resolve("isa-mappings");
         if (!Files.isDirectory(userDir)) {
             return;
         }
@@ -72,15 +72,15 @@ public class IsaMapping {
     }
 
     private void loadFromStream(InputStream is) throws IOException {
-        final MappingFile mappingFile = YAML.readValue(is, MappingFile.class);
+        MappingFile mappingFile = YAML.readValue(is, MappingFile.class);
         if (mappingFile == null || mappingFile.features == null) {
             return;
         }
 
-        final String arch = mappingFile.architecture != null ? mappingFile.architecture : "unknown";
+        String arch = mappingFile.architecture != null ? mappingFile.architecture : "unknown";
         for (Entry<String, FeatureEntry> entry : mappingFile.features.entrySet()) {
-            final String name = entry.getKey().toLowerCase();
-            final FeatureEntry fe = entry.getValue();
+            String name = entry.getKey().toLowerCase();
+            FeatureEntry fe = entry.getValue();
             features.put(
                     name,
                     new IsaFeature(

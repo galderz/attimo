@@ -12,7 +12,7 @@ class BlueHatInstanceSizeTest {
     @ParameterizedTest
     @CsvSource({"micro, 1, 2", "small, 8, 16", "medium, 16, 32", "large, 32, 64"})
     void mapsSizeToCpuAndMemory(String label, int expectedCpus, int expectedMemory) {
-        final BlueHatInstanceSize size = BlueHatInstanceSize.fromLabel(label);
+        BlueHatInstanceSize size = BlueHatInstanceSize.fromLabel(label);
         assertThat(size.cpus()).isEqualTo(expectedCpus);
         assertThat(size.memoryGb()).isEqualTo(expectedMemory);
     }
@@ -20,7 +20,7 @@ class BlueHatInstanceSizeTest {
     @ParameterizedTest
     @CsvSource({"MICRO, micro", "Small, small", "MEDIUM, medium", "Large, large"})
     void fromLabelIsCaseInsensitive(String input, String expectedLabel) {
-        final BlueHatInstanceSize size = BlueHatInstanceSize.fromLabel(input);
+        BlueHatInstanceSize size = BlueHatInstanceSize.fromLabel(input);
         assertThat(size.label()).isEqualTo(expectedLabel);
     }
 
@@ -57,7 +57,7 @@ class BlueHatInstanceSizeTest {
 
     @Test
     void cpusAreStrictlyIncreasing() {
-        final BlueHatInstanceSize[] values = BlueHatInstanceSize.values();
+        BlueHatInstanceSize[] values = BlueHatInstanceSize.values();
         for (int i = 1; i < values.length; i++) {
             assertThat(values[i].cpus())
                     .as("%s should have more CPUs than %s", values[i].label(), values[i - 1].label())

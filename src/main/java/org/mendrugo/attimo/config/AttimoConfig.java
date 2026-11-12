@@ -32,7 +32,7 @@ public class AttimoConfig {
     }
 
     public static AttimoConfig load() {
-        final Path configFile = Environment.configRoot().resolve("config.yaml");
+        Path configFile = Environment.configRoot().resolve("config.yaml");
         if (!Files.exists(configFile)) {
             return new AttimoConfig();
         }
@@ -46,10 +46,10 @@ public class AttimoConfig {
     }
 
     public void save() {
-        final Path configFile = Environment.configRoot().resolve("config.yaml");
+        Path configFile = Environment.configRoot().resolve("config.yaml");
         try {
             Files.createDirectories(configFile.getParent());
-            final Path tmp = Files.createTempFile(configFile.getParent(), ".attimo-", ".tmp");
+            Path tmp = Files.createTempFile(configFile.getParent(), ".attimo-", ".tmp");
             try {
                 YAML.writeValue(tmp.toFile(), this);
                 tmp.toFile().setReadable(false, false);
@@ -72,8 +72,8 @@ public class AttimoConfig {
         System.out.println("  subdirectory with YAML template files.");
         System.out.println();
 
-        final AttimoConfig config = load();
-        final List<String> existing = config.getSearchPaths();
+        AttimoConfig config = load();
+        List<String> existing = config.getSearchPaths();
 
         if (!existing.isEmpty()) {
             System.out.println("  Current search paths:");
@@ -89,21 +89,21 @@ public class AttimoConfig {
             return;
         }
 
-        final ArrayList<String> paths = new ArrayList<>(existing);
+        ArrayList<String> paths = new ArrayList<>(existing);
         while (true) {
-            final boolean hasEntries = !paths.isEmpty();
+            boolean hasEntries = !paths.isEmpty();
             System.out.print("  Add a local directory"
                     + (hasEntries ? " or # to remove" : "")
                     + " (or press Enter to "
                     + (hasEntries ? "finish" : "skip")
                     + "): ");
-            final String input = console.readLine().strip();
+            String input = console.readLine().strip();
             if (input.isEmpty()) {
                 break;
             }
 
             if (input.matches("\\d{1,2}")) {
-                final int index = Integer.parseInt(input) - 1;
+                int index = Integer.parseInt(input) - 1;
                 if (index >= 0 && index < paths.size()) {
                     System.out.println("  Removed: " + paths.remove(index));
                 } else {
@@ -112,8 +112,8 @@ public class AttimoConfig {
                 continue;
             }
 
-            final String expanded = ImageDef.expandTilde(input);
-            final String path = Path.of(expanded)
+            String expanded = ImageDef.expandTilde(input);
+            String path = Path.of(expanded)
                     .toAbsolutePath()
                     .normalize()
                     .toString();

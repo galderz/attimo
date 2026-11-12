@@ -22,7 +22,7 @@ public final class BlueHatCloudRunner {
     private static final Duration HEALTH_RETRY_DELAY = Duration.ofMillis(1000);
 
     public static Path repoDir(String repository) {
-        final String repoName = extractRepoName(repository);
+        String repoName = extractRepoName(repository);
         return Environment.cacheDir(BlueHat.CLOUD).resolve(repoName);
     }
 
@@ -31,7 +31,7 @@ public final class BlueHatCloudRunner {
             throw new BlueHatException("No repository configured.");
         }
 
-        final Path targetDir = repoDir(repository);
+        Path targetDir = repoDir(repository);
 
         try {
             Files.createDirectories(targetDir.getParent());
@@ -57,8 +57,8 @@ public final class BlueHatCloudRunner {
     }
 
     public static Process start(String repository) {
-        final Path targetDir = repoDir(repository);
-        final Path quarkusJar = targetDir.resolve("target")
+        Path targetDir = repoDir(repository);
+        Path quarkusJar = targetDir.resolve("target")
                 .resolve("quarkus-app")
                 .resolve("quarkus-run.jar");
 
@@ -66,13 +66,13 @@ public final class BlueHatCloudRunner {
             throw new BlueHatException("Blue Hat cloud not built. Run 'ato bh init' first.\n" + "Expected jar at: " + quarkusJar);
         }
 
-        final Path logFile = logFile();
+        Path logFile = logFile();
 
         try {
             Files.createDirectories(logFile.getParent());
             Files.deleteIfExists(logFile);
             System.out.println("  Starting local Blue Hat cloud...");
-            final Process process = new ProcessBuilder("java", "-Dquarkus.http.host=localhost", "-jar", quarkusJar.toString())
+            Process process = new ProcessBuilder("java", "-Dquarkus.http.host=localhost", "-jar", quarkusJar.toString())
                     .directory(targetDir.toFile())
                     .redirectErrorStream(true)
                     .redirectOutput(Redirect.appendTo(logFile.toFile()))
@@ -94,17 +94,17 @@ public final class BlueHatCloudRunner {
 
     public static boolean healthCheck(String host, int port) {
         try {
-            final HttpClient client = HttpClient.newBuilder()
+            HttpClient client = HttpClient.newBuilder()
                     .connectTimeout(HEALTH_TIMEOUT)
                     .build();
 
-            final HttpRequest request = HttpRequest.newBuilder()
+            HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("http://" + host + ":" + port + "/vm"))
                     .GET()
                     .timeout(HEALTH_TIMEOUT)
                     .build();
 
-            final HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
             return response.statusCode() >= 200
                     && response.statusCode() < 300
                     && response.body() != null
@@ -119,7 +119,7 @@ public final class BlueHatCloudRunner {
             System.out.println("  Stopping local Blue Hat cloud...");
             process.destroy();
             try {
-                final boolean processExited = process.waitFor(Duration.ofSeconds(30));
+                boolean processExited = process.waitFor(Duration.ofSeconds(30));
                 if (!processExited) {
                     process.destroyForcibly();
                 }
@@ -156,7 +156,7 @@ public final class BlueHatCloudRunner {
     }
 
     private static void reportStartupFailure(Process process, Path logFile) {
-        final StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
         sb.append("Local Blue Hat cloud failed to start.");
 
         if (!process.isAlive()) {
@@ -173,8 +173,8 @@ public final class BlueHatCloudRunner {
 
         try {
             if (Files.exists(logFile) && Files.size(logFile) > 0) {
-                final List<String> lines = Files.readAllLines(logFile);
-                final List<String> tail = lines.subList(Math.max(0, lines.size() - 20), lines.size());
+                List<String> lines = Files.readAllLines(logFile);
+                List<String> tail = lines.subList(Math.max(0, lines.size() - 20), lines.size());
                 sb.append("\n\n  Last output:");
                 for (String line : tail) {
                     sb.append("\n    ").append(line);
@@ -197,7 +197,7 @@ public final class BlueHatCloudRunner {
             name = name.substring(0, name.length() - 4);
         }
 
-        final int lastSlash = name.lastIndexOf('/');
+        int lastSlash = name.lastIndexOf('/');
         if (lastSlash >= 0) {
             name = name.substring(lastSlash + 1);
         }
@@ -207,12 +207,12 @@ public final class BlueHatCloudRunner {
 
     private static void runProcess(Path workDir, String... command) {
         try {
-            final Process process = new ProcessBuilder(command)
+            Process process = new ProcessBuilder(command)
                     .directory(workDir.toFile())
                     .inheritIO()
                     .start();
 
-            final int exitCode = process.waitFor();
+            int exitCode = process.waitFor();
             if (exitCode != 0) {
                 throw new BlueHatException("Command failed (exit " + exitCode + "): " + String.join(" ", command));
             }
@@ -224,8 +224,8 @@ public final class BlueHatCloudRunner {
     }
 
     public static Process ensureCloudRunning(BlueHatConfig config) {
-        final String hostName = config.effectiveHostName();
-        final int port = BlueHat.API_PORT;
+        String hostName = config.effectiveHostName();
+        int port = BlueHat.API_PORT;
 
         if (config.isLocal()) {
             return BlueHatCloudRunner.start(config.getRepository());

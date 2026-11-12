@@ -63,7 +63,7 @@ public class BlueHatConfig {
     }
 
     public static BlueHatConfig load() {
-        final Path configFile = Environment.configFile(BlueHat.CLOUD);
+        Path configFile = Environment.configFile(BlueHat.CLOUD);
         if (!Files.exists(configFile)) {
             return new BlueHatConfig();
         }
@@ -77,10 +77,10 @@ public class BlueHatConfig {
     }
 
     public void save() {
-        final Path configFile = Environment.configFile(BlueHat.CLOUD);
+        Path configFile = Environment.configFile(BlueHat.CLOUD);
         try {
             Files.createDirectories(configFile.getParent());
-            final Path tmp = Files.createTempFile(configFile.getParent(), ".attimo-", ".tmp");
+            Path tmp = Files.createTempFile(configFile.getParent(), ".attimo-", ".tmp");
             try {
                 YAML.writeValue(tmp.toFile(), this);
                 tmp.toFile().setReadable(false, false);

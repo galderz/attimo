@@ -27,7 +27,7 @@ public class SshProvisioner {
     }
 
     public int run(String command, int timeoutSeconds) {
-        final List<String> sshCmd = List.of(
+        List<String> sshCmd = List.of(
                 "ssh",
                 "-i",
                 privateKeyPath.toString(),
@@ -41,9 +41,9 @@ public class SshProvisioner {
                 command);
 
         try {
-            final ProcessBuilder pb = new ProcessBuilder(sshCmd);
+            ProcessBuilder pb = new ProcessBuilder(sshCmd);
             pb.inheritIO();
-            final Process process = pb.start();
+            Process process = pb.start();
 
             if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
@@ -64,8 +64,8 @@ public class SshProvisioner {
         }
 
         System.out.println("  Installing " + packages.size() + " packages...");
-        final String pkgList = String.join(" ", packages);
-        final int exitCode = run("sudo dnf install -y " + pkgList, 900);
+        String pkgList = String.join(" ", packages);
+        int exitCode = run("sudo dnf install -y " + pkgList, 900);
 
         if (exitCode != 0) {
             System.err.println("  Package installation failed (exit code " + exitCode + ")");

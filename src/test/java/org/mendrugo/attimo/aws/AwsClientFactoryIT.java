@@ -30,7 +30,7 @@ class AwsClientFactoryIT {
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(LOCALSTACK.getAccessKey(), LOCALSTACK.getSecretKey())))
                 .region(Region.of(LOCALSTACK.getRegion()))
                 .build()) {
-            final GetCallerIdentityResponse identity = sts.getCallerIdentity();
+            GetCallerIdentityResponse identity = sts.getCallerIdentity();
             assertThat(identity.account()).isNotBlank();
             assertThat(identity.arn()).isNotBlank();
         }
@@ -43,7 +43,7 @@ class AwsClientFactoryIT {
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(LOCALSTACK.getAccessKey(), LOCALSTACK.getSecretKey())))
                 .region(Region.of(LOCALSTACK.getRegion()))
                 .build()) {
-            final DescribeRegionsResponse result = ec2.describeRegions();
+            DescribeRegionsResponse result = ec2.describeRegions();
             assertThat(result.regions()).isNotEmpty();
         }
     }

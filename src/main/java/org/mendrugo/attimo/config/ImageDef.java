@@ -69,15 +69,15 @@ public class ImageDef {
     }
 
     public static List<ImageDef> ancestors(ImageDef start, Map<String, ImageDef> defs) {
-        final ArrayList<ImageDef> result = new ArrayList<ImageDef>();
-        final HashSet<String> visited = new HashSet<String>();
+        ArrayList<ImageDef> result = new ArrayList<ImageDef>();
+        HashSet<String> visited = new HashSet<String>();
         visited.add(start.getName());
         String parentName = start.getParent();
         while (parentName != null && !parentName.isBlank()) {
             if (!visited.add(parentName)) {
                 break;
             }
-            final ImageDef p = defs.get(parentName);
+            ImageDef p = defs.get(parentName);
             if (p == null) {
                 break;
             }
@@ -88,15 +88,15 @@ public class ImageDef {
     }
 
     public static List<String> collectAllPackages(ImageDef imageDef, Map<String, ImageDef> defs) {
-        final List<ImageDef> ancestors = ancestors(imageDef, defs);
+        List<ImageDef> ancestors = ancestors(imageDef, defs);
 
-        final ArrayList<ImageDef> chain = new ArrayList<ImageDef>();
+        ArrayList<ImageDef> chain = new ArrayList<ImageDef>();
         for (int i = ancestors.size() - 1; i >= 0; i--) {
             chain.add(ancestors.get(i));
         }
         chain.add(imageDef);
 
-        final LinkedHashSet<String> allPackages = new LinkedHashSet<String>();
+        LinkedHashSet<String> allPackages = new LinkedHashSet<String>();
         for (ImageDef def : chain) {
             allPackages.addAll(def.getPackages());
         }
@@ -104,14 +104,14 @@ public class ImageDef {
     }
 
     public static ResolvedTemplate resolve(String templateName) {
-        final Map<String, ImageDef> defs = loadAll();
-        final ImageDef imageDef = findByName(templateName, defs);
+        Map<String, ImageDef> defs = loadAll();
+        ImageDef imageDef = findByName(templateName, defs);
         if (imageDef == null) {
             System.err.println("Error: unknown template '" + templateName + "'.");
             System.err.println("Available templates: " + String.join(", ", defs.keySet()));
             return null;
         }
-        final List<String> packages = collectAllPackages(imageDef, defs);
+        List<String> packages = collectAllPackages(imageDef, defs);
         return new ResolvedTemplate(imageDef, packages);
     }
 
@@ -126,10 +126,10 @@ public class ImageDef {
     }
 
     static Map<String, ImageDef> loadAll(List<String> searchPaths, Path projectDir) {
-        final LinkedHashMap<String, ImageDef> defs = new LinkedHashMap<String, ImageDef>();
+        LinkedHashMap<String, ImageDef> defs = new LinkedHashMap<String, ImageDef>();
         loadBuiltins(defs);
         for (String searchPath : searchPaths) {
-            final String expanded = expandTilde(searchPath);
+            String expanded = expandTilde(searchPath);
             loadFromDirectory(Path.of(expanded).resolve("images"), defs);
         }
         if (projectDir != null) {
@@ -140,7 +140,7 @@ public class ImageDef {
 
     private static void loadBuiltins(Map<String, ImageDef> defs) {
         for (String filename : BUILTIN_FILES) {
-            final ImageDef def = loadResource(RESOURCE_DIR + filename);
+            ImageDef def = loadResource(RESOURCE_DIR + filename);
             if (def != null) {
                 defs.put(def.getName(), def);
             }
@@ -165,7 +165,7 @@ public class ImageDef {
                   .sorted()
                   .forEach(path -> {
                       try (InputStream is = Files.newInputStream(path)) {
-                          final ImageDef def = YAML.readValue(is, ImageDef.class);
+                          ImageDef def = YAML.readValue(is, ImageDef.class);
                           if (def.getName() != null) {
                               defs.put(def.getName(), def);
                           }

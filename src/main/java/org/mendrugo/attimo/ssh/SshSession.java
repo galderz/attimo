@@ -30,7 +30,7 @@ public class SshSession {
     }
 
     public boolean waitForSsh(int timeoutSeconds) {
-        final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
         System.out.println("  Waiting for SSH on " + host + ":" + SSH_PORT + "...");
 
         while (System.currentTimeMillis() < deadline) {
@@ -54,13 +54,13 @@ public class SshSession {
     }
 
     public int connect() {
-        final List<String> command = buildSshCommand();
+        List<String> command = buildSshCommand();
 
         try {
             System.out.println("  Connecting to " + user + "@" + host + "...\n");
-            final ProcessBuilder pb = new ProcessBuilder(command);
+            ProcessBuilder pb = new ProcessBuilder(command);
             pb.inheritIO();
-            final Process process = pb.start();
+            Process process = pb.start();
             return process.waitFor();
         } catch (IOException | InterruptedException e) {
             System.err.println("SSH connection failed: " + e.getMessage());
@@ -69,7 +69,7 @@ public class SshSession {
     }
 
     List<String> buildSshCommand() {
-        final ArrayList<String> cmd = new ArrayList<String>();
+        ArrayList<String> cmd = new ArrayList<String>();
         cmd.add("ssh");
         cmd.add("-i");
         cmd.add(privateKeyPath.toString());

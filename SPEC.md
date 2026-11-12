@@ -197,7 +197,6 @@ Run `./jfmtw` to format; a pre-commit hook rejects unformatted code.
 | Braces always required (if/for/while) | jfmt |
 | Imports sorted, unused removed, wildcards expanded | jfmt |
 | Method chains broken at syntactic boundaries | jfmt |
-| `final` on local variables (not on parameters, catch, or for) | Convention |
 | Explicit types (no `var`) | Convention |
 
 ```java
@@ -257,18 +256,18 @@ public class AttimoConfig {
 }
 
 public class AwsClientFactory {
-    public Ec2Client ec2(final String region) {
+    public Ec2Client ec2(String region) {
         return Ec2Client.builder()
                 .region(Region.of(region))
                 .build();
     }
 
     public String validateCredentials() {
-        try (final StsClient sts = StsClient.create()) {
-            final GetCallerIdentityResponse identity = sts.getCallerIdentity();
+        try (StsClient sts = StsClient.create()) {
+            GetCallerIdentityResponse identity = sts.getCallerIdentity();
             System.out.println("  Authenticated as: " + identity.arn());
             return null;
-        } catch (final SdkException e) {
+        } catch (SdkException e) {
             return "AWS authentication failed: " + e.getMessage();
         }
     }
@@ -292,7 +291,7 @@ public enum Continent {
     private final List<String> representatives;
     private final String displayName;
 
-    Continent(final List<String> regions, final List<String> representatives, final String displayName) {
+    Continent(List<String> regions, List<String> representatives, String displayName) {
         this.regions = regions;
         this.representatives = representatives;
         this.displayName = displayName;
@@ -300,12 +299,12 @@ public enum Continent {
 }
 
 public void launchSpotInstance(
-        final String instanceType,
-        final String region,
-        final String amiId,
-        final String securityGroupId,
-        final String keyPairName) {
-    final RunInstancesRequest request = RunInstancesRequest.builder()
+        String instanceType,
+        String region,
+        String amiId,
+        String securityGroupId,
+        String keyPairName) {
+    RunInstancesRequest request = RunInstancesRequest.builder()
             .imageId(amiId)
             .instanceType(InstanceType.fromValue(instanceType))
             .keyName(keyPairName)
@@ -327,8 +326,8 @@ public void launchSpotInstance(
                     .build())
             .build();
 
-    final RunInstancesResponse response = ec2.runInstances(request);
-    final String instanceId = response.instances().getFirst().instanceId();
+    RunInstancesResponse response = ec2.runInstances(request);
+    String instanceId = response.instances().getFirst().instanceId();
     System.out.println("  Launched " + instanceType + " in " + region + ": " + instanceId);
 }
 

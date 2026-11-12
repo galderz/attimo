@@ -10,7 +10,7 @@ public final class BuildInfo {
     private final String version;
 
     private BuildInfo() {
-        final Properties props = new Properties();
+        Properties props = new Properties();
         try (InputStream is = getClass()
                 .getClassLoader()
                 .getResourceAsStream("build.properties")) {

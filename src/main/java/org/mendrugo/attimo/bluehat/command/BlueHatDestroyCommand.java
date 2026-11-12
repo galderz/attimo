@@ -14,17 +14,17 @@ import org.mendrugo.attimo.config.InstanceState;
 public class BlueHatDestroyCommand extends BaseCommand {
     @Override
     protected CommandResult doExecute() throws Exception {
-        final InstanceState state = InstanceState.load(BlueHat.CLOUD);
+        InstanceState state = InstanceState.load(BlueHat.CLOUD);
 
         if (!state.hasActiveInstance()) {
             System.out.println("No active VM to destroy.");
             return CommandResult.SUCCESS;
         }
 
-        final String fqdn = state.getInstanceId();
-        final BlueHatConfig config = BlueHatConfig.load();
-        final String hostName = config.effectiveHostName();
-        final int port = BlueHat.API_PORT;
+        String fqdn = state.getInstanceId();
+        BlueHatConfig config = BlueHatConfig.load();
+        String hostName = config.effectiveHostName();
+        int port = BlueHat.API_PORT;
 
         Process localProcess = null;
         try {
@@ -36,15 +36,15 @@ public class BlueHatDestroyCommand extends BaseCommand {
     }
 
     private CommandResult doDestroy(String fqdn, String hostName, int port,
-            final InstanceState state) {
+            InstanceState state) {
         System.out.println("=== Destroying Blue Hat VM ===\n");
         System.out.println("FQDN:  " + fqdn);
         System.out.println("Size:  " + state.getInstanceType());
         System.out.println();
 
         try {
-            final BlueHatClient client = new BlueHatClient(hostName, port);
-            final DestroyResponse response = client.destroyVm(fqdn);
+            BlueHatClient client = new BlueHatClient(hostName, port);
+            DestroyResponse response = client.destroyVm(fqdn);
 
             if ("success".equalsIgnoreCase(response.status())) {
                 System.out.println("  "

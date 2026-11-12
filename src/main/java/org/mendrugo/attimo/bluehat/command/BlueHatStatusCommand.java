@@ -23,17 +23,17 @@ import org.mendrugo.attimo.config.InstanceState;
 public class BlueHatStatusCommand extends BaseCommand {
     @Override
     protected CommandResult doExecute() throws Exception {
-        final InstanceState state = InstanceState.load(BlueHat.CLOUD);
+        InstanceState state = InstanceState.load(BlueHat.CLOUD);
 
         if (!state.hasActiveInstance()) {
             System.out.println("No active VM.");
             return CommandResult.SUCCESS;
         }
 
-        final String fqdn = state.getInstanceId();
-        final BlueHatConfig config = BlueHatConfig.load();
-        final String hostName = config.effectiveHostName();
-        final int port = BlueHat.API_PORT;
+        String fqdn = state.getInstanceId();
+        BlueHatConfig config = BlueHatConfig.load();
+        String hostName = config.effectiveHostName();
+        int port = BlueHat.API_PORT;
 
         Process localProcess = null;
         try {
@@ -45,28 +45,28 @@ public class BlueHatStatusCommand extends BaseCommand {
     }
 
     private CommandResult doStatus(String fqdn, String hostName, int port,
-            final InstanceState state) {
+            InstanceState state) {
         System.out.println("=== Blue Hat VM Status ===\n");
         System.out.println("FQDN:      " + fqdn);
         System.out.println("Size:      " + state.getInstanceType());
 
         try {
-            final BlueHatClient client = new BlueHatClient(hostName, port);
-            final List<VmDetails> vms = client.listVms();
+            BlueHatClient client = new BlueHatClient(hostName, port);
+            List<VmDetails> vms = client.listVms();
 
-            final Optional<VmDetails> vmOpt = vms.stream()
+            Optional<VmDetails> vmOpt = vms.stream()
                     .filter(vm -> fqdn.equals(vm.fqdn()))
                     .findFirst();
 
             if (vmOpt.isPresent()) {
-                final VmDetails vm = vmOpt.get();
+                VmDetails vm = vmOpt.get();
                 System.out.println("VM ID:     " + vm.vmId());
                 System.out.println("State:     " + formatState(vm.state()));
 
                 if (vm.createdIso8601() != null && !vm.createdIso8601().isBlank()) {
                     try {
-                        final Instant created = OffsetDateTime.parse(vm.createdIso8601()).toInstant();
-                        final Duration uptime = Duration.between(created, Instant.now());
+                        Instant created = OffsetDateTime.parse(vm.createdIso8601()).toInstant();
+                        Duration uptime = Duration.between(created, Instant.now());
                         System.out.printf("Uptime:    %dh %dm%n", uptime.toHours(), uptime.toMinutes() % 60);
                     } catch (Exception e) {
                         System.out.println("Created:   " + vm.created());

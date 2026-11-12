@@ -19,17 +19,17 @@ import org.mendrugo.attimo.ssh.SshSession;
 public class BlueHatConnectCommand extends BaseCommand {
     @Override
     protected CommandResult doExecute() throws Exception {
-        final InstanceState state = InstanceState.load(BlueHat.CLOUD);
+        InstanceState state = InstanceState.load(BlueHat.CLOUD);
 
         if (!state.hasActiveInstance()) {
             System.err.println("No active VM. Use 'ato bh request' to launch one.");
             return CommandResult.FAILURE;
         }
 
-        final String fqdn = state.getInstanceId();
-        final BlueHatConfig config = BlueHatConfig.load();
-        final String hostName = config.effectiveHostName();
-        final int port = BlueHat.API_PORT;
+        String fqdn = state.getInstanceId();
+        BlueHatConfig config = BlueHatConfig.load();
+        String hostName = config.effectiveHostName();
+        int port = BlueHat.API_PORT;
 
         Process localProcess = null;
         try {
@@ -42,9 +42,9 @@ public class BlueHatConnectCommand extends BaseCommand {
 
     private CommandResult doConnect(String fqdn, String hostName, int port) {
         try {
-            final BlueHatClient client = new BlueHatClient(hostName, port);
-            final List<VmDetails> vms = client.listVms();
-            final boolean isRunning = vms.stream().anyMatch(vm -> fqdn.equals(vm.fqdn()) && "running".equalsIgnoreCase(vm.state()));
+            BlueHatClient client = new BlueHatClient(hostName, port);
+            List<VmDetails> vms = client.listVms();
+            boolean isRunning = vms.stream().anyMatch(vm -> fqdn.equals(vm.fqdn()) && "running".equalsIgnoreCase(vm.state()));
 
             if (!isRunning) {
                 System.err.println("VM " + fqdn + " is not running.");
@@ -58,9 +58,9 @@ public class BlueHatConnectCommand extends BaseCommand {
 
         System.out.println("Connecting to " + fqdn + "...");
 
-        final Path keyFile = Environment.sshKeyFile(BlueHat.CLOUD);
-        final SshSession session = new SshSession(fqdn, BlueHat.SSH_USER, keyFile);
-        final int exitCode = session.connect();
+        Path keyFile = Environment.sshKeyFile(BlueHat.CLOUD);
+        SshSession session = new SshSession(fqdn, BlueHat.SSH_USER, keyFile);
+        int exitCode = session.connect();
         return exitCode == 0 ? CommandResult.SUCCESS : CommandResult.valueOf(exitCode);
     }
 }

@@ -51,7 +51,7 @@ public class AwsConfig {
     }
 
     public static AwsConfig load() {
-        final Path configFile = Environment.configFile(Aws.CLOUD);
+        Path configFile = Environment.configFile(Aws.CLOUD);
         if (!Files.exists(configFile)) {
             return new AwsConfig();
         }
@@ -65,10 +65,10 @@ public class AwsConfig {
     }
 
     public void save() {
-        final Path configFile = Environment.configFile(Aws.CLOUD);
+        Path configFile = Environment.configFile(Aws.CLOUD);
         try {
             Files.createDirectories(configFile.getParent());
-            final Path tmp = Files.createTempFile(configFile.getParent(), ".attimo-", ".tmp");
+            Path tmp = Files.createTempFile(configFile.getParent(), ".attimo-", ".tmp");
             try {
                 YAML.writeValue(tmp.toFile(), this);
                 tmp.toFile().setReadable(false, false);

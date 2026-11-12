@@ -165,7 +165,7 @@ public class InstanceState {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     public static InstanceState load(String cloud) {
-        final Path stateFile = Environment.stateFile(cloud);
+        Path stateFile = Environment.stateFile(cloud);
         if (!Files.exists(stateFile)) {
             return new InstanceState();
         }
@@ -179,10 +179,10 @@ public class InstanceState {
     }
 
     public void save(String cloud) {
-        final Path stateFile = Environment.stateFile(cloud);
+        Path stateFile = Environment.stateFile(cloud);
         try {
             Files.createDirectories(stateFile.getParent());
-            final Path tmp = Files.createTempFile(stateFile.getParent(), ".attimo-state-", ".tmp");
+            Path tmp = Files.createTempFile(stateFile.getParent(), ".attimo-state-", ".tmp");
             try {
                 YAML.writeValue(tmp.toFile(), this);
                 Files.move(tmp, stateFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);

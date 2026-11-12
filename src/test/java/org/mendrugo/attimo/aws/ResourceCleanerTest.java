@@ -37,9 +37,9 @@ class ResourceCleanerTest {
                 .build());
         when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(terminatedResponse());
 
-        final InstanceState state = createTestState();
-        final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-        final List<String> errors = cleaner.cleanAll(state, "aws");
+        InstanceState state = createTestState();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanAll(state, "aws");
 
         assertThat(errors).isEmpty();
         verify(ec2).terminateInstances(any(TerminateInstancesRequest.class));
@@ -57,9 +57,9 @@ class ResourceCleanerTest {
                 .when(ec2)
                 .deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
 
-        final InstanceState state = createTestState();
-        final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-        final List<String> errors = cleaner.cleanAll(state, "aws");
+        InstanceState state = createTestState();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanAll(state, "aws");
 
         assertThat(errors).hasSize(1);
         assertThat(errors.getFirst()).contains("security group");
@@ -75,18 +75,18 @@ class ResourceCleanerTest {
                 .when(ec2)
                 .deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
 
-        final InstanceState state = createTestState();
-        final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-        final List<String> errors = cleaner.cleanAll(state, "aws");
+        InstanceState state = createTestState();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanAll(state, "aws");
 
         assertThat(errors).isNotEmpty();
     }
 
     @Test
     void handlesEmptyState() {
-        final InstanceState state = new org.mendrugo.attimo.config.InstanceState();
-        final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-        final List<String> errors = cleaner.cleanAll(state, "aws");
+        InstanceState state = new org.mendrugo.attimo.config.InstanceState();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanAll(state, "aws");
 
         assertThat(errors).isEmpty();
     }
@@ -98,8 +98,8 @@ class ResourceCleanerTest {
         when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(DescribeInstancesResponse.builder()
                 .build());
 
-        final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-        final List<String> errors = cleaner.cleanOrphans();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanOrphans();
 
         assertThat(errors).isEmpty();
         verify(ec2).describeSecurityGroups(any(DescribeSecurityGroupsRequest.class));
@@ -107,7 +107,7 @@ class ResourceCleanerTest {
     }
 
     private org.mendrugo.attimo.config.InstanceState createTestState() {
-        final InstanceState state = new org.mendrugo.attimo.config.InstanceState();
+        InstanceState state = new org.mendrugo.attimo.config.InstanceState();
         state.setInstanceId("i-test123");
         state.setSecurityGroupId("sg-test456");
         state.setKeyPairName("attimo-test-key");

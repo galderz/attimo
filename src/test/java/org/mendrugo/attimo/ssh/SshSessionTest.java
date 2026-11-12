@@ -10,9 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SshSessionTest {
     @Test
     void buildsSshCommandWithCorrectOptions() {
-        final SshSession session = new SshSession("3.10.45.67", "fedora", Path.of("/home/user/.config/attimo/ssh/id_ed25519"));
+        SshSession session = new SshSession("3.10.45.67", "fedora", Path.of("/home/user/.config/attimo/ssh/id_ed25519"));
 
-        final List<String> cmd = session.buildSshCommand();
+        List<String> cmd = session.buildSshCommand();
 
         assertThat(cmd).contains("ssh");
         assertThat(cmd).contains("-i", "/home/user/.config/attimo/ssh/id_ed25519");
@@ -24,16 +24,16 @@ class SshSessionTest {
 
     @Test
     void defaultUserIsEc2User() {
-        final SshSession session = new SshSession("1.2.3.4", "aws");
-        final List<String> cmd = session.buildSshCommand();
+        SshSession session = new SshSession("1.2.3.4", "aws");
+        List<String> cmd = session.buildSshCommand();
 
         assertThat(cmd.getLast()).startsWith("ec2-user@");
     }
 
     @Test
     void suppressesHostKeyWarnings() {
-        final SshSession session = new SshSession("1.2.3.4", "aws");
-        final List<String> cmd = session.buildSshCommand();
+        SshSession session = new SshSession("1.2.3.4", "aws");
+        List<String> cmd = session.buildSshCommand();
 
         assertThat(cmd).contains("LogLevel=ERROR");
         assertThat(cmd).contains("UserKnownHostsFile=/dev/null");
@@ -41,8 +41,8 @@ class SshSessionTest {
 
     @Test
     void setsServerAliveForConnectionMonitoring() {
-        final SshSession session = new SshSession("1.2.3.4", "aws");
-        final List<String> cmd = session.buildSshCommand();
+        SshSession session = new SshSession("1.2.3.4", "aws");
+        List<String> cmd = session.buildSshCommand();
 
         assertThat(cmd).contains("ServerAliveInterval=30");
         assertThat(cmd).contains("ServerAliveCountMax=3");

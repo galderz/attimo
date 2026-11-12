@@ -26,8 +26,8 @@ class BaseAmiResolverTest {
     void resolvesAl2023ForX86() {
         when(ssm.getParameter(any(GetParameterRequest.class))).thenReturn(paramResponse("ami-x86"));
 
-        final BaseAmiResolver resolver = new BaseAmiResolver();
-        final String amiId = resolver.resolve(ssm, "x86_64", "us-east-1");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String amiId = resolver.resolve(ssm, "x86_64", "us-east-1");
 
         assertThat(amiId).isEqualTo("ami-x86");
         verify(ssm).getParameter(GetParameterRequest.builder()
@@ -39,8 +39,8 @@ class BaseAmiResolverTest {
     void resolvesAl2023ForArm64() {
         when(ssm.getParameter(any(GetParameterRequest.class))).thenReturn(paramResponse("ami-arm"));
 
-        final BaseAmiResolver resolver = new BaseAmiResolver();
-        final String amiId = resolver.resolve(ssm, "arm64", "eu-west-1");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String amiId = resolver.resolve(ssm, "arm64", "eu-west-1");
 
         assertThat(amiId).isEqualTo("ami-arm");
         verify(ssm).getParameter(GetParameterRequest.builder()
@@ -52,9 +52,9 @@ class BaseAmiResolverTest {
     void cachesResolvedAmis() {
         when(ssm.getParameter(any(GetParameterRequest.class))).thenReturn(paramResponse("ami-cached"));
 
-        final BaseAmiResolver resolver = new BaseAmiResolver();
-        final String first = resolver.resolve(ssm, "arm64", "eu-west-1");
-        final String second = resolver.resolve(ssm, "arm64", "eu-west-1");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String first = resolver.resolve(ssm, "arm64", "eu-west-1");
+        String second = resolver.resolve(ssm, "arm64", "eu-west-1");
 
         assertThat(first).isEqualTo("ami-cached");
         assertThat(second).isEqualTo("ami-cached");
@@ -67,9 +67,9 @@ class BaseAmiResolverTest {
                 .thenReturn(paramResponse("ami-arm"))
                 .thenReturn(paramResponse("ami-x86"));
 
-        final BaseAmiResolver resolver = new BaseAmiResolver();
-        final String arm = resolver.resolve(ssm, "arm64", "us-east-1");
-        final String x86 = resolver.resolve(ssm, "x86_64", "us-east-1");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String arm = resolver.resolve(ssm, "arm64", "us-east-1");
+        String x86 = resolver.resolve(ssm, "x86_64", "us-east-1");
 
         assertThat(arm).isEqualTo("ami-arm");
         assertThat(x86).isEqualTo("ami-x86");
@@ -82,9 +82,9 @@ class BaseAmiResolverTest {
                 .thenReturn(paramResponse("ami-east"))
                 .thenReturn(paramResponse("ami-west"));
 
-        final BaseAmiResolver resolver = new BaseAmiResolver();
-        final String east = resolver.resolve(ssm, "arm64", "us-east-1");
-        final String west = resolver.resolve(ssm, "arm64", "us-west-2");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String east = resolver.resolve(ssm, "arm64", "us-east-1");
+        String west = resolver.resolve(ssm, "arm64", "us-west-2");
 
         assertThat(east).isEqualTo("ami-east");
         assertThat(west).isEqualTo("ami-west");
@@ -97,7 +97,7 @@ class BaseAmiResolverTest {
                 .message("not found")
                 .build());
 
-        final BaseAmiResolver resolver = new BaseAmiResolver();
+        BaseAmiResolver resolver = new BaseAmiResolver();
         assertThatThrownBy(() -> resolver.resolve(ssm, "arm64", "us-east-1"))
                 .isInstanceOf(AwsException.class)
                 .hasMessageContaining("Failed to resolve Amazon Linux 2023 AMI")

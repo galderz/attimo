@@ -10,7 +10,7 @@ public final class Environment {
     }
 
     public static Path configRoot() {
-        final String xdgConfig = System.getenv("XDG_CONFIG_HOME");
+        String xdgConfig = System.getenv("XDG_CONFIG_HOME");
         if (xdgConfig != null && !xdgConfig.isBlank()) {
             return Path.of(xdgConfig, "attimo");
         }
@@ -25,7 +25,7 @@ public final class Environment {
     }
 
     public static Path cacheRoot() {
-        final String xdgCache = System.getenv("XDG_CACHE_HOME");
+        String xdgCache = System.getenv("XDG_CACHE_HOME");
         if (xdgCache != null && !xdgCache.isBlank()) {
             return Path.of(xdgCache, "attimo");
         }

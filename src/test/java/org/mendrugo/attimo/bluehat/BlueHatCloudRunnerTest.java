@@ -33,7 +33,7 @@ class BlueHatCloudRunnerTest {
     void healthCheckSucceedsWithValidResponse() {
         server.createContext("/vm",
                 exchange -> {
-                    final String body = "[]";
+                    String body = "[]";
                     exchange.sendResponseHeaders(200, body.length());
                     try (OutputStream os = exchange.getResponseBody()) {
                         os.write(body.getBytes(StandardCharsets.UTF_8));

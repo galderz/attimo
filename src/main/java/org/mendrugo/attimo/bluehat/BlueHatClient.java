@@ -35,15 +35,15 @@ public class BlueHatClient {
 
     public VmResponse requestVm(VmRequest request) {
         try {
-            final String body = JSON.writeValueAsString(request);
-            final HttpRequest httpRequest = HttpRequest.newBuilder()
+            String body = JSON.writeValueAsString(request);
+            HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/vm"))
                     .header("Content-Type", "application/json")
                     .POST(BodyPublishers.ofString(body))
                     .timeout(TIMEOUT.multipliedBy(10))
                     .build();
 
-            final HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
 
             if (response.statusCode() != 200 && response.statusCode() != 201) {
                 throw new BlueHatException("VM request failed (HTTP " + response.statusCode() + "): " + response.body());
@@ -60,13 +60,13 @@ public class BlueHatClient {
 
     public List<VmDetails> listVms() {
         try {
-            final HttpRequest httpRequest = HttpRequest.newBuilder()
+            HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/vm"))
                     .GET()
                     .timeout(TIMEOUT)
                     .build();
 
-            final HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
                 throw new BlueHatException("VM list failed (HTTP " + response.statusCode() + "): " + response.body());
@@ -83,13 +83,13 @@ public class BlueHatClient {
 
     public DestroyResponse destroyVm(String fqdn) {
         try {
-            final HttpRequest httpRequest = HttpRequest.newBuilder()
+            HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/vm/" + fqdn))
                     .DELETE()
                     .timeout(TIMEOUT)
                     .build();
 
-            final HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
                 throw new BlueHatException("VM destroy failed (HTTP " + response.statusCode() + "): " + response.body());

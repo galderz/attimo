@@ -206,8 +206,6 @@ The `jfmtw` wrapper downloads the jfmt JAR on first use (cached in `~/.cache/jfm
 | **4-space block indent, 8-space continuation** | jfmt |
 | **Braces always required** (if/for/while) | jfmt |
 | **Imports sorted, unused removed** | jfmt |
-| **`final` on local variables** | `final AttimoConfig config = AttimoConfig.load();` |
-| **No `final` on parameters, catch, for** | `void method(String arg)`, `catch (Exception e)` |
 | **Explicit types (no `var`)** | `String name = ...` not `var name = ...` |
 | **No wildcard imports** | jfmt expands wildcards |
 
@@ -221,14 +219,14 @@ public record SpotRecommendation(
         double pricePerHour,
         String rationale) {}
 
-public SpotRecommendation recommend(final IsaFeature feature, final String preferredRegion) {
-    final var regionGroup = RegionGroup.forRegion(preferredRegion);
+public SpotRecommendation recommend(IsaFeature feature, String preferredRegion) {
+    var regionGroup = RegionGroup.forRegion(preferredRegion);
 
     if (regionGroup.regions().isEmpty()) {
         return null;
     }
 
-    for (final String region : regionGroup.regions()) {
+    for (String region : regionGroup.regions()) {
         // ...
     }
 }

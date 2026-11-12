@@ -12,19 +12,19 @@ public final class TestKeys {
 
     public static String generateEd25519PublicKey() {
         try {
-            final KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("Ed25519");
-            final KeyPair keyPair = keyPairGen.generateKeyPair();
-            final EdECPublicKey publicKey = (EdECPublicKey) keyPair.getPublic();
+            KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("Ed25519");
+            KeyPair keyPair = keyPairGen.generateKeyPair();
+            EdECPublicKey publicKey = (EdECPublicKey) keyPair.getPublic();
 
-            final EdECPoint point = publicKey.getPoint();
-            final byte[] rawKey = reverseBytes(adjustTo32Bytes(point.getY().toByteArray()));
+            EdECPoint point = publicKey.getPoint();
+            byte[] rawKey = reverseBytes(adjustTo32Bytes(point.getY().toByteArray()));
 
             if (point.isXOdd()) {
                 rawKey[31] |= (byte) 0x80;
             }
 
-            final byte[] keyTypeBytes = "ssh-ed25519".getBytes();
-            final byte[] blob = new byte[4 + keyTypeBytes.length + 4 + rawKey.length];
+            byte[] keyTypeBytes = "ssh-ed25519".getBytes();
+            byte[] blob = new byte[4 + keyTypeBytes.length + 4 + rawKey.length];
             int offset = 0;
 
             putInt(blob, offset, keyTypeBytes.length);
@@ -45,18 +45,18 @@ public final class TestKeys {
         if (input.length == 32) {
             return input;
         } else if (input.length > 32) {
-            final byte[] result = new byte[32];
+            byte[] result = new byte[32];
             System.arraycopy(input, input.length - 32, result, 0, 32);
             return result;
         } else {
-            final byte[] result = new byte[32];
+            byte[] result = new byte[32];
             System.arraycopy(input, 0, result, 32 - input.length, input.length);
             return result;
         }
     }
 
     private static byte[] reverseBytes(byte[] input) {
-        final byte[] result = new byte[input.length];
+        byte[] result = new byte[input.length];
         for (int i = 0; i < input.length; i++) {
             result[i] = input[input.length - 1 - i];
         }

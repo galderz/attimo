@@ -16,21 +16,21 @@ public class BaseAmiResolver {
     private final Map<String, String> cache = new HashMap<>();
 
     public String resolve(SsmClient ssm, String arch, String region) {
-        final String cacheKey = region + ":" + arch;
-        final String cached = cache.get(cacheKey);
+        String cacheKey = region + ":" + arch;
+        String cached = cache.get(cacheKey);
         if (cached != null) {
             return cached;
         }
 
-        final String paramName = AL2023_SSM_PARAM + arch;
+        String paramName = AL2023_SSM_PARAM + arch;
         System.out.println("  Looking up AMI via SSM: " + paramName);
 
         try {
-            final GetParameterResponse response = ssm.getParameter(GetParameterRequest.builder()
+            GetParameterResponse response = ssm.getParameter(GetParameterRequest.builder()
                     .name(paramName)
                     .build());
 
-            final String amiId = response.parameter().value();
+            String amiId = response.parameter().value();
             System.out.println("  Resolved Amazon Linux 2023 (" + arch + ") → " + amiId);
             cache.put(cacheKey, amiId);
             return amiId;

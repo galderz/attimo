@@ -36,15 +36,15 @@ class SpotManagerTest {
         when(ec2.authorizeSecurityGroupIngress(any(AuthorizeSecurityGroupIngressRequest.class))).thenReturn(AuthorizeSecurityGroupIngressResponse.builder()
                 .build());
 
-        final SpotManager manager = new SpotManager(ec2, "test-session-id");
-        final String sgId = manager.createSecurityGroup();
+        SpotManager manager = new SpotManager(ec2, "test-session-id");
+        String sgId = manager.createSecurityGroup();
 
         assertThat(sgId).isEqualTo("sg-test123");
 
-        final ArgumentCaptor<AuthorizeSecurityGroupIngressRequest> ingressCaptor = ArgumentCaptor.forClass(AuthorizeSecurityGroupIngressRequest.class);
+        ArgumentCaptor<AuthorizeSecurityGroupIngressRequest> ingressCaptor = ArgumentCaptor.forClass(AuthorizeSecurityGroupIngressRequest.class);
         verify(ec2).authorizeSecurityGroupIngress(ingressCaptor.capture());
 
-        final AuthorizeSecurityGroupIngressRequest ingress = ingressCaptor.getValue();
+        AuthorizeSecurityGroupIngressRequest ingress = ingressCaptor.getValue();
         assertThat(ingress.ipPermissions()).hasSize(1);
         assertThat(ingress.ipPermissions()
                           .getFirst()
@@ -64,16 +64,16 @@ class SpotManagerTest {
         when(ec2.authorizeSecurityGroupIngress(any(AuthorizeSecurityGroupIngressRequest.class))).thenReturn(AuthorizeSecurityGroupIngressResponse.builder()
                 .build());
 
-        final SpotManager manager = new SpotManager(ec2, "test-session-id");
+        SpotManager manager = new SpotManager(ec2, "test-session-id");
         manager.createSecurityGroup();
 
-        final ArgumentCaptor<CreateSecurityGroupRequest> captor = ArgumentCaptor.forClass(CreateSecurityGroupRequest.class);
+        ArgumentCaptor<CreateSecurityGroupRequest> captor = ArgumentCaptor.forClass(CreateSecurityGroupRequest.class);
         verify(ec2).createSecurityGroup(captor.capture());
 
-        final List<Tag> tags = captor.getValue()
-                .tagSpecifications()
-                .getFirst()
-                .tags();
+        List<Tag> tags = captor.getValue()
+                               .tagSpecifications()
+                               .getFirst()
+                               .tags();
         assertThat(tags)
                 .extracting(Tag::key)
                 .contains("attimo:managed", "attimo:session-id");
@@ -87,15 +87,15 @@ class SpotManagerTest {
                         .build())
                 .build());
 
-        final SpotManager manager = new SpotManager(ec2, "test-session-id");
-        final String instanceId = manager.launchSpotInstance("ami-test", "c7i.xlarge", "sg-test", "attimo-key");
+        SpotManager manager = new SpotManager(ec2, "test-session-id");
+        String instanceId = manager.launchSpotInstance("ami-test", "c7i.xlarge", "sg-test", "attimo-key");
 
         assertThat(instanceId).isEqualTo("i-test123");
 
-        final ArgumentCaptor<RunInstancesRequest> captor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+        ArgumentCaptor<RunInstancesRequest> captor = ArgumentCaptor.forClass(RunInstancesRequest.class);
         verify(ec2).runInstances(captor.capture());
 
-        final RunInstancesRequest request = captor.getValue();
+        RunInstancesRequest request = captor.getValue();
         assertThat(request.imageId()).isEqualTo("ami-test");
         assertThat(request.instanceTypeAsString()).isEqualTo("c7i.xlarge");
         assertThat(request.keyName()).isEqualTo("attimo-key");
@@ -111,16 +111,16 @@ class SpotManagerTest {
                         .build())
                 .build());
 
-        final SpotManager manager = new SpotManager(ec2, "test-session-id");
+        SpotManager manager = new SpotManager(ec2, "test-session-id");
         manager.launchSpotInstance("ami-test", "c7i.xlarge", "sg-test", "key-test");
 
-        final ArgumentCaptor<RunInstancesRequest> captor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+        ArgumentCaptor<RunInstancesRequest> captor = ArgumentCaptor.forClass(RunInstancesRequest.class);
         verify(ec2).runInstances(captor.capture());
 
-        final List<Tag> tags = captor.getValue()
-                .tagSpecifications()
-                .getFirst()
-                .tags();
+        List<Tag> tags = captor.getValue()
+                               .tagSpecifications()
+                               .getFirst()
+                               .tags();
         assertThat(tags)
                 .extracting(Tag::key)
                 .contains("attimo:managed", "attimo:session-id");
@@ -131,7 +131,7 @@ class SpotManagerTest {
 
     @Test
     void sessionIdIsPreserved() {
-        final SpotManager manager = new SpotManager(ec2, "my-session");
+        SpotManager manager = new SpotManager(ec2, "my-session");
         assertThat(manager.sessionId()).isEqualTo("my-session");
     }
 }

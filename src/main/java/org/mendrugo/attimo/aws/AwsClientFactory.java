@@ -24,7 +24,7 @@ public class AwsClientFactory {
     }
 
     public Ec2Client ec2(String region) {
-        final Ec2ClientBuilder builder = Ec2Client.builder()
+        Ec2ClientBuilder builder = Ec2Client.builder()
                 .region(Region.of(region))
                 .httpClient(UrlConnectionHttpClient.builder().build());
 
@@ -36,7 +36,7 @@ public class AwsClientFactory {
     }
 
     public SsmClient ssm(String region) {
-        final SsmClientBuilder builder = SsmClient.builder()
+        SsmClientBuilder builder = SsmClient.builder()
                 .region(Region.of(region))
                 .httpClient(UrlConnectionHttpClient.builder().build());
 
@@ -49,14 +49,14 @@ public class AwsClientFactory {
 
     public String validateCredentials() {
         try {
-            final StsClientBuilder builder = StsClient.builder().httpClient(UrlConnectionHttpClient.builder()
+            StsClientBuilder builder = StsClient.builder().httpClient(UrlConnectionHttpClient.builder()
                     .build());
             if (endpointOverride != null) {
                 builder.endpointOverride(endpointOverride);
             }
 
             try (StsClient sts = builder.build()) {
-                final GetCallerIdentityResponse identity = sts.getCallerIdentity();
+                GetCallerIdentityResponse identity = sts.getCallerIdentity();
                 System.out.println("  Authenticated as: " + identity.arn());
                 return null;
             }

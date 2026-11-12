@@ -19,7 +19,7 @@ import software.amazon.awssdk.services.ec2.Ec2Client;
 public class AwsStatusCommand extends BaseCommand {
     @Override
     protected CommandResult doExecute() throws Exception {
-        final InstanceState state = InstanceState.load(Aws.CLOUD);
+        InstanceState state = InstanceState.load(Aws.CLOUD);
 
         if (!state.hasActiveInstance()) {
             System.out.println("No active instance.");
@@ -37,10 +37,10 @@ public class AwsStatusCommand extends BaseCommand {
 
         if (!state.getLaunchedAt().isBlank()) {
             try {
-                final Instant launchedAt = Instant.parse(state.getLaunchedAt());
-                final Duration uptime = Duration.between(launchedAt, Instant.now());
-                final double hours = uptime.toMinutes() / 60.0;
-                final double cost = hours * state.getSpotPrice();
+                Instant launchedAt = Instant.parse(state.getLaunchedAt());
+                Duration uptime = Duration.between(launchedAt, Instant.now());
+                double hours = uptime.toMinutes() / 60.0;
+                double cost = hours * state.getSpotPrice();
 
                 System.out.printf("Uptime:    %dh %dm%n", uptime.toHours(), uptime.toMinutes() % 60);
                 System.out.printf("Cost:      $%.3f (@ $%.4f/hr)%n", cost, state.getSpotPrice());
@@ -51,9 +51,9 @@ public class AwsStatusCommand extends BaseCommand {
 
         System.out.println();
         try {
-            final AwsClientFactory factory = new AwsClientFactory();
+            AwsClientFactory factory = new AwsClientFactory();
             try (Ec2Client ec2 = factory.ec2(state.getRegion())) {
-                final SpotManager manager = new SpotManager(ec2, state.getSessionId());
+                SpotManager manager = new SpotManager(ec2, state.getSessionId());
                 if (manager.isRunning(state.getInstanceId())) {
                     System.out.println("Status:    \u001B[32m● Running\u001B[0m");
                 } else {

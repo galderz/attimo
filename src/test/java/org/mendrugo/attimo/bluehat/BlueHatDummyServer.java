@@ -67,14 +67,14 @@ public class BlueHatDummyServer implements AutoCloseable {
     private void setupHandlers() {
         server.createContext("/vm", exchange -> {
             try {
-                final String method = exchange.getRequestMethod();
-                final String path = exchange.getRequestURI().getPath();
+                String method = exchange.getRequestMethod();
+                String path = exchange.getRequestURI().getPath();
 
                 switch (method) {
                     case "POST" -> handleCreateVm(exchange);
                     case "GET" -> handleListVms(exchange);
                     case "DELETE" -> {
-                        final String fqdn = path.substring("/vm/".length());
+                        String fqdn = path.substring("/vm/".length());
                         handleDestroyVm(exchange, fqdn);
                     }
                     default -> {
@@ -83,8 +83,8 @@ public class BlueHatDummyServer implements AutoCloseable {
                     }
                 }
             } catch (Exception e) {
-                final String error = "{\"error\": \"" + e.getMessage() + "\"}";
-                final byte[] bytes = error.getBytes(StandardCharsets.UTF_8);
+                String error = "{\"error\": \"" + e.getMessage() + "\"}";
+                byte[] bytes = error.getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(500, bytes.length);
                 try (OutputStream os = exchange.getResponseBody()) {
                     os.write(bytes);
@@ -95,26 +95,26 @@ public class BlueHatDummyServer implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     private void handleCreateVm(HttpExchange exchange) throws IOException {
-        final String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 
-        final Map request = JSON.readValue(body, Map.class);
-        final String cpu = (String) request.getOrDefault("cpu", "1");
-        final String memory = (String) request.getOrDefault("memory", "2");
-        final String os = (String) request.getOrDefault("os", "RedHat 10.2");
-        final String description = (String) request.getOrDefault("description", "");
+        Map request = JSON.readValue(body, Map.class);
+        String cpu = (String) request.getOrDefault("cpu", "1");
+        String memory = (String) request.getOrDefault("memory", "2");
+        String os = (String) request.getOrDefault("os", "RedHat 10.2");
+        String description = (String) request.getOrDefault("description", "");
 
-        final long vmNumber = VM_COUNTER.incrementAndGet();
-        final String fqdn = "bluehat-vm-" + vmNumber + ".dev.acme.com";
-        final String vmId = "2-" + (3000000 + vmNumber);
-        final OffsetDateTime now = OffsetDateTime.now();
+        long vmNumber = VM_COUNTER.incrementAndGet();
+        String fqdn = "bluehat-vm-" + vmNumber + ".dev.acme.com";
+        String vmId = "2-" + (3000000 + vmNumber);
+        OffsetDateTime now = OffsetDateTime.now();
 
-        final VmRecord record = new VmRecord(vmId, description, fqdn, "running", now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+        VmRecord record = new VmRecord(vmId, description, fqdn, "running", now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME), cpu, memory, os);
 
         vms.put(fqdn, record);
 
-        final String response = "{\"fqdn\": \"" + fqdn + "\"}";
-        final byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+        String response = "{\"fqdn\": \"" + fqdn + "\"}";
+        byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(200, bytes.length);
         try (OutputStream responseBody = exchange.getResponseBody()) {
             responseBody.write(bytes);
@@ -122,7 +122,7 @@ public class BlueHatDummyServer implements AutoCloseable {
     }
 
     private void handleListVms(HttpExchange exchange) throws IOException {
-        final List<Map<String, String>> vmList = vms.values()
+        List<Map<String, String>> vmList = vms.values()
                 .stream()
                 .map(
                         vm -> Map.of(
@@ -140,8 +140,8 @@ public class BlueHatDummyServer implements AutoCloseable {
                                 vm.createdIso8601()))
                 .toList();
 
-        final String response = JSON.writeValueAsString(vmList);
-        final byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+        String response = JSON.writeValueAsString(vmList);
+        byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(200, bytes.length);
         try (OutputStream responseBody = exchange.getResponseBody()) {
             responseBody.write(bytes);
@@ -149,11 +149,11 @@ public class BlueHatDummyServer implements AutoCloseable {
     }
 
     private void handleDestroyVm(HttpExchange exchange, String fqdn) throws IOException {
-        final VmRecord vm = vms.get(fqdn);
+        VmRecord vm = vms.get(fqdn);
 
         if (vm == null) {
-            final String notFound = "{\"status\": \"error\", \"details\": \"VM not found\"}";
-            final byte[] bytes = notFound.getBytes(StandardCharsets.UTF_8);
+            String notFound = "{\"status\": \"error\", \"details\": \"VM not found\"}";
+            byte[] bytes = notFound.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(404, bytes.length);
             try (OutputStream responseBody = exchange.getResponseBody()) {
                 responseBody.write(bytes);
@@ -174,11 +174,11 @@ public class BlueHatDummyServer implements AutoCloseable {
                         vm.memory(),
                         vm.os()));
 
-        final var
+        var
                 response = """
             {"status": "success", "details": "vm deletion initiated", "request_id": "%s"}"""
                                 .formatted(vm.vmId());
-        final byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+        byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(200, bytes.length);
         try (OutputStream responseBody = exchange.getResponseBody()) {
             responseBody.write(bytes);

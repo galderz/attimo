@@ -30,21 +30,21 @@ class ResourceCleanerIT {
     @Test
     void cleansUpSecurityGroupAndKeyPair() {
         try (Ec2Client ec2 = ec2Client()) {
-            final SpotManager manager = new SpotManager(ec2, "it-cleanup-test");
-            final String sgId = manager.createSecurityGroup();
-            final String dummyPubKey = TestKeys.generateEd25519PublicKey();
-            final String keyName = manager.importKeyPair(dummyPubKey);
+            SpotManager manager = new SpotManager(ec2, "it-cleanup-test");
+            String sgId = manager.createSecurityGroup();
+            String dummyPubKey = TestKeys.generateEd25519PublicKey();
+            String keyName = manager.importKeyPair(dummyPubKey);
 
             assertThat(describeSecurityGroup(ec2, sgId)).isTrue();
             assertThat(describeKeyPair(ec2, keyName)).isTrue();
 
-            final InstanceState state = new InstanceState();
+            InstanceState state = new InstanceState();
             state.setInstanceId("");
             state.setSecurityGroupId(sgId);
             state.setKeyPairName(keyName);
 
-            final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-            final List<String> errors = cleaner.cleanAll(state, "aws");
+            ResourceCleaner cleaner = new ResourceCleaner(ec2);
+            List<String> errors = cleaner.cleanAll(state, "aws");
 
             assertThat(errors).isEmpty();
 
@@ -56,13 +56,13 @@ class ResourceCleanerIT {
     @Test
     void handlesAlreadyDeletedResources() {
         try (Ec2Client ec2 = ec2Client()) {
-            final InstanceState state = new InstanceState();
+            InstanceState state = new InstanceState();
             state.setInstanceId("");
             state.setSecurityGroupId("sg-nonexistent");
             state.setKeyPairName("attimo-nonexistent");
 
-            final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-            final List<String> errors = cleaner.cleanAll(state, "aws");
+            ResourceCleaner cleaner = new ResourceCleaner(ec2);
+            List<String> errors = cleaner.cleanAll(state, "aws");
 
             assertThat(errors).isNotEmpty();
         }
@@ -71,13 +71,13 @@ class ResourceCleanerIT {
     @Test
     void cleanOrphansFindsTaggedSecurityGroup() {
         try (Ec2Client ec2 = ec2Client()) {
-            final SpotManager manager = new SpotManager(ec2, "it-orphan-test");
-            final String sgId = manager.createSecurityGroup();
+            SpotManager manager = new SpotManager(ec2, "it-orphan-test");
+            String sgId = manager.createSecurityGroup();
 
             assertThat(describeSecurityGroup(ec2, sgId)).isTrue();
 
-            final ResourceCleaner cleaner = new ResourceCleaner(ec2);
-            final List<String> errors = cleaner.cleanOrphans();
+            ResourceCleaner cleaner = new ResourceCleaner(ec2);
+            List<String> errors = cleaner.cleanOrphans();
 
             assertThat(errors).isEmpty();
             assertThat(describeSecurityGroup(ec2, sgId)).isFalse();
@@ -86,7 +86,7 @@ class ResourceCleanerIT {
 
     private boolean describeSecurityGroup(Ec2Client ec2, String sgId) {
         try {
-            final DescribeSecurityGroupsResponse response = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
+            DescribeSecurityGroupsResponse response = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
                     .groupIds(sgId)
                     .build());
             return !response.securityGroups().isEmpty();
@@ -97,7 +97,7 @@ class ResourceCleanerIT {
 
     private boolean describeKeyPair(Ec2Client ec2, String keyName) {
         try {
-            final DescribeKeyPairsResponse response = ec2.describeKeyPairs(DescribeKeyPairsRequest.builder()
+            DescribeKeyPairsResponse response = ec2.describeKeyPairs(DescribeKeyPairsRequest.builder()
                     .keyNames(keyName)
                     .build());
             return !response.keyPairs().isEmpty();

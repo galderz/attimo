@@ -19,10 +19,10 @@ class TemplateProvisioningTest {
 
     @Test
     void awsProvisioningWithBuiltinOpenjdkTemplate() {
-        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
-        final ImageDef imageDef = ImageDef.findByName("tpl-openjdk", defs);
-        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
+        ImageDef imageDef = ImageDef.findByName("tpl-openjdk", defs);
+        List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, false, "x86_64");
 
@@ -36,7 +36,7 @@ class TemplateProvisioningTest {
 
     @Test
     void awsProvisioningWithInheritedTemplate(@TempDir final Path tempDir) throws IOException {
-        final Path imagesDir = tempDir.resolve("images");
+        Path imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
         Files.writeString(imagesDir.resolve("base.yaml"),
                 """
@@ -56,10 +56,10 @@ class TemplateProvisioningTest {
               - autoconf
             """);
 
-        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
-        final ImageDef imageDef = ImageDef.findByName("tpl-extended", defs);
-        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        Map<String, ImageDef> defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
+        ImageDef imageDef = ImageDef.findByName("tpl-extended", defs);
+        List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, false, "x86_64");
 
@@ -69,10 +69,10 @@ class TemplateProvisioningTest {
 
     @Test
     void blueHatProvisioningWithBuiltinOpenjdkTemplate() {
-        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
-        final ImageDef imageDef = ImageDef.findByName("tpl-openjdk", defs);
-        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
+        ImageDef imageDef = ImageDef.findByName("tpl-openjdk", defs);
+        List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, true, "x86_64");
 
@@ -86,7 +86,7 @@ class TemplateProvisioningTest {
 
     @Test
     void blueHatProvisioningWithInheritedTemplate(@TempDir final Path tempDir) throws IOException {
-        final Path imagesDir = tempDir.resolve("images");
+        Path imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
         Files.writeString(imagesDir.resolve("base.yaml"),
                 """
@@ -106,10 +106,10 @@ class TemplateProvisioningTest {
               - autoconf
             """);
 
-        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
-        final ImageDef imageDef = ImageDef.findByName("tpl-extended", defs);
-        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        Map<String, ImageDef> defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
+        ImageDef imageDef = ImageDef.findByName("tpl-extended", defs);
+        List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, true, "x86_64");
 
@@ -119,21 +119,21 @@ class TemplateProvisioningTest {
 
     @Test
     void awsRejectsUnknownTemplateBeforeProvisioning() {
-        final ResolvedTemplate resolved = ImageDef.resolve("tpl-nonexistent");
+        ResolvedTemplate resolved = ImageDef.resolve("tpl-nonexistent");
 
         assertThat(resolved).isNull();
     }
 
     @Test
     void blueHatRejectsUnknownTemplateBeforeProvisioning() {
-        final ResolvedTemplate resolved = ImageDef.resolve("tpl-nonexistent");
+        ResolvedTemplate resolved = ImageDef.resolve("tpl-nonexistent");
 
         assertThat(resolved).isNull();
     }
 
     @Test
     void resolveReturnsPackagesForKnownTemplate() {
-        final ResolvedTemplate resolved = ImageDef.resolve("tpl-openjdk");
+        ResolvedTemplate resolved = ImageDef.resolve("tpl-openjdk");
 
         assertThat(resolved).isNotNull();
         assertThat(resolved.imageDef().getName()).isEqualTo("tpl-openjdk");
@@ -142,10 +142,10 @@ class TemplateProvisioningTest {
 
     @Test
     void provisioningWithMinimalTemplateIsNoOp() {
-        final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
-        final ImageDef imageDef = ImageDef.findByName("tpl-minimal", defs);
-        final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
+        ImageDef imageDef = ImageDef.findByName("tpl-minimal", defs);
+        List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        RecordingProvisioner recorder = new RecordingProvisioner();
 
         BootJdkProvisioner.provision(allPackages, recorder, false, "x86_64");
 
@@ -154,8 +154,8 @@ class TemplateProvisioningTest {
     }
 
     private static class RecordingProvisioner extends SshProvisioner {
-        final List<String> ranCommands = new ArrayList<>();
-        final List<String> installedPackages = new ArrayList<>();
+        List<String> ranCommands = new ArrayList<>();
+        List<String> installedPackages = new ArrayList<>();
 
         RecordingProvisioner() {
             super("test-host", "test-user", Path.of("/dev/null"));

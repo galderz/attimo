@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ContinentTest {
     @Test
     void emeaContainsEuropeanRegions() {
-        final Continent continent = Continent.forRegion("eu-west-1");
+        Continent continent = Continent.forRegion("eu-west-1");
         assertThat(continent).isEqualTo(Continent.EMEA);
         assertThat(continent.regions()).contains(Region.EU_WEST_1, Region.EU_WEST_2, Region.EU_CENTRAL_1);
     }
@@ -89,13 +89,13 @@ class ContinentTest {
 
     @Test
     void othersReturnsTwoOtherContinents() {
-        final List<Continent> emeaOthers = Continent.EMEA.others();
+        List<Continent> emeaOthers = Continent.EMEA.others();
         assertThat(emeaOthers).containsExactly(Continent.AMERICAS, Continent.ASIA_PACIFIC);
 
-        final List<Continent> americasOthers = Continent.AMERICAS.others();
+        List<Continent> americasOthers = Continent.AMERICAS.others();
         assertThat(americasOthers).containsExactly(Continent.EMEA, Continent.ASIA_PACIFIC);
 
-        final List<Continent> apOthers = Continent.ASIA_PACIFIC.others();
+        List<Continent> apOthers = Continent.ASIA_PACIFIC.others();
         assertThat(apOthers).containsExactly(Continent.EMEA, Continent.AMERICAS);
     }
 

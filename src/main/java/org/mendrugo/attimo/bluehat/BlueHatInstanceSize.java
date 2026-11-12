@@ -14,7 +14,7 @@ public enum BlueHatInstanceSize {
     private final int memoryGb;
 
     BlueHatInstanceSize(String label, String description, int cpus,
-                        final int memoryGb) {
+                        int memoryGb) {
         this.label = label;
         this.description = description;
         this.cpus = cpus;

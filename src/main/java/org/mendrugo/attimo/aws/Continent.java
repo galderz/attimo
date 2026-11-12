@@ -97,7 +97,7 @@ public enum Continent {
     }
 
     public List<Continent> others() {
-        final ArrayList<Continent> result = new ArrayList<Continent>();
+        ArrayList<Continent> result = new ArrayList<Continent>();
         for (Continent c : values()) {
             if (c != this) {
                 result.add(c);

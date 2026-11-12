@@ -44,9 +44,9 @@ public class SpotManager {
     }
 
     public String createSecurityGroup() {
-        final String groupName = "attimo-" + sessionId.substring(0, 8);
+        String groupName = "attimo-" + sessionId.substring(0, 8);
 
-        final CreateSecurityGroupResponse createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
+        CreateSecurityGroupResponse createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
                 .groupName(groupName)
                 .description("attimo spot instance SSH access")
                 .tagSpecifications(TagSpecification.builder()
@@ -55,7 +55,7 @@ public class SpotManager {
                         .build())
                 .build());
 
-        final String sgId = createResponse.groupId();
+        String sgId = createResponse.groupId();
 
         ec2.authorizeSecurityGroupIngress(AuthorizeSecurityGroupIngressRequest.builder()
                 .groupId(sgId)
@@ -74,7 +74,7 @@ public class SpotManager {
     }
 
     public String importKeyPair(String publicKeyContent) {
-        final String keyName = "attimo-" + sessionId.substring(0, 8);
+        String keyName = "attimo-" + sessionId.substring(0, 8);
 
         ec2.importKeyPair(ImportKeyPairRequest.builder()
                 .keyName(keyName)
@@ -88,8 +88,8 @@ public class SpotManager {
     }
 
     public String launchSpotInstance(String amiId, String instanceType, String securityGroupId,
-            final String keyPairName) {
-        final RunInstancesResponse response = ec2.runInstances(
+            String keyPairName) {
+        RunInstancesResponse response = ec2.runInstances(
                 RunInstancesRequest.builder()
                         .imageId(amiId)
                         .instanceType(instanceType)
@@ -109,18 +109,18 @@ public class SpotManager {
                                 .build())
                         .build());
 
-        final String instanceId = response.instances()
+        String instanceId = response.instances()
                 .getFirst()
                 .instanceId();
         return instanceId;
     }
 
     public String waitForRunning(String instanceId, int timeoutSeconds) {
-        final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
 
         while (System.currentTimeMillis() < deadline) {
             try {
-                final DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
+                DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
                         .instanceIds(instanceId)
                         .build());
 
@@ -128,14 +128,14 @@ public class SpotManager {
                         .getFirst()
                         .instances()
                         .isEmpty()) {
-                    final Instance instance = response.reservations()
+                    Instance instance = response.reservations()
                             .getFirst()
                             .instances()
                             .getFirst();
-                    final InstanceStateName state = instance.state().name();
+                    InstanceStateName state = instance.state().name();
 
                     if (state == InstanceStateName.RUNNING) {
-                        final String publicIp = instance.publicIpAddress();
+                        String publicIp = instance.publicIpAddress();
                         if (publicIp != null && !publicIp.isBlank()) {
                             return publicIp;
                         }
@@ -164,7 +164,7 @@ public class SpotManager {
 
     public boolean isRunning(String instanceId) {
         try {
-            final DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
+            DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
                     .instanceIds(instanceId)
                     .build());
 
@@ -172,7 +172,7 @@ public class SpotManager {
                     .getFirst()
                     .instances()
                     .isEmpty()) {
-                final InstanceStateName state = response.reservations()
+                InstanceStateName state = response.reservations()
                         .getFirst()
                         .instances()
                         .getFirst()

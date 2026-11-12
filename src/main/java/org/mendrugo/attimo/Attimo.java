@@ -21,7 +21,7 @@ public class Attimo implements QuarkusApplication {
         }
 
         try {
-            final CommandResult result = AeshRuntimeRunner.builder()
+            CommandResult result = AeshRuntimeRunner.builder()
                     .command(AttimoCommand.class)
                     .args(args)
                     .execute();
@@ -48,7 +48,7 @@ public class Attimo implements QuarkusApplication {
         @Override
         protected CommandResult doExecute() {
             if (versionRequested) {
-                final BuildInfo info = BuildInfo.instance();
+                BuildInfo info = BuildInfo.instance();
                 System.out.println("attimo " + info.version());
                 System.out.println(info.runtime());
                 return CommandResult.SUCCESS;

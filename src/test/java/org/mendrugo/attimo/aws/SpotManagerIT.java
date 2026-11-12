@@ -31,21 +31,21 @@ class SpotManagerIT {
     @Test
     void createSecurityGroupWithSshIngress() {
         try (Ec2Client ec2 = ec2Client()) {
-            final SpotManager manager = new SpotManager(ec2, "it-test-session");
-            final String sgId = manager.createSecurityGroup();
+            SpotManager manager = new SpotManager(ec2, "it-test-session");
+            String sgId = manager.createSecurityGroup();
 
             assertThat(sgId).isNotBlank();
 
-            final DescribeSecurityGroupsResponse describeResponse = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
+            DescribeSecurityGroupsResponse describeResponse = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
                     .groupIds(sgId)
                     .build());
 
             assertThat(describeResponse.securityGroups()).hasSize(1);
-            final SecurityGroup sg = describeResponse.securityGroups().getFirst();
+            SecurityGroup sg = describeResponse.securityGroups().getFirst();
             assertThat(sg.groupName()).startsWith("attimo-");
 
             assertThat(sg.ipPermissions()).isNotEmpty();
-            final IpPermission sshRule = sg.ipPermissions().getFirst();
+            IpPermission sshRule = sg.ipPermissions().getFirst();
             assertThat(sshRule.fromPort()).isEqualTo(22);
             assertThat(sshRule.toPort()).isEqualTo(22);
 
@@ -58,13 +58,13 @@ class SpotManagerIT {
     @Test
     void importKeyPairAndVerify() {
         try (Ec2Client ec2 = ec2Client()) {
-            final SpotManager manager = new SpotManager(ec2, "it-test-session");
-            final String dummyPubKey = TestKeys.generateEd25519PublicKey();
-            final String keyName = manager.importKeyPair(dummyPubKey);
+            SpotManager manager = new SpotManager(ec2, "it-test-session");
+            String dummyPubKey = TestKeys.generateEd25519PublicKey();
+            String keyName = manager.importKeyPair(dummyPubKey);
 
             assertThat(keyName).startsWith("attimo-");
 
-            final DescribeKeyPairsResponse describeResponse = ec2.describeKeyPairs(DescribeKeyPairsRequest.builder()
+            DescribeKeyPairsResponse describeResponse = ec2.describeKeyPairs(DescribeKeyPairsRequest.builder()
                     .keyNames(keyName)
                     .build());
 

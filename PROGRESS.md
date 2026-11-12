@@ -244,7 +244,7 @@ org.mendrugo.attimo/
 
 ### Code Style
 - **Allman braces** — `{` on its own line
-- **`final` on all parameters and locals**
+- **No `final` on local variables or parameters**
 - **Comma-first** — `, secondArg` on new line
 - **No wildcard imports**
 - See `SPEC.md` Code Style section for full examples

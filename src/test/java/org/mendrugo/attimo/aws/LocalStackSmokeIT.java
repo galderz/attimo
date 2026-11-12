@@ -26,17 +26,17 @@ class LocalStackSmokeIT {
 
     @Test
     void createAndDescribeSecurityGroup() {
-        final Ec2Client ec2 = ec2Client();
-        final String groupName = "attimo-smoke-test";
+        Ec2Client ec2 = ec2Client();
+        String groupName = "attimo-smoke-test";
 
-        final CreateSecurityGroupResponse createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
+        CreateSecurityGroupResponse createResponse = ec2.createSecurityGroup(CreateSecurityGroupRequest.builder()
                 .groupName(groupName)
                 .description("Smoke test security group")
                 .build());
 
         assertThat(createResponse.groupId()).isNotBlank();
 
-        final DescribeSecurityGroupsResponse describeResponse = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
+        DescribeSecurityGroupsResponse describeResponse = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
                 .groupIds(createResponse.groupId())
                 .build());
 

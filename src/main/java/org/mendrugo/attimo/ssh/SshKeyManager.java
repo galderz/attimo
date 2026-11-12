@@ -22,7 +22,7 @@ public final class SshKeyManager {
         try {
             Files.createDirectories(Environment.sshDir(cloud));
 
-            final ProcessBuilder pb = new ProcessBuilder(
+            ProcessBuilder pb = new ProcessBuilder(
                     "ssh-keygen",
                     "-t",
                     "ed25519",
@@ -33,14 +33,14 @@ public final class SshKeyManager {
                     "-C",
                     "attimo managed key");
             pb.redirectErrorStream(true);
-            final Process process = pb.start();
+            Process process = pb.start();
 
             if (!process.waitFor(30, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
                 throw new RuntimeException("ssh-keygen timed out");
             }
 
-            final String output = new String(process.getInputStream().readAllBytes());
+            String output = new String(process.getInputStream().readAllBytes());
             if (process.exitValue() != 0) {
                 throw new RuntimeException("ssh-keygen failed: " + output);
             }

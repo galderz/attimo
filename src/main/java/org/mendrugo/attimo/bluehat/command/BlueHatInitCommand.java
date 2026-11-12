@@ -27,8 +27,8 @@ public class BlueHatInitCommand extends BaseCommand {
     protected CommandResult doExecute() throws Exception {
         System.out.println("=== attimo bh init ===\n");
 
-        final BlueHatConfig config = BlueHatConfig.load();
-        final Console console = System.console();
+        BlueHatConfig config = BlueHatConfig.load();
+        Console console = System.console();
 
         if (config.hasCloudTarget()) {
             System.out.println("Current configuration:");
@@ -43,7 +43,7 @@ public class BlueHatInitCommand extends BaseCommand {
 
             if (console != null) {
                 System.out.print("  Reconfigure? (y/N): ");
-                final String answer = console.readLine().strip();
+                String answer = console.readLine().strip();
                 if (!answer.equalsIgnoreCase("y")) {
                     setupSshKey(console, config);
                     config.save();
@@ -80,11 +80,11 @@ public class BlueHatInitCommand extends BaseCommand {
         }
 
         System.out.print("Choice [1/2]: ");
-        final String choice = console.readLine().strip();
+        String choice = console.readLine().strip();
 
         if ("1".equals(choice)) {
             System.out.print("  Git repository URL: ");
-            final String repo = console.readLine().strip();
+            String repo = console.readLine().strip();
 
             if (repo.isBlank()) {
                 System.err.println("  Error: repository URL cannot be empty.");
@@ -98,7 +98,7 @@ public class BlueHatInitCommand extends BaseCommand {
             System.out.println("     These must be set in your shell before running ato bh commands.");
             System.out.println();
             System.out.print("  I understand and have configured the required environment variables (y/N): ");
-            final String confirm = console.readLine().strip();
+            String confirm = console.readLine().strip();
 
             if (!confirm.equalsIgnoreCase("y")) {
                 System.out.println("  Aborting. Set the required environment variables and run 'ato bh init' again.");
@@ -110,7 +110,7 @@ public class BlueHatInitCommand extends BaseCommand {
             System.out.println("  Mode set to: local (repository: " + repo + ")");
         } else if ("2".equals(choice)) {
             System.out.print("  Blue Hat host name or IP address: ");
-            final String host = console.readLine().strip();
+            String host = console.readLine().strip();
 
             if (host.isBlank()) {
                 System.err.println("  Error: host name cannot be empty.");
@@ -142,9 +142,9 @@ public class BlueHatInitCommand extends BaseCommand {
         if (!config.getSshPublicKey().isBlank()) {
             System.out.println("  Personal SSH public key: " + config.getSshPublicKey());
         } else if (console != null) {
-            final String defaultKey = "~/.ssh/id_ed25519.pub";
+            String defaultKey = "~/.ssh/id_ed25519.pub";
             System.out.print("  Path to your SSH public key [" + defaultKey + "]: ");
-            final String input = console.readLine().strip();
+            String input = console.readLine().strip();
             config.setSshPublicKey(input.isBlank() ? defaultKey : input);
             System.out.println("  SSH public key set to: " + config.getSshPublicKey());
         } else {

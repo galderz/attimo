@@ -16,9 +16,9 @@ class BootJdkProvisionerTest {
 
     @Test
     void fedoraKeepsJdkPackageInDnfList() {
-        final List<String> packages = List.of("java-latest-openjdk-devel", "gcc", "make");
+        List<String> packages = List.of("java-latest-openjdk-devel", "gcc", "make");
 
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, true, "x86_64");
 
         assertThat(recorder.installedPackages).contains("java-latest-openjdk-devel", "gcc", "make");
@@ -28,9 +28,9 @@ class BootJdkProvisionerTest {
 
     @Test
     void al2023RemovesJdkPackageFromDnfList() {
-        final List<String> packages = List.of("java-latest-openjdk-devel", "gcc", "make");
+        List<String> packages = List.of("java-latest-openjdk-devel", "gcc", "make");
 
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "x86_64");
 
         assertThat(recorder.installedPackages)
@@ -47,9 +47,9 @@ class BootJdkProvisionerTest {
 
     @Test
     void al2023UsesAarch64ForArm() {
-        final List<String> packages = List.of("java-latest-openjdk-devel");
+        List<String> packages = List.of("java-latest-openjdk-devel");
 
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "aarch64");
 
         assertThat(recorder.ranCommands).hasSize(3);
@@ -61,9 +61,9 @@ class BootJdkProvisionerTest {
 
     @Test
     void noJdkPackageMeansNothingSpecial() {
-        final List<String> packages = List.of("gcc", "make");
+        List<String> packages = List.of("gcc", "make");
 
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "x86_64");
 
         assertThat(recorder.ranCommands).isEmpty();
@@ -72,15 +72,15 @@ class BootJdkProvisionerTest {
 
     @Test
     void emptyPackagesIsNoOp() {
-        final RecordingProvisioner recorder = new RecordingProvisioner();
+        RecordingProvisioner recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(List.of(), recorder, false, "x86_64");
         assertThat(recorder.ranCommands).isEmpty();
         assertThat(recorder.installedPackages).isEmpty();
     }
 
     private static class RecordingProvisioner extends SshProvisioner {
-        final List<String> ranCommands = new ArrayList<>();
-        final List<String> installedPackages = new ArrayList<>();
+        List<String> ranCommands = new ArrayList<>();
+        List<String> installedPackages = new ArrayList<>();
 
         RecordingProvisioner() {
             super("test-host", "test-user", Path.of("/dev/null"));

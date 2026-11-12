@@ -32,11 +32,11 @@ class BaseAmiResolverIT {
                     .type(ParameterType.STRING)
                     .build());
 
-            final String value = ssm.getParameter(GetParameterRequest.builder()
-                                            .name("/attimo/test/ami")
-                                            .build())
-                                    .parameter()
-                                    .value();
+            String value = ssm.getParameter(GetParameterRequest.builder()
+                                      .name("/attimo/test/ami")
+                                      .build())
+                              .parameter()
+                              .value();
 
             assertThat(value).isEqualTo("ami-test");
         }
@@ -45,8 +45,8 @@ class BaseAmiResolverIT {
     @Test
     void resolverReturnsAmiIdFromSsm() {
         try (SsmClient ssm = ssmClient()) {
-            final BaseAmiResolver resolver = new BaseAmiResolver();
-            final String amiId = resolver.resolve(ssm, "arm64", LOCALSTACK.getRegion());
+            BaseAmiResolver resolver = new BaseAmiResolver();
+            String amiId = resolver.resolve(ssm, "arm64", LOCALSTACK.getRegion());
             assertThat(amiId).isNotBlank();
         }
     }

@@ -17,47 +17,47 @@ class AttimoConfigTest {
 
     @Test
     void defaultSearchPathsEmpty() {
-        final AttimoConfig config = new AttimoConfig();
+        AttimoConfig config = new AttimoConfig();
         assertThat(config.getSearchPaths()).isEmpty();
     }
 
     @Test
     void setSearchPaths() {
-        final AttimoConfig config = new AttimoConfig();
+        AttimoConfig config = new AttimoConfig();
         config.setSearchPaths(List.of("/home/user/templates", "/opt/shared"));
         assertThat(config.getSearchPaths()).containsExactly("/home/user/templates", "/opt/shared");
     }
 
     @Test
     void setNullSearchPathsDefaultsToEmpty() {
-        final AttimoConfig config = new AttimoConfig();
+        AttimoConfig config = new AttimoConfig();
         config.setSearchPaths(null);
         assertThat(config.getSearchPaths()).isEmpty();
     }
 
     @Test
     void saveAndLoadRoundTrip(@TempDir final Path tempDir) throws IOException {
-        final Path configFile = tempDir.resolve("config.yaml");
-        final AttimoConfig config = new AttimoConfig();
+        Path configFile = tempDir.resolve("config.yaml");
+        AttimoConfig config = new AttimoConfig();
         config.setSearchPaths(List.of("/home/user/templates", "/opt/shared"));
         YAML.writeValue(configFile.toFile(), config);
 
-        final AttimoConfig loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
+        AttimoConfig loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
         assertThat(loaded.getSearchPaths()).containsExactly("/home/user/templates", "/opt/shared");
     }
 
     @Test
     void loadFromEmptyFileReturnsDefaults(@TempDir final Path tempDir) throws IOException {
-        final Path configFile = tempDir.resolve("config.yaml");
+        Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile, "{}\n");
 
-        final AttimoConfig loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
+        AttimoConfig loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
         assertThat(loaded.getSearchPaths()).isEmpty();
     }
 
     @Test
     void loadIgnoresUnknownFields(@TempDir final Path tempDir) throws IOException {
-        final Path configFile = tempDir.resolve("config.yaml");
+        Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile,
                 """
             search-paths:
@@ -65,7 +65,7 @@ class AttimoConfigTest {
             unknown-field: should be ignored
             """);
 
-        final AttimoConfig loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
+        AttimoConfig loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
         assertThat(loaded.getSearchPaths()).containsExactly("/opt/templates");
     }
 }

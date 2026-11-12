@@ -66,7 +66,7 @@ class RegionTest {
 
     @Test
     void codesAreUnique() {
-        final List<String> codes = Arrays.stream(Region.values())
+        List<String> codes = Arrays.stream(Region.values())
                 .map(Region::code)
                 .toList();
 

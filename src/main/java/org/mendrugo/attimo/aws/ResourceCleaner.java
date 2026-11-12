@@ -54,7 +54,7 @@ public class ResourceCleaner {
 
     private void cleanOrphanedSecurityGroups() {
         try {
-            final DescribeSecurityGroupsResponse response = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
+            DescribeSecurityGroupsResponse response = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
                     .filters(Filter.builder()
                             .name("tag:attimo:managed")
                             .values("true")
@@ -88,7 +88,7 @@ public class ResourceCleaner {
 
     private void cleanOrphanedInstances() {
         try {
-            final DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
+            DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
                     .filters(
                             Filter.builder()
                                     .name("tag:attimo:managed")
@@ -128,7 +128,7 @@ public class ResourceCleaner {
     }
 
     private static boolean isRegionNotEnabled(Exception e) {
-        final String msg = e.getMessage();
+        String msg = e.getMessage();
         if (msg == null) {
             return false;
         }
@@ -157,11 +157,11 @@ public class ResourceCleaner {
         }
 
         System.out.println("  Waiting for instance to terminate...");
-        final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
 
         while (System.currentTimeMillis() < deadline) {
             try {
-                final DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
+                DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
                         .instanceIds(instanceId)
                         .build());
 
@@ -169,7 +169,7 @@ public class ResourceCleaner {
                         .getFirst()
                         .instances()
                         .isEmpty()) {
-                    final InstanceStateName state = response.reservations()
+                    InstanceStateName state = response.reservations()
                             .getFirst()
                             .instances()
                             .getFirst()
@@ -214,8 +214,8 @@ public class ResourceCleaner {
             return;
         }
 
-        final int maxRetries = 6;
-        final int retryDelayMs = 10_000;
+        int maxRetries = 6;
+        int retryDelayMs = 10_000;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
