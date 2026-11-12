@@ -168,6 +168,41 @@ public class ImageDef
     }
 
     /**
+     * Resolve a template by name: load all definitions, find the template,
+     * and collect all packages (including inherited from ancestors).
+     *
+     * <p>This is the single entry point both AWS and Blue Hat request
+     * commands should call to validate and resolve a template before
+     * any cloud resources are created.
+     *
+     * @param templateName the template name (e.g. "tpl-openjdk")
+     * @return the resolved result, or null if the template is unknown
+     */
+    public static ResolvedTemplate resolve(final String templateName)
+    {
+        final var defs = loadAll();
+        final var imageDef = findByName(templateName, defs);
+        if (imageDef == null)
+        {
+            System.err.println("Error: unknown template '" + templateName + "'.");
+            System.err.println("Available templates: "
+                + String.join(", ", defs.keySet()));
+            return null;
+        }
+        final var packages = collectAllPackages(imageDef, defs);
+        return new ResolvedTemplate(imageDef, packages);
+    }
+
+    /**
+     * A resolved template with its full package list (including inherited).
+     */
+    public record ResolvedTemplate(
+        ImageDef imageDef
+        , List<String> packages
+    )
+    {}
+
+    /**
      * Load all image definitions: built-in first, then search paths,
      * then project-local. Later definitions with the same name override
      * earlier ones. Search paths come from {@link AttimoConfig}.

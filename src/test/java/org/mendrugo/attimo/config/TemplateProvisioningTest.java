@@ -148,6 +148,39 @@ class TemplateProvisioningTest
         assertThat(recorder.ranCommands).isEmpty();
     }
 
+    // ── Unknown template (rejected before provisioning) ────────────
+
+    @Test
+    void awsRejectsUnknownTemplateBeforeProvisioning()
+    {
+        // Simulate what AwsRequestCommand does at the start of doExecute()
+        final var resolved = ImageDef.resolve("tpl-nonexistent");
+
+        // Should return null — no cloud resources created
+        assertThat(resolved).isNull();
+    }
+
+    @Test
+    void blueHatRejectsUnknownTemplateBeforeProvisioning()
+    {
+        // Simulate what BlueHatRequestCommand does at the start of doExecute()
+        final var resolved = ImageDef.resolve("tpl-nonexistent");
+
+        // Should return null — no VM created
+        assertThat(resolved).isNull();
+    }
+
+    @Test
+    void resolveReturnsPackagesForKnownTemplate()
+    {
+        final var resolved = ImageDef.resolve("tpl-openjdk");
+
+        assertThat(resolved).isNotNull();
+        assertThat(resolved.imageDef().getName()).isEqualTo("tpl-openjdk");
+        assertThat(resolved.packages())
+            .contains("gcc", "java-latest-openjdk-devel");
+    }
+
     // ── Minimal template (no packages) ─────────────────────────────
 
     @Test

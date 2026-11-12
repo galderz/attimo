@@ -26,7 +26,6 @@ import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @CommandDefinition(
@@ -72,13 +71,9 @@ public class AwsRequestCommand extends BaseCommand
         }
 
         // Validate template before any cloud resources are created
-        final var defs = ImageDef.loadAll();
-        final var imageDef = ImageDef.findByName(template, defs);
-        if (imageDef == null)
+        final var resolved = ImageDef.resolve(template);
+        if (resolved == null)
         {
-            System.err.println("Error: unknown template '" + template + "'.");
-            System.err.println("Available templates: "
-                + String.join(", ", defs.keySet()));
             return CommandResult.FAILURE;
         }
 
@@ -187,14 +182,13 @@ public class AwsRequestCommand extends BaseCommand
 
         try (launchResult)
         {
-            return provisionAndConnect(launchResult, imageDef, defs);
+            return provisionAndConnect(launchResult, resolved);
         }
     }
 
     private CommandResult provisionAndConnect(
         final LaunchResult launchResult
-        , final ImageDef imageDef
-        , final Map<String, ImageDef> defs
+        , final ImageDef.ResolvedTemplate resolved
     )
     {
         // Save state for reconnection
@@ -229,7 +223,7 @@ public class AwsRequestCommand extends BaseCommand
 
         // Provision packages from template (including inherited ancestor packages)
         final var provisioner = new SshProvisioner(launchResult.publicIp, sshUser, keyFile);
-        final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        final var allPackages = resolved.packages();
         // Derive arch from ISA feature for Adoptium API
         final var isaMapping = new IsaMapping();
         final var resolvedFeature = isaMapping.resolve(isaFeature);

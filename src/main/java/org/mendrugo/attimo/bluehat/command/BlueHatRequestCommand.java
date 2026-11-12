@@ -54,13 +54,9 @@ public class BlueHatRequestCommand extends BaseCommand
         }
 
         // Validate template before any cloud resources are created
-        final var defs = ImageDef.loadAll();
-        final var imageDef = ImageDef.findByName(template, defs);
-        if (imageDef == null)
+        final var resolved = ImageDef.resolve(template);
+        if (resolved == null)
         {
-            System.err.println("Error: unknown template '" + template + "'.");
-            System.err.println("Available templates: "
-                + String.join(", ", defs.keySet()));
             return CommandResult.FAILURE;
         }
 
@@ -100,7 +96,7 @@ public class BlueHatRequestCommand extends BaseCommand
         try
         {
             localProcess = BlueHatCloudRunner.ensureCloudRunning(config);
-            return doRequest(hostName, port, instanceSize, imageDef, defs);
+            return doRequest(hostName, port, instanceSize, resolved);
         }
         finally
         {
@@ -112,8 +108,7 @@ public class BlueHatRequestCommand extends BaseCommand
         final String hostName
         , final int port
         , final BlueHatInstanceSize instanceSize
-        , final ImageDef imageDef
-        , final java.util.Map<String, ImageDef> defs
+        , final ImageDef.ResolvedTemplate resolved
     )
     {
         System.out.println("=== Requesting Blue Hat VM ===\n");
@@ -166,7 +161,7 @@ public class BlueHatRequestCommand extends BaseCommand
         // Provision packages from template (including inherited ancestor packages)
         System.out.println("\n[4/4] Provisioning and connecting...");
         final var provisioner = new SshProvisioner(fqdn, BlueHat.SSH_USER, keyFile);
-        final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
+        final var allPackages = resolved.packages();
         BootJdkProvisioner.provision(
             allPackages
             , provisioner
