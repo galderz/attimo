@@ -164,7 +164,6 @@ class ImageDefTest {
 
     @Test
     void searchPathLoadsExternalTemplates(@TempDir final Path tempDir) throws IOException {
-
         final Path imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
         Files.writeString(imagesDir.resolve("custom.yaml"),

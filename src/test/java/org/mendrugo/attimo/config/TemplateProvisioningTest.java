@@ -19,7 +19,6 @@ class TemplateProvisioningTest {
 
     @Test
     void awsProvisioningWithBuiltinOpenjdkTemplate() {
-
         final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
         final ImageDef imageDef = ImageDef.findByName("tpl-openjdk", defs);
         final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
@@ -37,7 +36,6 @@ class TemplateProvisioningTest {
 
     @Test
     void awsProvisioningWithInheritedTemplate(@TempDir final Path tempDir) throws IOException {
-
         final Path imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
         Files.writeString(imagesDir.resolve("base.yaml"),
@@ -71,7 +69,6 @@ class TemplateProvisioningTest {
 
     @Test
     void blueHatProvisioningWithBuiltinOpenjdkTemplate() {
-
         final Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
         final ImageDef imageDef = ImageDef.findByName("tpl-openjdk", defs);
         final List<String> allPackages = ImageDef.collectAllPackages(imageDef, defs);
@@ -122,7 +119,6 @@ class TemplateProvisioningTest {
 
     @Test
     void awsRejectsUnknownTemplateBeforeProvisioning() {
-
         final ResolvedTemplate resolved = ImageDef.resolve("tpl-nonexistent");
 
         assertThat(resolved).isNull();
@@ -130,7 +126,6 @@ class TemplateProvisioningTest {
 
     @Test
     void blueHatRejectsUnknownTemplateBeforeProvisioning() {
-
         final ResolvedTemplate resolved = ImageDef.resolve("tpl-nonexistent");
 
         assertThat(resolved).isNull();

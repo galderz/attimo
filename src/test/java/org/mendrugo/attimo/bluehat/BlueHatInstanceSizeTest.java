@@ -39,7 +39,6 @@ class BlueHatInstanceSizeTest {
 
     @Test
     void memoryToCpuRatioIsConsistentForDevelopment() {
-
         for (BlueHatInstanceSize size : BlueHatInstanceSize.values()) {
             assertThat(size.memoryGb())
                     .as("Size %s should have memory >= 2x CPUs", size.label())

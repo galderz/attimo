@@ -37,7 +37,6 @@ class AttimoConfigTest {
 
     @Test
     void saveAndLoadRoundTrip(@TempDir final Path tempDir) throws IOException {
-
         final Path configFile = tempDir.resolve("config.yaml");
         final AttimoConfig config = new AttimoConfig();
         config.setSearchPaths(List.of("/home/user/templates", "/opt/shared"));

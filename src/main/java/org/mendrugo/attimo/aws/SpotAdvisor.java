@@ -82,7 +82,6 @@ public class SpotAdvisor {
                 final List<PricedCandidate> prices = querySpotPrices(ec2, candidateTypes, region);
                 allPrices.addAll(prices);
             } catch (Exception e) {
-
                 final String msg = e.getMessage();
                 if (!isRegionSkippable(msg)) {
                     System.err.println("  Warning: could not query spot prices in " + region + ": " + msg);
@@ -118,7 +117,6 @@ public class SpotAdvisor {
                     }
                 }
             } catch (Exception e) {
-
                 if (!isRegionSkippable(e.getMessage())) {
                     System.err.println("  Warning: spot price query failed for batch in " + region + ": " + e.getMessage());
                 }

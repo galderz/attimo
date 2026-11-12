@@ -41,7 +41,6 @@ public class BlueHatConnectCommand extends BaseCommand {
     }
 
     private CommandResult doConnect(String fqdn, String hostName, int port) {
-
         try {
             final BlueHatClient client = new BlueHatClient(hostName, port);
             final List<VmDetails> vms = client.listVms();

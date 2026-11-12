@@ -16,7 +16,6 @@ class BootJdkProvisionerTest {
 
     @Test
     void fedoraKeepsJdkPackageInDnfList() {
-
         final List<String> packages = List.of("java-latest-openjdk-devel", "gcc", "make");
 
         final RecordingProvisioner recorder = new RecordingProvisioner();
@@ -62,7 +61,6 @@ class BootJdkProvisionerTest {
 
     @Test
     void noJdkPackageMeansNothingSpecial() {
-
         final List<String> packages = List.of("gcc", "make");
 
         final RecordingProvisioner recorder = new RecordingProvisioner();

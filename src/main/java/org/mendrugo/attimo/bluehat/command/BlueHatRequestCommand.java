@@ -47,7 +47,6 @@ public class BlueHatRequestCommand extends BaseCommand {
 
     @Override
     protected CommandResult doExecute() throws Exception {
-
         if (!BlueHatInitCommand.hasBeenInitialized()) {
             System.err.println("Error: Blue Hat has not been initialized. Run 'ato bh init' first.");
             return CommandResult.FAILURE;

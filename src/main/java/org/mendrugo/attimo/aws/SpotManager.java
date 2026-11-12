@@ -146,10 +146,8 @@ public class SpotManager {
                     }
                 }
             } catch (Ec2Exception e) {
-
                 if (e.awsErrorDetails() != null && "InvalidInstanceID.NotFound".equals(e.awsErrorDetails()
                         .errorCode())) {
-
                 } else {
                     throw e;
                 }

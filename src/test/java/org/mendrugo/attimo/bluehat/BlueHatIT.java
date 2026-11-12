@@ -35,7 +35,6 @@ class BlueHatIT {
 
     @Test
     void fullLifecycle_requestListDestroy() {
-
         final VmRequest request = new VmRequest("16", "32", "RedHat 10.2", "attimo integration test VM", "ssh-ed25519 AAAA... attimo managed key");
 
         final VmResponse createResponse = client.requestVm(request);
@@ -73,7 +72,6 @@ class BlueHatIT {
 
     @Test
     void requestMultipleVms() {
-
         final VmResponse vm1 = client.requestVm(new VmRequest("1", "2", "RedHat 10.2", "micro vm", "key1"));
         final VmResponse vm2 = client.requestVm(new VmRequest("8", "16", "RedHat 10.2", "small vm", "key2"));
         final VmResponse vm3 = client.requestVm(new VmRequest("32", "64", "RedHat 10.2", "large vm", "key3"));

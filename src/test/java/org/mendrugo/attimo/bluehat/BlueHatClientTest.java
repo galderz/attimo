@@ -39,7 +39,6 @@ class BlueHatClientTest {
     void requestVmReturnsFqdn() {
         server.createContext("/vm", exchange -> {
             if ("POST".equals(exchange.getRequestMethod())) {
-
                 final String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
                 assertThat(body).contains("\"cpu\"");
                 assertThat(body).contains("\"memory\"");

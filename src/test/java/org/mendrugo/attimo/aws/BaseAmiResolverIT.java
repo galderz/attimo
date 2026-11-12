@@ -25,7 +25,6 @@ class BaseAmiResolverIT {
 
     @Test
     void ssmClientCanGetAndPutParameters() {
-
         try (SsmClient ssm = ssmClient()) {
             ssm.putParameter(PutParameterRequest.builder()
                     .name("/attimo/test/ami")
@@ -45,7 +44,6 @@ class BaseAmiResolverIT {
 
     @Test
     void resolverReturnsAmiIdFromSsm() {
-
         try (SsmClient ssm = ssmClient()) {
             final BaseAmiResolver resolver = new BaseAmiResolver();
             final String amiId = resolver.resolve(ssm, "arm64", LOCALSTACK.getRegion());

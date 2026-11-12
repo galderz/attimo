@@ -46,12 +46,10 @@ public final class TestKeys {
         if (input.length == 32) {
             return input;
         } else if (input.length > 32) {
-
             final byte[] result = new byte[32];
             System.arraycopy(input, input.length - 32, result, 0, 32);
             return result;
         } else {
-
             final byte[] result = new byte[32];
             System.arraycopy(input, 0, result, 32 - input.length, input.length);
             return result;

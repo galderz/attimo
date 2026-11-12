@@ -50,7 +50,6 @@ class AdoptiumApiIT {
 
     @Test
     void downloadUrlReturnsRedirect() throws IOException, InterruptedException {
-
         final String version = latestVersion();
         final String url = String.format("https://api.adoptium.net/v3/binary/latest/%s/ga/linux/x64/jdk/hotspot/normal/eclipse", version);
 

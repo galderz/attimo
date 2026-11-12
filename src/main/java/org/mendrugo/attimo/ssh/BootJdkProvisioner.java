@@ -20,7 +20,6 @@ public final class BootJdkProvisioner {
         final ArrayList<String> dnfPackages = new ArrayList<>(packages);
 
         if (!isFedora && dnfPackages.remove(JDK_PACKAGE)) {
-
             if (!installAdoptiumTarball(provisioner, arch)) {
                 System.err.println("  Warning: Adoptium Temurin install failed.");
             }
@@ -32,7 +31,6 @@ public final class BootJdkProvisioner {
     }
 
     static boolean installAdoptiumTarball(SshProvisioner provisioner, String arch) {
-
         final String apiArch = "aarch64".equals(arch) ? "aarch64" : "x64";
 
         System.out.println("  Installing Adoptium Temurin JDK...");

@@ -27,7 +27,6 @@ class AwsClientFactoryTest {
 
     @Test
     void validateCredentialsFailsWithoutRealAws() {
-
         final AwsClientFactory factory = new AwsClientFactory(URI.create("http://localhost:1"));
         final String result = factory.validateCredentials();
         assertThat(result).isNotNull();

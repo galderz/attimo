@@ -30,7 +30,6 @@ class ResourceCleanerIT {
     @Test
     void cleansUpSecurityGroupAndKeyPair() {
         try (Ec2Client ec2 = ec2Client()) {
-
             final SpotManager manager = new SpotManager(ec2, "it-cleanup-test");
             final String sgId = manager.createSecurityGroup();
             final String dummyPubKey = TestKeys.generateEd25519PublicKey();
@@ -57,7 +56,6 @@ class ResourceCleanerIT {
     @Test
     void handlesAlreadyDeletedResources() {
         try (Ec2Client ec2 = ec2Client()) {
-
             final InstanceState state = new InstanceState();
             state.setInstanceId("");
             state.setSecurityGroupId("sg-nonexistent");
@@ -73,7 +71,6 @@ class ResourceCleanerIT {
     @Test
     void cleanOrphansFindsTaggedSecurityGroup() {
         try (Ec2Client ec2 = ec2Client()) {
-
             final SpotManager manager = new SpotManager(ec2, "it-orphan-test");
             final String sgId = manager.createSecurityGroup();
 

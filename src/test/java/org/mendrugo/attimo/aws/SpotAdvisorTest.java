@@ -239,7 +239,6 @@ class SpotAdvisorTest {
 
     @Test
     void medianPriceCalculation() {
-
         assertThat(SpotAdvisor.medianPrice(List.of(new PricedCandidate("", "", "", 0.05),
                 new PricedCandidate("", "", "", 0.10), new PricedCandidate("", "", "", 0.20))))
                 .isEqualTo(0.10);

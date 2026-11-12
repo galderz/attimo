@@ -58,7 +58,6 @@ public class AwsRequestCommand extends BaseCommand {
 
     @Override
     protected CommandResult doExecute() throws Exception {
-
         if (!AwsInitCommand.hasBeenInitialized()) {
             System.err.println("Error: AWS has not been initialized. Run 'ato aws init' first.");
             return CommandResult.FAILURE;
@@ -155,7 +154,6 @@ public class AwsRequestCommand extends BaseCommand {
     }
 
     private CommandResult provisionAndConnect(LaunchResult launchResult, ResolvedTemplate resolved) {
-
         final InstanceState state = new InstanceState();
         state.setInstanceId(launchResult.instanceId);
         state.setRegion(launchResult.recommendation.region());
@@ -258,7 +256,6 @@ public class AwsRequestCommand extends BaseCommand {
     static final Set<String> RETRYABLE_ERROR_CODES = Set.of("InsufficientInstanceCapacity", "SpotMaxPriceTooLow", "MaxSpotInstanceCountExceeded", "InvalidAMIID.NotFound");
 
     static boolean isRetryableLaunchError(Exception e) {
-
         if (e instanceof Ec2Exception ec2Ex && ec2Ex.awsErrorDetails() != null) {
             final String code = ec2Ex.awsErrorDetails().errorCode();
             if (code != null && RETRYABLE_ERROR_CODES.contains(code)) {
