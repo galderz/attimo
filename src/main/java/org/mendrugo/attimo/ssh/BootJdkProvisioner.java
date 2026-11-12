@@ -3,136 +3,76 @@ package org.mendrugo.attimo.ssh;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Handles boot JDK installation with OS-specific strategies.
- *
- * <p>On Fedora, {@code java-latest-openjdk-devel} is available in the
- * default repos and is passed straight to {@code dnf install}.
- *
- * <p>On Amazon Linux 2023, that package doesn't exist. Instead, we
- * download the latest Adoptium Temurin tarball and extract it to
- * {@code $HOME/opt/java-<version>}. The path is displayed to the user.
- * No {@code sudo} is required since the JDK is installed in the
- * user's home directory.
- */
-public final class BootJdkProvisioner
-{
-    /** The Fedora package name that triggers special handling on AL2023. */
+public final class BootJdkProvisioner {
+
     public static final String JDK_PACKAGE = "java-latest-openjdk-devel";
 
-    /** Symlink path for tarball-based JDK on AL2023. */
     public static final String JDK_INSTALL_DIR = "$HOME/opt/java";
 
     private BootJdkProvisioner() {}
 
-    /**
-     * Partition packages into those that need dnf install and handle
-     * the boot JDK separately if on AL2023. Errors are logged as
-     * warnings; provisioning failures are not fatal so that the user
-     * can still connect to the instance and fix issues manually.
-     *
-     * @param packages  full package list from the template
-     * @param provisioner SSH provisioner for the target host
-     * @param isFedora  true for Fedora (Blue Hat), false for AL2023 (AWS)
-     * @param arch      target architecture: "x86_64" or "aarch64"
-     */
-    public static void provision(
-        final List<String> packages
-        , final SshProvisioner provisioner
-        , final boolean isFedora
-        , final String arch
-    )
-    {
-        if (packages.isEmpty())
-        {
+    public static void provision(List<String> packages, SshProvisioner provisioner, boolean isFedora,
+            String arch) {
+        if (packages.isEmpty()) {
             return;
         }
 
-        final var dnfPackages = new ArrayList<>(packages);
+        ArrayList<String> dnfPackages = new ArrayList<>(packages);
 
-        if (!isFedora && dnfPackages.remove(JDK_PACKAGE))
-        {
-            // AL2023: download Adoptium Temurin tarball
-            if (!installAdoptiumTarball(provisioner, arch))
-            {
+        if (!isFedora && dnfPackages.remove(JDK_PACKAGE)) {
+            if (!installAdoptiumTarball(provisioner, arch)) {
                 System.err.println("  Warning: Adoptium Temurin install failed.");
             }
         }
 
-        // Install remaining packages via dnf (on Fedora this includes
-        // java-latest-openjdk-devel; on AL2023 it was removed above)
-        if (!provisioner.installPackages(dnfPackages))
-        {
+        if (!provisioner.installPackages(dnfPackages)) {
             System.err.println("  Warning: package installation failed.");
         }
     }
 
-    /**
-     * Download and extract the latest Adoptium Temurin JDK tarball.
-     * Runs each step individually over SSH so errors are visible.
-     */
-    static boolean installAdoptiumTarball(
-        final SshProvisioner provisioner
-        , final String arch
-    )
-    {
-        // Map attimo arch names to Adoptium API arch names
-        final var apiArch = "aarch64".equals(arch) ? "aarch64" : "x64";
+    static boolean installAdoptiumTarball(SshProvisioner provisioner, String arch) {
+        String apiArch = "aarch64".equals(arch) ? "aarch64" : "x64";
 
         System.out.println("  Installing Adoptium Temurin JDK...");
 
-        // Step 1: Query Adoptium API once, save version to temp file
         System.out.println("  Querying Adoptium API for latest release...");
-        final var versionRc = provisioner.run(
-            "curl -sL https://api.adoptium.net/v3/info/available_releases"
-            + " | grep -o '\"most_recent_feature_release\": *[0-9]*'"
-            + " | grep -o '[0-9]*'"
-            + " > /tmp/jdk-version.txt"
-            , 30
-        );
-        if (versionRc != 0)
-        {
+        int versionRc = provisioner.run(
+                "curl -sL https://api.adoptium.net/v3/info/available_releases" + " | grep -o '\"most_recent_feature_release\": *[0-9]*'" + " | grep -o '[0-9]*'" + " > /tmp/jdk-version.txt",
+                30);
+        if (versionRc != 0) {
             System.err.println("  Error: failed to query Adoptium API (exit " + versionRc + ").");
             System.err.println("  Check network connectivity on the instance.");
             return false;
         }
 
-        // Step 2: Validate version was captured, then download tarball
         System.out.println("  Downloading Adoptium Temurin JDK (" + apiArch + ")...");
-        final var downloadCmd = String.format(
-            "mkdir -p \"${HOME}/opt\""
-            + " && VERSION=$(cat /tmp/jdk-version.txt)"
-            + " && test -n \"${VERSION}\""
-            + " && echo \"  Latest release: JDK ${VERSION}\""
-            + " && curl -fSL"
-            + " \"https://api.adoptium.net/v3/binary/latest/${VERSION}/ga/linux/%s/jdk/hotspot/normal/eclipse\""
-            + " -o \"${HOME}/opt/jdk.tar.gz\""
-            , apiArch
-        );
-        final var downloadRc = provisioner.run(downloadCmd, 300);
-        if (downloadRc != 0)
-        {
+        String downloadCmd = String.format(
+                "mkdir -p \"${HOME}/opt\""
+                        + " && VERSION=$(cat /tmp/jdk-version.txt)"
+                        + " && test -n \"${VERSION}\""
+                        + " && echo \"  Latest release: JDK ${VERSION}\""
+                        + " && curl -fSL"
+                        + " \"https://api.adoptium.net/v3/binary/latest/${VERSION}/ga/linux/%s/jdk/hotspot/normal/eclipse\""
+                        + " -o \"${HOME}/opt/jdk.tar.gz\"",
+                apiArch);
+        int downloadRc = provisioner.run(downloadCmd, 300);
+        if (downloadRc != 0) {
             System.err.println("  Error: failed to download Adoptium Temurin (exit " + downloadRc + ").");
             System.err.println("  Check /tmp/jdk-version.txt on the instance for the detected version.");
             return false;
         }
 
-        // Step 3: Extract and symlink
         System.out.println("  Extracting...");
-        final var extractCmd = String.format(
-            "VERSION=$(cat /tmp/jdk-version.txt)"
-            + " && mkdir -p \"${HOME}/opt/java-${VERSION}\""
-            + " && tar -xzf \"${HOME}/opt/jdk.tar.gz\" -C \"${HOME}/opt/java-${VERSION}\" --strip-components=1"
-            + " && ln -sfn \"${HOME}/opt/java-${VERSION}\" %s"
-            + " && rm -f \"${HOME}/opt/jdk.tar.gz\" /tmp/jdk-version.txt"
-            + " && echo \"  Boot JDK installed: ${HOME}/opt/java-${VERSION}\""
-            + " && echo \"  Symlinked: %s -> ${HOME}/opt/java-${VERSION}\""
-            , JDK_INSTALL_DIR
-            , JDK_INSTALL_DIR
-        );
-        final var extractRc = provisioner.run(extractCmd, 120);
-        if (extractRc != 0)
-        {
+        String extractCmd = String.format("VERSION=$(cat /tmp/jdk-version.txt)"
+                + " && mkdir -p \"${HOME}/opt/java-${VERSION}\""
+                + " && tar -xzf \"${HOME}/opt/jdk.tar.gz\" -C \"${HOME}/opt/java-${VERSION}\" --strip-components=1"
+                + " && ln -sfn \"${HOME}/opt/java-${VERSION}\" %s"
+                + " && rm -f \"${HOME}/opt/jdk.tar.gz\" /tmp/jdk-version.txt"
+                + " && echo \"  Boot JDK installed: ${HOME}/opt/java-${VERSION}\""
+                + " && echo \"  Symlinked: %s -> ${HOME}/opt/java-${VERSION}\"",
+                JDK_INSTALL_DIR, JDK_INSTALL_DIR);
+        int extractRc = provisioner.run(extractCmd, 120);
+        if (extractRc != 0) {
             System.err.println("  Error: failed to extract Adoptium Temurin (exit " + extractRc + ").");
             return false;
         }

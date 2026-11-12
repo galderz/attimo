@@ -598,6 +598,19 @@ ato bh request --template tpl-custom
 mvn package
 ```
 
+### Formatting
+
+Source is formatted by [jfmt](https://github.com/Netflix/jfmt). The `jfmtw` wrapper downloads the
+formatter on first use:
+
+```bash
+# Format files (the pre-commit hook is installed automatically by Maven)
+./jfmtw src/main/java/org/mendrugo/attimo/Attimo.java
+
+# Check formatting without modifying
+./jfmtw --check $(find src -name '*.java')
+```
+
 ### Running tests
 
 ```bash

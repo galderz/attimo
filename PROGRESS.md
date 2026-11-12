@@ -1,7 +1,7 @@
 # Attimo — Progress & Backlog
 
-**Last updated:** 2026-11-05
-**Last session:** Template system (ImageDef + BootJdkProvisioner)
+**Last updated:** 2026-11-12
+**Last session:** Adopt jfmt code formatter
 
 ## How to Resume
 
@@ -129,8 +129,21 @@ If you're a new agent session picking up this project:
 - **SSH user** — `ec2-user` (AWS), `root` (Blue Hat)
 - **Package manager** — `dnf`
 
+### Code Comments Removal
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| — | Remove all // and /** */ comments from 60 Java files (production + test) | `5dac294` |
+
+### jfmt Code Formatter
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| — | jfmtw wrapper script + .jfmt/jfmt-wrapper.properties + pre-commit hook | `7368138` |
+| — | Apply jfmt formatting to all 73 Java source files | `e7ee576` |
+
 ### Test Counts
-- **203 unit tests** — all pass, no cloud interaction needed
+- **214 unit tests** — all pass, no cloud interaction needed
 - **17 integration tests** — 7 Blue Hat pass, 10 AWS require LocalStack + Podman
 
 ### Key Technical Decisions Made During Implementation
@@ -139,6 +152,7 @@ If you're a new agent session picking up this project:
 - **Amazon Linux 2023 via SSM** — replaced Fedora AMI search with SSM Parameter Store lookup (works in all regions)
 - **SG deletion retry** — up to 6 retries with 10s delay (AWS needs time to release ENI after termination)
 - **Orphan resource scan** — tag-based search across all regions in group, gracefully skips opt-in regions
+- **jfmt formatting** — Netflix jfmt v0.9.0 via `jfmtw` wrapper (mvnw pattern); pre-commit hook enforces formatting; K&R braces replace Allman, standard args replace comma-first
 - **Test keys generated programmatically** — never stored in source, ephemeral ed25519 via Java KeyPairGenerator
 - **Multi-cloud subcommand architecture** — all cloud commands under `ato <cloud> ...`, cloud-specific config at `~/.config/attimo/<cloud>/`, shared ISA/SSH/config infrastructure, no new Maven modules needed per cloud
 - **Template system (incus-spawn pattern)** — ImageDef with name/description/parent/packages, search path resolution (built-in → search paths → project-local), `--template` option on request commands, BootJdkProvisioner for OS-aware boot JDK installation
@@ -230,7 +244,7 @@ org.mendrugo.attimo/
 
 ### Code Style
 - **Allman braces** — `{` on its own line
-- **`final` on all parameters and locals**
+- **No `final` on local variables or parameters**
 - **Comma-first** — `, secondArg` on new line
 - **No wildcard imports**
 - See `SPEC.md` Code Style section for full examples

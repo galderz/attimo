@@ -1,70 +1,61 @@
 package org.mendrugo.attimo.aws.command;
 
-import org.mendrugo.attimo.aws.Aws;
-import org.mendrugo.attimo.aws.AwsClientFactory;
-import org.mendrugo.attimo.aws.Continent;
-import org.mendrugo.attimo.aws.ResourceCleaner;
-import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.aws.AwsConfig;
-import org.mendrugo.attimo.config.InstanceState;
+import java.util.List;
+
 import org.aesh.command.CommandDefinition;
 import org.aesh.command.CommandResult;
 import org.aesh.command.option.Option;
+import org.mendrugo.attimo.aws.Aws;
+import org.mendrugo.attimo.aws.AwsClientFactory;
+import org.mendrugo.attimo.aws.AwsConfig;
+import org.mendrugo.attimo.aws.Continent;
+import org.mendrugo.attimo.aws.ResourceCleaner;
+import org.mendrugo.attimo.command.BaseCommand;
+import org.mendrugo.attimo.config.InstanceState;
+import software.amazon.awssdk.services.ec2.Ec2Client;
 
 @CommandDefinition(
-    name = "destroy"
-    , description = "Tear down the active spot instance and all associated resources"
-    , generateHelp = true
-)
-public class AwsDestroyCommand extends BaseCommand
-{
+        name = "destroy",
+        description = "Tear down the active spot instance and all associated resources",
+        generateHelp = true)
+public class AwsDestroyCommand extends BaseCommand {
     @Option(
-        name = "scan-all-regions"
-        , description = "Scan all regions in the continent for orphaned resources"
-            + " (default: scan 3 representative regions only)"
-        , hasValue = false
-        , defaultValue = "false"
-    )
+            name = "scan-all-regions",
+            description = "Scan all regions in the continent for orphaned resources" + " (default: scan 3 representative regions only)",
+            hasValue = false,
+            defaultValue = "false")
     boolean scanAllRegions;
-    @Override
-    protected CommandResult doExecute() throws Exception
-    {
-        final var state = InstanceState.load(Aws.CLOUD);
 
-        if (state.hasActiveInstance())
-        {
+    @Override
+    protected CommandResult doExecute() throws Exception {
+        InstanceState state = InstanceState.load(Aws.CLOUD);
+
+        if (state.hasActiveInstance()) {
             return destroyActiveInstance(state);
         }
 
-        // No active instance — scan for orphaned resources
         return scanForOrphans();
     }
 
-    private CommandResult destroyActiveInstance(final InstanceState state)
-    {
+    private CommandResult destroyActiveInstance(InstanceState state) {
         System.out.println("=== Destroying spot instance ===\n");
-        System.out.println("Instance: " + state.getInstanceId());
-        System.out.println("Type:     " + state.getInstanceType());
-        System.out.println("Region:   " + state.getRegion());
-        System.out.println("IP:       " + state.getPublicIp());
+        System.out.println("Instance: " + state.instanceId);
+        System.out.println("Type:     " + state.instanceType);
+        System.out.println("Region:   " + state.region);
+        System.out.println("IP:       " + state.publicIp);
         System.out.println();
 
-        final var factory = new AwsClientFactory();
-        try (final var ec2 = factory.ec2(state.getRegion()))
-        {
-            final var cleaner = new ResourceCleaner(ec2);
-            final var errors = cleaner.cleanAll(state, Aws.CLOUD);
+        AwsClientFactory factory = new AwsClientFactory();
+        try (Ec2Client ec2 = factory.ec2(state.region)) {
+            ResourceCleaner cleaner = new ResourceCleaner(ec2);
+            List<String> errors = cleaner.cleanAll(state, Aws.CLOUD);
 
-            if (errors.isEmpty())
-            {
+            if (errors.isEmpty()) {
                 System.out.println("\nAll resources cleaned up. Zero cost footprint.");
                 return CommandResult.SUCCESS;
-            }
-            else
-            {
+            } else {
                 System.err.println("\nCleanup completed with errors:");
-                for (final var error : errors)
-                {
+                for (String error : errors) {
                     System.err.println("  - " + error);
                 }
                 System.err.println("Run 'ato aws destroy' again to retry.");
@@ -73,71 +64,59 @@ public class AwsDestroyCommand extends BaseCommand
         }
     }
 
-    private CommandResult scanForOrphans()
-    {
+    private CommandResult scanForOrphans() {
         System.out.println("No active instance in state file.");
         System.out.println("Scanning for orphaned attimo resources...\n");
 
-        final var config = AwsConfig.load();
-        final var preferredRegion = config.getPreferredRegion();
+        AwsConfig config = AwsConfig.load();
+        String preferredRegion = config.preferredRegion;
 
-        if (preferredRegion.isBlank())
-        {
+        if (preferredRegion.isBlank()) {
             System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");
             return CommandResult.FAILURE;
         }
 
-        final var factory = new AwsClientFactory();
+        AwsClientFactory factory = new AwsClientFactory();
 
-        final var continent = Continent.forRegion(preferredRegion);
-        final var regionsToScan = scanAllRegions
-            ? continent.regionCodes()
-            : continent.representativeCodes();
+        Continent continent = Continent.forRegion(preferredRegion);
+        List<String> regionsToScan = scanAllRegions ? continent.regionCodes() : continent.representativeCodes();
 
-        System.out.println("Scanning " + regionsToScan.size() + " regions in "
-            + continent.displayName()
-            + (scanAllRegions ? " (all regions)" : " (representatives only)") + "...\n");
+        System.out.println("Scanning "
+                + regionsToScan.size()
+                + " regions in "
+                + continent.displayName()
+                + (scanAllRegions ? " (all regions)" : " (representatives only)")
+                + "...\n");
 
-        var foundAny = false;
+        boolean foundAny = false;
 
-        for (final String region : regionsToScan)
-        {
-            try (final var ec2 = factory.ec2(region))
-            {
+        for (String region : regionsToScan) {
+            try (Ec2Client ec2 = factory.ec2(region)) {
                 System.out.println("Checking " + region + "...");
-                final var cleaner = new ResourceCleaner(ec2);
-                final var errors = cleaner.cleanOrphans();
+                ResourceCleaner cleaner = new ResourceCleaner(ec2);
+                List<String> errors = cleaner.cleanOrphans();
 
-                if (!errors.isEmpty())
-                {
+                if (!errors.isEmpty()) {
                     foundAny = true;
-                    for (final var error : errors)
-                    {
+                    for (String error : errors) {
                         System.err.println("  - " + error);
                     }
                 }
-            }
-            catch (final Exception e)
-            {
-                final var msg = e.getMessage();
-                if (msg != null && (msg.contains("401") || msg.contains("AuthFailure")
-                    || msg.contains("OptInRequired")))
-                {
+            } catch (Exception e) {
+                String msg = e.getMessage();
+                if (msg != null
+                        && (msg.contains("401") || msg.contains("AuthFailure") || msg.contains("OptInRequired"))) {
                     System.out.println("  Skipped (region not enabled in your account)");
-                }
-                else
-                {
+                } else {
                     System.err.println("  Warning: could not check " + region + ": " + msg);
                 }
             }
         }
 
-        if (!foundAny)
-        {
+        if (!foundAny) {
             System.out.println("\nNo orphaned attimo resources found. All clean.");
         }
 
-        // Clear any stale state file
         InstanceState.clear(Aws.CLOUD);
         return CommandResult.SUCCESS;
     }

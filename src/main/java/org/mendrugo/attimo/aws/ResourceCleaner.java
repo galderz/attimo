@@ -1,270 +1,192 @@
 package org.mendrugo.attimo.aws;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.mendrugo.attimo.config.InstanceState;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DeleteKeyPairRequest;
 import software.amazon.awssdk.services.ec2.model.DeleteSecurityGroupRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 import software.amazon.awssdk.services.ec2.model.Filter;
+import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.InstanceStateName;
+import software.amazon.awssdk.services.ec2.model.Reservation;
 import software.amazon.awssdk.services.ec2.model.SecurityGroup;
-import software.amazon.awssdk.services.ec2.model.Tag;
 import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/**
- * Ensures all AWS resources created by attimo are cleaned up,
- * leaving zero cost footprint. Each step is best-effort:
- * if one fails, the remaining steps still execute.
- *
- * State is only cleared when ALL resources are successfully removed.
- */
-public class ResourceCleaner
-{
+public class ResourceCleaner {
     private final Ec2Client ec2;
     private final List<String> errors = new ArrayList<>();
 
-    public ResourceCleaner(final Ec2Client ec2)
-    {
+    public ResourceCleaner(Ec2Client ec2) {
         this.ec2 = ec2;
     }
 
-    /**
-     * Clean up all resources from the given instance state.
-     * State file is only cleared if all resources are successfully removed.
-     *
-     * @param state the active instance state
-     * @param cloud the cloud provider identifier for state file paths
-     * @return list of errors (empty if all steps succeeded)
-     */
-    public List<String> cleanAll(
-        final InstanceState state
-        , final String cloud
-    )
-    {
+    public List<String> cleanAll(InstanceState state, String cloud) {
         errors.clear();
 
-        terminateInstance(state.getInstanceId());
-        waitForTermination(state.getInstanceId(), 120);
-        deleteKeyPair(state.getKeyPairName());
-        deleteSecurityGroupWithRetry(state.getSecurityGroupId());
+        terminateInstance(state.instanceId);
+        waitForTermination(state.instanceId, 120);
+        deleteKeyPair(state.keyPairName);
+        deleteSecurityGroupWithRetry(state.securityGroupId);
 
-        if (errors.isEmpty())
-        {
+        if (errors.isEmpty()) {
             InstanceState.clear(cloud);
-        }
-        else
-        {
-            // Keep state file so 'ato <cloud> destroy' can retry
+        } else {
             System.err.println("  State file kept for retry. Run 'ato " + cloud + " destroy' to finish cleanup.");
         }
 
         return List.copyOf(errors);
     }
 
-    /**
-     * Scan for any attimo-tagged resources that may have been orphaned
-     * (e.g., after a crash or incomplete cleanup). Cleans them up.
-     *
-     * @return list of errors (empty if all orphans cleaned or none found)
-     */
-    public List<String> cleanOrphans()
-    {
+    public List<String> cleanOrphans() {
         errors.clear();
         System.out.println("  Scanning for orphaned attimo resources...");
 
         cleanOrphanedSecurityGroups();
         cleanOrphanedInstances();
-
         return List.copyOf(errors);
     }
 
-    private void cleanOrphanedSecurityGroups()
-    {
-        try
-        {
-            final var response = ec2.describeSecurityGroups(
-                DescribeSecurityGroupsRequest.builder()
-                    .filters(
-                        Filter.builder()
+    private void cleanOrphanedSecurityGroups() {
+        try {
+            DescribeSecurityGroupsResponse response = ec2.describeSecurityGroups(DescribeSecurityGroupsRequest.builder()
+                    .filters(Filter.builder()
                             .name("tag:attimo:managed")
                             .values("true")
-                            .build()
-                    )
-                    .build()
-            );
+                            .build())
+                    .build());
 
-            for (final SecurityGroup sg : response.securityGroups())
-            {
+            for (SecurityGroup sg : response.securityGroups()) {
                 System.out.println("  Found orphaned security group: "
-                    + sg.groupId() + " (" + sg.groupName() + ")");
+                        + sg.groupId()
+                        + " ("
+                        + sg.groupName()
+                        + ")");
 
-                try
-                {
-                    ec2.deleteSecurityGroup(
-                        DeleteSecurityGroupRequest.builder()
+                try {
+                    ec2.deleteSecurityGroup(DeleteSecurityGroupRequest.builder()
                             .groupId(sg.groupId())
-                            .build()
-                    );
+                            .build());
                     System.out.println("  Deleted: " + sg.groupId());
-                }
-                catch (final Exception e)
-                {
+                } catch (Exception e) {
                     errors.add("Failed to delete orphaned SG " + sg.groupId() + ": " + e.getMessage());
                 }
             }
-        }
-        catch (final Exception e)
-        {
-            if (isRegionNotEnabled(e))
-            {
-                return; // silently skip — region not enabled in account
+        } catch (Exception e) {
+            if (isRegionNotEnabled(e)) {
+                return;
             }
 
             errors.add("Failed to scan for orphaned security groups: " + e.getMessage());
         }
     }
 
-    private void cleanOrphanedInstances()
-    {
-        try
-        {
-            final var response = ec2.describeInstances(
-                DescribeInstancesRequest.builder()
+    private void cleanOrphanedInstances() {
+        try {
+            DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
                     .filters(
-                        Filter.builder()
-                            .name("tag:attimo:managed")
-                            .values("true")
-                            .build()
-                        , Filter.builder()
-                            .name("instance-state-name")
-                            .values("pending", "running", "stopping", "stopped")
-                            .build()
-                    )
-                    .build()
-            );
+                            Filter.builder()
+                                    .name("tag:attimo:managed")
+                                    .values("true")
+                                    .build(),
+                            Filter.builder()
+                                    .name("instance-state-name")
+                                    .values("pending", "running", "stopping", "stopped")
+                                    .build())
+                    .build());
 
-            for (final var reservation : response.reservations())
-            {
-                for (final var instance : reservation.instances())
-                {
+            for (Reservation reservation : response.reservations()) {
+                for (Instance instance : reservation.instances()) {
                     System.out.println("  Found orphaned instance: "
-                        + instance.instanceId() + " (" + instance.state().name() + ")");
+                            + instance.instanceId()
+                            + " ("
+                            + instance.state().name()
+                            + ")");
 
-                    try
-                    {
-                        ec2.terminateInstances(
-                            TerminateInstancesRequest.builder()
+                    try {
+                        ec2.terminateInstances(TerminateInstancesRequest.builder()
                                 .instanceIds(instance.instanceId())
-                                .build()
-                        );
+                                .build());
                         System.out.println("  Terminated: " + instance.instanceId());
-                    }
-                    catch (final Exception e)
-                    {
-                        errors.add("Failed to terminate orphaned instance "
-                            + instance.instanceId() + ": " + e.getMessage());
+                    } catch (Exception e) {
+                        errors.add("Failed to terminate orphaned instance " + instance.instanceId() + ": " + e.getMessage());
                     }
                 }
             }
-        }
-        catch (final Exception e)
-        {
-            if (isRegionNotEnabled(e))
-            {
-                return; // silently skip — region not enabled in account
+        } catch (Exception e) {
+            if (isRegionNotEnabled(e)) {
+                return;
             }
 
             errors.add("Failed to scan for orphaned instances: " + e.getMessage());
         }
     }
 
-    /**
-     * Check if an exception indicates the region is not enabled in the account.
-     * AWS opt-in regions (eu-south-1, eu-south-2, etc.) return 401/AuthFailure
-     * when not activated.
-     */
-    private static boolean isRegionNotEnabled(final Exception e)
-    {
-        final var msg = e.getMessage();
-        if (msg == null)
-        {
+    private static boolean isRegionNotEnabled(Exception e) {
+        String msg = e.getMessage();
+        if (msg == null) {
             return false;
         }
 
-        return msg.contains("401")
-            || msg.contains("AuthFailure")
-            || msg.contains("OptInRequired");
+        return msg.contains("401") || msg.contains("AuthFailure") || msg.contains("OptInRequired");
     }
 
-    private void terminateInstance(final String instanceId)
-    {
-        if (instanceId.isBlank())
-        {
+    private void terminateInstance(String instanceId) {
+        if (instanceId.isBlank()) {
             return;
         }
 
-        try
-        {
+        try {
             System.out.println("  Terminating instance: " + instanceId);
-            ec2.terminateInstances(
-                TerminateInstancesRequest.builder()
+            ec2.terminateInstances(TerminateInstancesRequest.builder()
                     .instanceIds(instanceId)
-                    .build()
-            );
-        }
-        catch (final Exception e)
-        {
+                    .build());
+        } catch (Exception e) {
             errors.add("Failed to terminate instance " + instanceId + ": " + e.getMessage());
         }
     }
 
-    private void waitForTermination(final String instanceId, final int timeoutSeconds)
-    {
-        if (instanceId.isBlank())
-        {
+    private void waitForTermination(String instanceId, int timeoutSeconds) {
+        if (instanceId.isBlank()) {
             return;
         }
 
         System.out.println("  Waiting for instance to terminate...");
-        final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
 
-        while (System.currentTimeMillis() < deadline)
-        {
-            try
-            {
-                final var response = ec2.describeInstances(
-                    DescribeInstancesRequest.builder()
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                DescribeInstancesResponse response = ec2.describeInstances(DescribeInstancesRequest.builder()
                         .instanceIds(instanceId)
-                        .build()
-                );
+                        .build());
 
-                if (!response.reservations().isEmpty()
-                    && !response.reservations().getFirst().instances().isEmpty())
-                {
-                    final var state = response.reservations().getFirst()
-                        .instances().getFirst().state().name();
+                if (!response.reservations().isEmpty() && !response.reservations()
+                        .getFirst()
+                        .instances()
+                        .isEmpty()) {
+                    InstanceStateName state = response.reservations()
+                            .getFirst()
+                            .instances()
+                            .getFirst()
+                            .state()
+                            .name();
 
-                    if (state == InstanceStateName.TERMINATED)
-                    {
+                    if (state == InstanceStateName.TERMINATED) {
                         System.out.println("  Instance terminated.");
                         return;
                     }
                 }
 
                 Thread.sleep(5000);
-            }
-            catch (final InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;
-            }
-            catch (final Exception e)
-            {
-                // Instance may already be gone
+            } catch (Exception e) {
                 return;
             }
         }
@@ -272,78 +194,52 @@ public class ResourceCleaner
         System.err.println("  Warning: timed out waiting for instance termination.");
     }
 
-    private void deleteKeyPair(final String keyPairName)
-    {
-        if (keyPairName.isBlank())
-        {
+    private void deleteKeyPair(String keyPairName) {
+        if (keyPairName.isBlank()) {
             return;
         }
 
-        try
-        {
+        try {
             System.out.println("  Deleting key pair: " + keyPairName);
-            ec2.deleteKeyPair(
-                DeleteKeyPairRequest.builder()
+            ec2.deleteKeyPair(DeleteKeyPairRequest.builder()
                     .keyName(keyPairName)
-                    .build()
-            );
-        }
-        catch (final Exception e)
-        {
+                    .build());
+        } catch (Exception e) {
             errors.add("Failed to delete key pair " + keyPairName + ": " + e.getMessage());
         }
     }
 
-    /**
-     * Delete a security group with retries. SG deletion can fail if the
-     * instance hasn't fully released its network interface yet.
-     */
-    private void deleteSecurityGroupWithRetry(final String securityGroupId)
-    {
-        if (securityGroupId.isBlank())
-        {
+    private void deleteSecurityGroupWithRetry(String securityGroupId) {
+        if (securityGroupId.isBlank()) {
             return;
         }
 
-        final int maxRetries = 6;
-        final int retryDelayMs = 10_000;
+        int maxRetries = 6;
+        int retryDelayMs = 10_000;
 
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
-        {
-            try
-            {
-                System.out.println("  Deleting security group: " + securityGroupId
-                    + (attempt > 1 ? " (attempt " + attempt + "/" + maxRetries + ")" : ""));
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                System.out.println("  Deleting security group: "
+                        + securityGroupId
+                        + (attempt > 1 ? " (attempt " + attempt + "/" + maxRetries + ")" : ""));
 
-                ec2.deleteSecurityGroup(
-                    DeleteSecurityGroupRequest.builder()
+                ec2.deleteSecurityGroup(DeleteSecurityGroupRequest.builder()
                         .groupId(securityGroupId)
-                        .build()
-                );
+                        .build());
 
-                return; // success
-            }
-            catch (final Exception e)
-            {
-                if (attempt < maxRetries && e.getMessage() != null
-                    && e.getMessage().contains("dependent object"))
-                {
-                    System.out.println("  Security group still in use, retrying in "
-                        + (retryDelayMs / 1000) + "s...");
+                return;
+            } catch (Exception e) {
+                if (attempt < maxRetries && e.getMessage() != null && e.getMessage().contains("dependent object")) {
+                    System.out.println("  Security group still in use, retrying in " + (retryDelayMs / 1000) + "s...");
 
-                    try
-                    {
+                    try {
                         Thread.sleep(retryDelayMs);
-                    }
-                    catch (final InterruptedException ie)
-                    {
+                    } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         errors.add("Interrupted while waiting to delete security group " + securityGroupId);
                         return;
                     }
-                }
-                else
-                {
+                } else {
                     errors.add("Failed to delete security group " + securityGroupId + ": " + e.getMessage());
                     return;
                 }

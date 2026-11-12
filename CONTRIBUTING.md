@@ -178,67 +178,76 @@ src/test/java/org/mendrugo/attimo/
 
 ## Code style
 
-Attimo uses an **Aeron-inspired style** combined with **Elm-style comma-first formatting**:
+Source is formatted by [jfmt](https://github.com/Netflix/jfmt), Netflix's Java source formatter.
+A pre-commit hook enforces formatting — commits with unformatted Java are rejected.
+The hook is installed automatically when you run `mvn compile` (or any Maven goal).
+
+### Formatting
+
+```bash
+# Format specific files
+./jfmtw src/main/java/org/mendrugo/attimo/Attimo.java
+
+# Format all source
+./jfmtw --source-path src/main/java $(find src/main/java -name '*.java')
+./jfmtw --source-path src/test/java $(find src/test/java -name '*.java')
+
+# Check without modifying
+./jfmtw --check src/main/java/org/mendrugo/attimo/Attimo.java
+```
+
+The `jfmtw` wrapper downloads the jfmt JAR on first use (cached in `~/.cache/jfmt/`).
 
 ### Key rules
 
-| Rule | Example |
-|------|---------|
-| **Allman braces** | Opening `{` on its own line |
-| **`final` on local variables** | `final var config = AttimoConfig.load();` |
-| **4-space indent** | No tabs |
-| **Comma-first** on multi-line args | `, secondArg` on a new line |
-| **No wildcard imports** | `import java.util.List;` not `import java.util.*;` |
-| **Braces always required** | Even for single-line `if`/`for`/`while` |
+| Rule | Enforced by |
+|------|-------------|
+| **K&R braces** | jfmt |
+| **4-space block indent, 8-space continuation** | jfmt |
+| **Braces always required** (if/for/while) | jfmt |
+| **Imports sorted, unused removed** | jfmt |
+| **Explicit types (no `var`)** | `String name = ...` not `var name = ...` |
+| **No wildcard imports** | jfmt expands wildcards |
 
 ### Example
 
 ```java
 public record SpotRecommendation(
-    String instanceType
-    , String region
-    , String availabilityZone
-    , double pricePerHour
-    , String rationale
-)
-{}
+        String instanceType,
+        String region,
+        String availabilityZone,
+        double pricePerHour,
+        String rationale) {}
 
-public SpotRecommendation recommend(
-    final IsaFeature feature
-    , final String preferredRegion
-)
-{
-    final var regionGroup = RegionGroup.forRegion(preferredRegion);
+public SpotRecommendation recommend(IsaFeature feature, String preferredRegion) {
+    var regionGroup = RegionGroup.forRegion(preferredRegion);
 
-    if (regionGroup.regions().isEmpty())
-    {
+    if (regionGroup.regions().isEmpty()) {
         return null;
     }
 
-    for (final String region : regionGroup.regions())
-    {
+    for (String region : regionGroup.regions()) {
         // ...
     }
 }
 
 @CommandDefinition(
-    name = "request"
-    , description = "Request a spot instance"
-    , generateHelp = true
-)
-public class RequestCommand extends BaseCommand
-{
+        name = "request",
+        description = "Request a spot instance",
+        generateHelp = true)
+public class RequestCommand extends BaseCommand {
     // ...
 }
 ```
-
-The comma-first style ensures that adding or removing an argument changes exactly **one line** in the diff, making reviews cleaner.
 
 ## Project layout
 
 ```
 attimo/
 ├── pom.xml                              # Maven build config
+├── jfmtw                                # jfmt wrapper (downloads + runs jfmt)
+├── .jfmt/jfmt-wrapper.properties        # jfmt version metadata
+├── hooks/pre-commit                     # Git pre-commit hook (format check)
 ├── SPEC.md                              # Full specification
 ├── PLAN.md                              # Implementation plan
 ├── README.md                            # User documentation
@@ -272,7 +281,7 @@ CI configuration: `.github/workflows/ci.yml`
 1. Read `SPEC.md` for the full specification and design decisions
 2. Read `PLAN.md` for the implementation plan and task breakdown
 3. Write tests first (or alongside) — every AWS interaction must be testable without real AWS
-4. Follow the code style (Allman braces, comma-first, `final` everywhere)
+4. Format with `./jfmtw` before committing (the pre-commit hook will verify)
 5. Run `mvn test` before committing
 6. Run `mvn verify -DskipITs=false` if you changed any AWS interaction code
 7. Commit with a descriptive message referencing the task number if applicable

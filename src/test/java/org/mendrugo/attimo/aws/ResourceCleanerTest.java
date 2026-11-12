@@ -1,7 +1,10 @@
 package org.mendrugo.attimo.aws;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mendrugo.attimo.config.InstanceState;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.ec2.Ec2Client;
@@ -24,22 +27,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ResourceCleanerTest
-{
+class ResourceCleanerTest {
     @Mock
     Ec2Client ec2;
 
     @Test
-    void cleansAllResources()
-    {
-        when(ec2.terminateInstances(any(TerminateInstancesRequest.class)))
-            .thenReturn(TerminateInstancesResponse.builder().build());
-        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
-            .thenReturn(terminatedResponse());
+    void cleansAllResources() {
+        when(ec2.terminateInstances(any(TerminateInstancesRequest.class))).thenReturn(TerminateInstancesResponse.builder()
+                .build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(terminatedResponse());
 
-        final var state = createTestState();
-        final var cleaner = new ResourceCleaner(ec2);
-        final var errors = cleaner.cleanAll(state, "aws");
+        InstanceState state = createTestState();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanAll(state, "aws");
 
         assertThat(errors).isEmpty();
         verify(ec2).terminateInstances(any(TerminateInstancesRequest.class));
@@ -48,99 +48,83 @@ class ResourceCleanerTest
     }
 
     @Test
-    void continuesOnPartialFailure()
-    {
-        when(ec2.terminateInstances(any(TerminateInstancesRequest.class)))
-            .thenReturn(TerminateInstancesResponse.builder().build());
-        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
-            .thenReturn(terminatedResponse());
-        // SG deletion fails with non-dependent-object error (no retry)
+    void continuesOnPartialFailure() {
+        when(ec2.terminateInstances(any(TerminateInstancesRequest.class))).thenReturn(TerminateInstancesResponse.builder()
+                .build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(terminatedResponse());
+
         doThrow(new RuntimeException("Access denied"))
-            .when(ec2).deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
+                .when(ec2)
+                .deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
 
-        final var state = createTestState();
-        final var cleaner = new ResourceCleaner(ec2);
-        final var errors = cleaner.cleanAll(state, "aws");
+        InstanceState state = createTestState();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanAll(state, "aws");
 
-        // Should still have tried to delete key pair even though SG deletion failed
         assertThat(errors).hasSize(1);
         assertThat(errors.getFirst()).contains("security group");
         verify(ec2).deleteKeyPair(any(DeleteKeyPairRequest.class));
     }
 
     @Test
-    void stateNotClearedOnError()
-    {
-        when(ec2.terminateInstances(any(TerminateInstancesRequest.class)))
-            .thenReturn(TerminateInstancesResponse.builder().build());
-        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
-            .thenReturn(terminatedResponse());
+    void stateNotClearedOnError() {
+        when(ec2.terminateInstances(any(TerminateInstancesRequest.class))).thenReturn(TerminateInstancesResponse.builder()
+                .build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(terminatedResponse());
         doThrow(new RuntimeException("SG still in use"))
-            .when(ec2).deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
+                .when(ec2)
+                .deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
 
-        final var state = createTestState();
-        final var cleaner = new ResourceCleaner(ec2);
-        final var errors = cleaner.cleanAll(state, "aws");
+        InstanceState state = createTestState();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanAll(state, "aws");
 
-        // State should NOT be cleared when there are errors
         assertThat(errors).isNotEmpty();
-        // (InstanceState.clear() is not called — verified by the fact that
-        //  errors are returned, which means the caller knows to retry)
     }
 
     @Test
-    void handlesEmptyState()
-    {
-        final var state = new org.mendrugo.attimo.config.InstanceState();
-        final var cleaner = new ResourceCleaner(ec2);
-        final var errors = cleaner.cleanAll(state, "aws");
+    void handlesEmptyState() {
+        InstanceState state = new org.mendrugo.attimo.config.InstanceState();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanAll(state, "aws");
 
         assertThat(errors).isEmpty();
     }
 
     @Test
-    void cleanOrphansScansForTaggedResources()
-    {
-        when(ec2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class)))
-            .thenReturn(DescribeSecurityGroupsResponse.builder().build());
-        when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
-            .thenReturn(DescribeInstancesResponse.builder().build());
+    void cleanOrphansScansForTaggedResources() {
+        when(ec2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class))).thenReturn(DescribeSecurityGroupsResponse.builder()
+                .build());
+        when(ec2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(DescribeInstancesResponse.builder()
+                .build());
 
-        final var cleaner = new ResourceCleaner(ec2);
-        final var errors = cleaner.cleanOrphans();
+        ResourceCleaner cleaner = new ResourceCleaner(ec2);
+        List<String> errors = cleaner.cleanOrphans();
 
         assertThat(errors).isEmpty();
         verify(ec2).describeSecurityGroups(any(DescribeSecurityGroupsRequest.class));
         verify(ec2).describeInstances(any(DescribeInstancesRequest.class));
     }
 
-    private org.mendrugo.attimo.config.InstanceState createTestState()
-    {
-        final var state = new org.mendrugo.attimo.config.InstanceState();
-        state.setInstanceId("i-test123");
-        state.setSecurityGroupId("sg-test456");
-        state.setKeyPairName("attimo-test-key");
-        state.setRegion("eu-west-1");
+    private org.mendrugo.attimo.config.InstanceState createTestState() {
+        InstanceState state = new org.mendrugo.attimo.config.InstanceState();
+        state.instanceId = "i-test123";
+        state.securityGroupId = "sg-test456";
+        state.keyPairName = "attimo-test-key";
+        state.region = "eu-west-1";
         return state;
     }
 
-    private DescribeInstancesResponse terminatedResponse()
-    {
+    private DescribeInstancesResponse terminatedResponse() {
         return DescribeInstancesResponse.builder()
-            .reservations(
-                Reservation.builder()
-                    .instances(
-                        Instance.builder()
-                            .instanceId("i-test123")
-                            .state(
-                                software.amazon.awssdk.services.ec2.model.InstanceState.builder()
-                                    .name(InstanceStateName.TERMINATED)
-                                    .build()
-                            )
-                            .build()
-                    )
-                    .build()
-            )
-            .build();
+                .reservations(Reservation.builder()
+                        .instances(Instance.builder()
+                                .instanceId("i-test123")
+                                .state(software.amazon.awssdk.services.ec2.model.InstanceState.builder()
+                                        .name(InstanceStateName.TERMINATED)
+                                        .build())
+                                .build())
+                        .build())
+                .build();
     }
 }

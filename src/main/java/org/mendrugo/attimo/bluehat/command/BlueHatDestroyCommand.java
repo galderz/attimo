@@ -1,84 +1,66 @@
 package org.mendrugo.attimo.bluehat.command;
 
+import org.aesh.command.CommandDefinition;
+import org.aesh.command.CommandResult;
 import org.mendrugo.attimo.bluehat.BlueHat;
 import org.mendrugo.attimo.bluehat.BlueHatClient;
+import org.mendrugo.attimo.bluehat.BlueHatClient.DestroyResponse;
 import org.mendrugo.attimo.bluehat.BlueHatCloudRunner;
 import org.mendrugo.attimo.bluehat.BlueHatConfig;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
-import org.aesh.command.CommandDefinition;
-import org.aesh.command.CommandResult;
 
-@CommandDefinition(
-    name = "destroy"
-    , description = "Destroy the active Blue Hat VM"
-    , generateHelp = true
-)
-public class BlueHatDestroyCommand extends BaseCommand
-{
+@CommandDefinition(name = "destroy", description = "Destroy the active Blue Hat VM", generateHelp = true)
+public class BlueHatDestroyCommand extends BaseCommand {
     @Override
-    protected CommandResult doExecute() throws Exception
-    {
-        final var state = InstanceState.load(BlueHat.CLOUD);
+    protected CommandResult doExecute() throws Exception {
+        InstanceState state = InstanceState.load(BlueHat.CLOUD);
 
-        if (!state.hasActiveInstance())
-        {
+        if (!state.hasActiveInstance()) {
             System.out.println("No active VM to destroy.");
             return CommandResult.SUCCESS;
         }
 
-        final var fqdn = state.getInstanceId();
-        final var config = BlueHatConfig.load();
-        final var hostName = config.effectiveHostName();
-        final var port = BlueHat.API_PORT;
+        String fqdn = state.instanceId;
+        BlueHatConfig config = BlueHatConfig.load();
+        String hostName = config.effectiveHostName();
+        int port = BlueHat.API_PORT;
 
-        // Start local cloud if needed
         Process localProcess = null;
-        try
-        {
+        try {
             localProcess = BlueHatCloudRunner.ensureCloudRunning(config);
             return doDestroy(fqdn, hostName, port, state);
-        }
-        finally
-        {
+        } finally {
             BlueHatCloudRunner.stop(localProcess);
         }
     }
 
-    private CommandResult doDestroy(
-        final String fqdn
-        , final String hostName
-        , final int port
-        , final InstanceState state
-    )
-    {
+    private CommandResult doDestroy(String fqdn, String hostName, int port,
+            InstanceState state) {
         System.out.println("=== Destroying Blue Hat VM ===\n");
         System.out.println("FQDN:  " + fqdn);
-        System.out.println("Size:  " + state.getInstanceType());
+        System.out.println("Size:  " + state.instanceType);
         System.out.println();
 
-        try
-        {
-            final var client = new BlueHatClient(hostName, port);
-            final var response = client.destroyVm(fqdn);
+        try {
+            BlueHatClient client = new BlueHatClient(hostName, port);
+            DestroyResponse response = client.destroyVm(fqdn);
 
-            if ("success".equalsIgnoreCase(response.status()))
-            {
-                System.out.println("  " + response.details()
-                    + " (request: " + response.requestId() + ")");
+            if ("success".equalsIgnoreCase(response.status())) {
+                System.out.println("  "
+                        + response.details()
+                        + " (request: "
+                        + response.requestId()
+                        + ")");
                 InstanceState.clear(BlueHat.CLOUD);
                 System.out.println("\nVM destroyed.");
                 return CommandResult.SUCCESS;
-            }
-            else
-            {
+            } else {
                 System.err.println("  Unexpected response status: " + response.status());
                 System.err.println("  Run 'ato bh destroy' again to retry.");
                 return CommandResult.FAILURE;
             }
-        }
-        catch (final Exception e)
-        {
+        } catch (Exception e) {
             System.err.println("  Destroy failed: " + e.getMessage());
             System.err.println("  Run 'ato bh destroy' again to retry.");
             return CommandResult.FAILURE;

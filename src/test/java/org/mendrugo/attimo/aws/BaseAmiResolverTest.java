@@ -18,54 +18,43 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class BaseAmiResolverTest
-{
+class BaseAmiResolverTest {
     @Mock
     SsmClient ssm;
 
     @Test
-    void resolvesAl2023ForX86()
-    {
-        when(ssm.getParameter(any(GetParameterRequest.class)))
-            .thenReturn(paramResponse("ami-x86"));
+    void resolvesAl2023ForX86() {
+        when(ssm.getParameter(any(GetParameterRequest.class))).thenReturn(paramResponse("ami-x86"));
 
-        final var resolver = new BaseAmiResolver();
-        final var amiId = resolver.resolve(ssm, "x86_64", "us-east-1");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String amiId = resolver.resolve(ssm, "x86_64", "us-east-1");
 
         assertThat(amiId).isEqualTo("ami-x86");
-        verify(ssm).getParameter(
-            GetParameterRequest.builder()
+        verify(ssm).getParameter(GetParameterRequest.builder()
                 .name("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
-                .build()
-        );
+                .build());
     }
 
     @Test
-    void resolvesAl2023ForArm64()
-    {
-        when(ssm.getParameter(any(GetParameterRequest.class)))
-            .thenReturn(paramResponse("ami-arm"));
+    void resolvesAl2023ForArm64() {
+        when(ssm.getParameter(any(GetParameterRequest.class))).thenReturn(paramResponse("ami-arm"));
 
-        final var resolver = new BaseAmiResolver();
-        final var amiId = resolver.resolve(ssm, "arm64", "eu-west-1");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String amiId = resolver.resolve(ssm, "arm64", "eu-west-1");
 
         assertThat(amiId).isEqualTo("ami-arm");
-        verify(ssm).getParameter(
-            GetParameterRequest.builder()
+        verify(ssm).getParameter(GetParameterRequest.builder()
                 .name("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64")
-                .build()
-        );
+                .build());
     }
 
     @Test
-    void cachesResolvedAmis()
-    {
-        when(ssm.getParameter(any(GetParameterRequest.class)))
-            .thenReturn(paramResponse("ami-cached"));
+    void cachesResolvedAmis() {
+        when(ssm.getParameter(any(GetParameterRequest.class))).thenReturn(paramResponse("ami-cached"));
 
-        final var resolver = new BaseAmiResolver();
-        final var first = resolver.resolve(ssm, "arm64", "eu-west-1");
-        final var second = resolver.resolve(ssm, "arm64", "eu-west-1");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String first = resolver.resolve(ssm, "arm64", "eu-west-1");
+        String second = resolver.resolve(ssm, "arm64", "eu-west-1");
 
         assertThat(first).isEqualTo("ami-cached");
         assertThat(second).isEqualTo("ami-cached");
@@ -73,15 +62,14 @@ class BaseAmiResolverTest
     }
 
     @Test
-    void cachesPerArchitecture()
-    {
+    void cachesPerArchitecture() {
         when(ssm.getParameter(any(GetParameterRequest.class)))
-            .thenReturn(paramResponse("ami-arm"))
-            .thenReturn(paramResponse("ami-x86"));
+                .thenReturn(paramResponse("ami-arm"))
+                .thenReturn(paramResponse("ami-x86"));
 
-        final var resolver = new BaseAmiResolver();
-        final var arm = resolver.resolve(ssm, "arm64", "us-east-1");
-        final var x86 = resolver.resolve(ssm, "x86_64", "us-east-1");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String arm = resolver.resolve(ssm, "arm64", "us-east-1");
+        String x86 = resolver.resolve(ssm, "x86_64", "us-east-1");
 
         assertThat(arm).isEqualTo("ami-arm");
         assertThat(x86).isEqualTo("ami-x86");
@@ -89,15 +77,14 @@ class BaseAmiResolverTest
     }
 
     @Test
-    void cachesPerRegion()
-    {
+    void cachesPerRegion() {
         when(ssm.getParameter(any(GetParameterRequest.class)))
-            .thenReturn(paramResponse("ami-east"))
-            .thenReturn(paramResponse("ami-west"));
+                .thenReturn(paramResponse("ami-east"))
+                .thenReturn(paramResponse("ami-west"));
 
-        final var resolver = new BaseAmiResolver();
-        final var east = resolver.resolve(ssm, "arm64", "us-east-1");
-        final var west = resolver.resolve(ssm, "arm64", "us-west-2");
+        BaseAmiResolver resolver = new BaseAmiResolver();
+        String east = resolver.resolve(ssm, "arm64", "us-east-1");
+        String west = resolver.resolve(ssm, "arm64", "us-west-2");
 
         assertThat(east).isEqualTo("ami-east");
         assertThat(west).isEqualTo("ami-west");
@@ -105,30 +92,28 @@ class BaseAmiResolverTest
     }
 
     @Test
-    void throwsOnSsmFailure()
-    {
-        when(ssm.getParameter(any(GetParameterRequest.class)))
-            .thenThrow(ParameterNotFoundException.builder()
+    void throwsOnSsmFailure() {
+        when(ssm.getParameter(any(GetParameterRequest.class))).thenThrow(ParameterNotFoundException.builder()
                 .message("not found")
                 .build());
 
-        final var resolver = new BaseAmiResolver();
+        BaseAmiResolver resolver = new BaseAmiResolver();
         assertThatThrownBy(() -> resolver.resolve(ssm, "arm64", "us-east-1"))
-            .isInstanceOf(AwsException.class)
-            .hasMessageContaining("Failed to resolve Amazon Linux 2023 AMI")
-            .hasMessageContaining("arm64");
+                .isInstanceOf(AwsException.class)
+                .hasMessageContaining("Failed to resolve Amazon Linux 2023 AMI")
+                .hasMessageContaining("arm64");
     }
 
     @Test
-    void sshUserIsEc2User()
-    {
+    void sshUserIsEc2User() {
         assertThat(BaseAmiResolver.SSH_USER).isEqualTo("ec2-user");
     }
 
-    private GetParameterResponse paramResponse(final String value)
-    {
+    private GetParameterResponse paramResponse(String value) {
         return GetParameterResponse.builder()
-            .parameter(Parameter.builder().value(value).build())
-            .build();
+                .parameter(Parameter.builder()
+                        .value(value)
+                        .build())
+                .build();
     }
 }

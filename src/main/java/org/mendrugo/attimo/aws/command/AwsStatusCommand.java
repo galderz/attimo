@@ -1,89 +1,67 @@
 package org.mendrugo.attimo.aws.command;
 
+import java.time.Duration;
+import java.time.Instant;
+
+import org.aesh.command.CommandDefinition;
+import org.aesh.command.CommandResult;
 import org.mendrugo.attimo.aws.Aws;
 import org.mendrugo.attimo.aws.AwsClientFactory;
 import org.mendrugo.attimo.aws.SpotManager;
 import org.mendrugo.attimo.command.BaseCommand;
 import org.mendrugo.attimo.config.InstanceState;
-import org.aesh.command.CommandDefinition;
-import org.aesh.command.CommandResult;
-
-import java.time.Duration;
-import java.time.Instant;
+import software.amazon.awssdk.services.ec2.Ec2Client;
 
 @CommandDefinition(
-    name = "status"
-    , description = "Show the status of the active spot instance"
-    , generateHelp = true
-)
-public class AwsStatusCommand extends BaseCommand
-{
+        name = "status",
+        description = "Show the status of the active spot instance",
+        generateHelp = true)
+public class AwsStatusCommand extends BaseCommand {
     @Override
-    protected CommandResult doExecute() throws Exception
-    {
-        final var state = InstanceState.load(Aws.CLOUD);
+    protected CommandResult doExecute() throws Exception {
+        InstanceState state = InstanceState.load(Aws.CLOUD);
 
-        if (!state.hasActiveInstance())
-        {
+        if (!state.hasActiveInstance()) {
             System.out.println("No active instance.");
             return CommandResult.SUCCESS;
         }
 
         System.out.println("=== Spot Instance Status ===\n");
-        System.out.println("Instance:  " + state.getInstanceId());
-        System.out.println("Type:      " + state.getInstanceType());
-        System.out.println("Region:    " + state.getRegion());
-        System.out.println("AZ:        " + state.getAvailabilityZone());
-        System.out.println("IP:        " + state.getPublicIp());
-        System.out.println("ISA:       " + state.getIsaFeature());
-        System.out.println("AMI:       " + state.getAmiId());
+        System.out.println("Instance:  " + state.instanceId);
+        System.out.println("Type:      " + state.instanceType);
+        System.out.println("Region:    " + state.region);
+        System.out.println("AZ:        " + state.availabilityZone);
+        System.out.println("IP:        " + state.publicIp);
+        System.out.println("ISA:       " + state.isaFeature);
+        System.out.println("AMI:       " + state.amiId);
 
-        // Calculate uptime and cost
-        if (!state.getLaunchedAt().isBlank())
-        {
-            try
-            {
-                final var launchedAt = Instant.parse(state.getLaunchedAt());
-                final var uptime = Duration.between(launchedAt, Instant.now());
-                final var hours = uptime.toMinutes() / 60.0;
-                final var cost = hours * state.getSpotPrice();
+        if (!state.launchedAt.isBlank()) {
+            try {
+                Instant launchedAt = Instant.parse(state.launchedAt);
+                Duration uptime = Duration.between(launchedAt, Instant.now());
+                double hours = uptime.toMinutes() / 60.0;
+                double cost = hours * state.spotPrice;
 
-                System.out.printf("Uptime:    %dh %dm%n"
-                    , uptime.toHours()
-                    , uptime.toMinutes() % 60
-                );
-                System.out.printf("Cost:      $%.3f (@ $%.4f/hr)%n"
-                    , cost
-                    , state.getSpotPrice()
-                );
-            }
-            catch (final Exception e)
-            {
+                System.out.printf("Uptime:    %dh %dm%n", uptime.toHours(), uptime.toMinutes() % 60);
+                System.out.printf("Cost:      $%.3f (@ $%.4f/hr)%n", cost, state.spotPrice);
+            } catch (Exception e) {
                 System.out.println("Uptime:    unknown");
             }
         }
 
-        // Verify instance is actually running
         System.out.println();
-        try
-        {
-            final var factory = new AwsClientFactory();
-            try (final var ec2 = factory.ec2(state.getRegion()))
-            {
-                final var manager = new SpotManager(ec2, state.getSessionId());
-                if (manager.isRunning(state.getInstanceId()))
-                {
+        try {
+            AwsClientFactory factory = new AwsClientFactory();
+            try (Ec2Client ec2 = factory.ec2(state.region)) {
+                SpotManager manager = new SpotManager(ec2, state.sessionId);
+                if (manager.isRunning(state.instanceId)) {
                     System.out.println("Status:    \u001B[32m● Running\u001B[0m");
-                }
-                else
-                {
+                } else {
                     System.out.println("Status:    \u001B[31m● Not running\u001B[0m (may have been terminated)");
                     System.out.println("Run 'ato aws destroy' to clean up resources.");
                 }
             }
-        }
-        catch (final Exception e)
-        {
+        } catch (Exception e) {
             System.out.println("Status:    unknown (could not reach AWS: " + e.getMessage() + ")");
         }
 

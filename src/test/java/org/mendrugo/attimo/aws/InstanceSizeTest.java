@@ -5,62 +5,49 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class InstanceSizeTest
-{
+class InstanceSizeTest {
     @Test
-    void defaultIsMedium()
-    {
+    void defaultIsMedium() {
         assertThat(InstanceSize.DEFAULT).isEqualTo(InstanceSize.MEDIUM);
     }
 
     @Test
-    void microHasSmallestSizes()
-    {
+    void microHasSmallestSizes() {
         assertThat(InstanceSize.MICRO.awsSizes()).containsExactly("large", "xlarge");
     }
 
     @Test
-    void smallHasMidSizes()
-    {
+    void smallHasMidSizes() {
         assertThat(InstanceSize.SMALL.awsSizes()).containsExactly("2xlarge", "4xlarge");
     }
 
     @Test
-    void mediumHasLargerSizes()
-    {
+    void mediumHasLargerSizes() {
         assertThat(InstanceSize.MEDIUM.awsSizes()).containsExactly("4xlarge", "8xlarge");
     }
 
     @Test
-    void largeHasLargestSizes()
-    {
-        assertThat(InstanceSize.LARGE.awsSizes()).containsExactly(
-            "8xlarge"
-            , "12xlarge"
-            , "16xlarge"
-        );
+    void largeHasLargestSizes() {
+        assertThat(InstanceSize.LARGE.awsSizes()).containsExactly("8xlarge", "12xlarge", "16xlarge");
     }
 
     @Test
-    void fromLabelCaseInsensitive()
-    {
+    void fromLabelCaseInsensitive() {
         assertThat(InstanceSize.fromLabel("micro")).isEqualTo(InstanceSize.MICRO);
         assertThat(InstanceSize.fromLabel("MEDIUM")).isEqualTo(InstanceSize.MEDIUM);
         assertThat(InstanceSize.fromLabel("Large")).isEqualTo(InstanceSize.LARGE);
     }
 
     @Test
-    void fromLabelThrowsOnUnknown()
-    {
+    void fromLabelThrowsOnUnknown() {
         assertThatThrownBy(() -> InstanceSize.fromLabel("huge"))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("huge")
-            .hasMessageContaining("Valid sizes");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("huge")
+                .hasMessageContaining("Valid sizes");
     }
 
     @Test
-    void labelsMatchEnumNames()
-    {
+    void labelsMatchEnumNames() {
         assertThat(InstanceSize.MICRO.label()).isEqualTo("micro");
         assertThat(InstanceSize.SMALL.label()).isEqualTo("small");
         assertThat(InstanceSize.MEDIUM.label()).isEqualTo("medium");
@@ -68,10 +55,8 @@ class InstanceSizeTest
     }
 
     @Test
-    void descriptionsAreNonEmpty()
-    {
-        for (final InstanceSize size : InstanceSize.values())
-        {
+    void descriptionsAreNonEmpty() {
+        for (InstanceSize size : InstanceSize.values()) {
             assertThat(size.description()).isNotBlank();
         }
     }

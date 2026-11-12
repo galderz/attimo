@@ -20,7 +20,8 @@ Use project-local skills from `.pi/skills/agent-skills` when relevant.
 - **Never store keys or secrets** in source — generate programmatically (see `TestKeys.java`)
 - **Git commit** each logical unit of work with a descriptive message
 - **Update `PROGRESS.md`** at the end of each session with: completed tasks, new backlog items, decisions made
-- Follow the code style: Allman braces, `final` on params/locals, comma-first (see `SPEC.md`)
+- **Format with jfmt** before committing: `./jfmtw src/main/java/... src/test/java/...` (see `SPEC.md`)
+- Follow the code style: K&R braces, explicit types (no `var`), jfmt-formatted (see `SPEC.md`)
 
 ### Intent → Skill Mapping
 

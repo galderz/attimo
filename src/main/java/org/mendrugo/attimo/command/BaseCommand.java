@@ -4,32 +4,24 @@ import org.aesh.command.Command;
 import org.aesh.command.CommandResult;
 import org.aesh.command.invocation.CommandInvocation;
 
-public abstract class BaseCommand implements Command<CommandInvocation>
-{
+public abstract class BaseCommand implements Command<CommandInvocation> {
     protected CommandInvocation commandInvocation;
 
     @Override
-    public CommandResult execute(final CommandInvocation invocation) throws InterruptedException
-    {
+    public CommandResult execute(CommandInvocation invocation) throws InterruptedException {
         this.commandInvocation = invocation;
-        try
-        {
+        try {
             return doExecute();
-        }
-        catch (final InterruptedException e)
-        {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw e;
-        }
-        catch (final Exception e)
-        {
+        } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());
             return CommandResult.FAILURE;
         }
     }
 
-    protected CommandResult doExecute() throws Exception
-    {
+    protected CommandResult doExecute() throws Exception {
         return CommandResult.SUCCESS;
     }
 }

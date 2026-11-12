@@ -1,47 +1,41 @@
 package org.mendrugo.attimo.aws.command;
 
-import org.mendrugo.attimo.Environment;
-import org.mendrugo.attimo.aws.Aws;
-import org.mendrugo.attimo.aws.AwsClientFactory;
-import org.mendrugo.attimo.command.BaseCommand;
-import org.mendrugo.attimo.aws.Continent;
-import org.mendrugo.attimo.aws.Region;
-import org.mendrugo.attimo.aws.AwsConfig;
-import org.mendrugo.attimo.config.AttimoConfig;
-import org.mendrugo.attimo.ssh.SshKeyManager;
-import org.aesh.command.CommandDefinition;
-import org.aesh.command.CommandResult;
-
 import java.io.Console;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+
+import org.aesh.command.CommandDefinition;
+import org.aesh.command.CommandResult;
+import org.mendrugo.attimo.Environment;
+import org.mendrugo.attimo.aws.Aws;
+import org.mendrugo.attimo.aws.AwsClientFactory;
+import org.mendrugo.attimo.aws.AwsConfig;
+import org.mendrugo.attimo.aws.Continent;
+import org.mendrugo.attimo.aws.Region;
+import org.mendrugo.attimo.command.BaseCommand;
+import org.mendrugo.attimo.config.AttimoConfig;
+import org.mendrugo.attimo.ssh.SshKeyManager;
 
 @CommandDefinition(
-    name = "init"
-    , description = "One-time setup: validate AWS auth, set region, configure SSH key"
-    , generateHelp = true
-)
-public class AwsInitCommand extends BaseCommand
-{
-    /**
-     * Check if init has been run by looking for the config file.
-     */
-    public static boolean hasBeenInitialized()
-    {
+        name = "init",
+        description = "One-time setup: validate AWS auth, set region, configure SSH key",
+        generateHelp = true)
+public class AwsInitCommand extends BaseCommand {
+
+    public static boolean hasBeenInitialized() {
         return Files.exists(Environment.configFile(Aws.CLOUD));
     }
 
     @Override
-    protected CommandResult doExecute() throws Exception
-    {
+    protected CommandResult doExecute() throws Exception {
         System.out.println("=== attimo aws init ===\n");
 
-        final var config = AwsConfig.load();
-        final var console = System.console();
+        AwsConfig config = AwsConfig.load();
+        Console console = System.console();
 
-        if (!checkAwsCredentials(console, config))
-        {
+        if (!checkAwsCredentials(console, config)) {
             return CommandResult.FAILURE;
         }
 
@@ -58,26 +52,19 @@ public class AwsInitCommand extends BaseCommand
         return CommandResult.SUCCESS;
     }
 
-    private boolean checkAwsCredentials(
-        final Console console
-        , final AwsConfig config
-    )
-    {
+    private boolean checkAwsCredentials(Console console, AwsConfig config) {
         System.out.println("[1/4] Checking AWS authentication...");
-        final var factory = new AwsClientFactory();
-        final var error = factory.validateCredentials();
+        AwsClientFactory factory = new AwsClientFactory();
+        String error = factory.validateCredentials();
 
-        if (error == null)
-        {
+        if (error == null) {
             System.out.println("  AWS credentials verified.");
             return true;
         }
 
         System.out.println("  " + error);
 
-        // Detect login_session issue — may indicate expired session or missing signin module
-        if (error.contains("login_session"))
-        {
+        if (error.contains("login_session")) {
             System.out.println();
             System.out.println("  Your profile uses 'login_session' (from 'aws login').");
             System.out.println("  This may mean your session has expired. Try:");
@@ -103,18 +90,16 @@ public class AwsInitCommand extends BaseCommand
         System.out.println("    (Get one from https://console.aws.amazon.com/iam → Security credentials → Access keys)");
         System.out.println();
 
-        if (console == null)
-        {
+        if (console == null) {
             System.err.println("  Error: no console available for interactive setup.");
             System.err.println("  Configure AWS credentials manually and re-run 'ato aws init'.");
             return false;
         }
 
         System.out.print("  Choose (a/B): ");
-        final var choice = console.readLine().strip();
+        String choice = console.readLine().strip();
 
-        if (choice.equalsIgnoreCase("a"))
-        {
+        if (choice.equalsIgnoreCase("a")) {
             System.out.println("  Install the AWS CLI, run 'aws configure', then re-run 'ato aws init'.");
             return false;
         }
@@ -122,36 +107,33 @@ public class AwsInitCommand extends BaseCommand
         return enterAccessKeys(console);
     }
 
-    private boolean enterAccessKeys(final Console console)
-    {
+    private boolean enterAccessKeys(Console console) {
         System.out.print("  AWS Access Key ID: ");
-        final var accessKey = console.readLine().strip();
-        if (accessKey.isBlank())
-        {
+        String accessKey = console.readLine().strip();
+        if (accessKey.isBlank()) {
             System.out.println("  Skipped. Configure AWS credentials and re-run 'ato aws init'.");
             return false;
         }
 
         System.out.print("  AWS Secret Access Key: ");
-        final var secretKey = new String(console.readPassword()).strip();
-        if (secretKey.isBlank())
-        {
+        String secretKey = new String(console.readPassword()).strip();
+        if (secretKey.isBlank()) {
             System.out.println("  Skipped. Configure AWS credentials and re-run 'ato aws init'.");
             return false;
         }
 
-        // Write to ~/.aws/credentials
-        try
-        {
-            final Path awsDir = Path.of(System.getProperty("user.home"), ".aws");
+        try {
+            Path awsDir = Path.of(System.getProperty("user.home"), ".aws");
             Files.createDirectories(awsDir);
-            final Path credFile = awsDir.resolve("credentials");
+            Path credFile = awsDir.resolve("credentials");
 
-            final var content = """
+            var
+                    content = """
                 [default]
                 aws_access_key_id = %s
                 aws_secret_access_key = %s
-                """.formatted(accessKey, secretKey);
+                """
+                                    .formatted(accessKey, secretKey);
 
             Files.writeString(credFile, content);
             credFile.toFile().setReadable(false, false);
@@ -160,168 +142,128 @@ public class AwsInitCommand extends BaseCommand
             credFile.toFile().setWritable(true, true);
             System.out.println("  Credentials saved to ~/.aws/credentials");
 
-            // Verify
-            final var factory = new AwsClientFactory();
-            final var verifyError = factory.validateCredentials();
-            if (verifyError != null)
-            {
+            AwsClientFactory factory = new AwsClientFactory();
+            String verifyError = factory.validateCredentials();
+            if (verifyError != null) {
                 System.out.println("  Warning: " + verifyError);
                 System.out.println("  Credentials saved but could not be verified. Continuing...");
-            }
-            else
-            {
+            } else {
                 System.out.println("  AWS credentials verified.");
             }
 
             return true;
-        }
-        catch (final IOException e)
-        {
+        } catch (IOException e) {
             System.err.println("  Failed to write credentials: " + e.getMessage());
             return false;
         }
     }
 
-    private void setupRegion(
-        final Console console
-        , final AwsConfig config
-    )
-    {
+    private void setupRegion(Console console, AwsConfig config) {
         System.out.println("\n[2/4] Configuring preferred AWS region...");
 
-        if (!config.getPreferredRegion().isBlank())
-        {
-            System.out.println("  Current region: " + config.getPreferredRegion());
-            if (console != null)
-            {
+        if (!config.preferredRegion.isBlank()) {
+            System.out.println("  Current region: " + config.preferredRegion);
+            if (console != null) {
                 System.out.print("  Keep this region? (Y/n): ");
-                final var answer = console.readLine().strip();
-                if (!answer.equalsIgnoreCase("n"))
-                {
+                String answer = console.readLine().strip();
+                if (!answer.equalsIgnoreCase("n")) {
                     return;
                 }
-            }
-            else
-            {
+            } else {
                 return;
             }
         }
 
-        // Step 1: Select continent
-        final var continent = selectContinent(console);
-        config.setContinent(continent.name());
+        Continent continent = selectContinent(console);
+        config.continent = continent.name();
 
-        // Step 2: Select region within continent
-        final var region = selectRegion(console, continent);
-        config.setPreferredRegion(region);
+        String region = selectRegion(console, continent);
+        config.preferredRegion = region;
     }
 
-    private Continent selectContinent(final Console console)
-    {
+    private Continent selectContinent(Console console) {
         System.out.println("  Select your continent:");
         System.out.println("    1. " + Continent.EMEA.displayName());
         System.out.println("    2. " + Continent.AMERICAS.displayName());
         System.out.println("    3. " + Continent.ASIA_PACIFIC.displayName());
         System.out.println();
 
-        if (console == null)
-        {
+        if (console == null) {
             System.out.println("  Defaulting to EMEA (no console available).");
             return Continent.EMEA;
         }
 
         System.out.print("  Continent [1]: ");
-        final var input = console.readLine().strip();
-
-        return switch (input)
-        {
+        String input = console.readLine().strip();
+        return switch (input) {
             case "2" -> Continent.AMERICAS;
             case "3" -> Continent.ASIA_PACIFIC;
-            // "1" and anything else → EMEA
+
             default -> Continent.EMEA;
         };
     }
 
-    private String selectRegion(
-        final Console console
-        , final Continent continent
-    )
-    {
+    private String selectRegion(Console console, Continent continent) {
         System.out.println();
         System.out.println("  Regions in " + continent.displayName() + ":");
 
-        final var regions = continent.regions();
-        for (final Region r : regions)
-        {
-            final var padding = " ".repeat(Math.max(1, 17 - r.code().length()));
-            System.out.println("    " + r.code() + padding + "(" + r.description() + ")");
+        List<Region> regions = continent.regions();
+        for (Region r : regions) {
+            String padding = " ".repeat(Math.max(1, 17 - r.code().length()));
+            System.out.println("    "
+                    + r.code()
+                    + padding
+                    + "("
+                    + r.description()
+                    + ")");
         }
 
         System.out.println();
 
-        final var defaultRegion = regions.getFirst().code();
+        String defaultRegion = regions.getFirst().code();
 
-        if (console == null)
-        {
+        if (console == null) {
             System.out.println("  Defaulting to " + defaultRegion + " (no console available).");
             return defaultRegion;
         }
 
         System.out.print("  Region [" + defaultRegion + "]: ");
-        final var input = console.readLine().strip();
-        final var region = input.isBlank() ? defaultRegion : input;
+        String input = console.readLine().strip();
+        String region = input.isBlank() ? defaultRegion : input;
 
         System.out.println("  Region set to: " + region);
         return region;
     }
 
-    private void setupSshKey(
-        final Console console
-        , final AwsConfig config
-    )
-    {
+    private void setupSshKey(Console console, AwsConfig config) {
         System.out.println("\n[3/4] Configuring SSH key...");
 
-        // Generate managed key pair
-        if (SshKeyManager.exists(Aws.CLOUD))
-        {
+        if (SshKeyManager.exists(Aws.CLOUD)) {
             System.out.println("  Managed SSH key pair already exists.");
-        }
-        else
-        {
-            try
-            {
+        } else {
+            try {
                 SshKeyManager.ensureKeyPairExists(Aws.CLOUD);
-            }
-            catch (final Exception e)
-            {
+            } catch (Exception e) {
                 System.err.println("  Warning: SSH key generation failed: " + e.getMessage());
                 System.err.println("  You can generate one manually later.");
             }
         }
 
-        // Ask for personal SSH public key path
-        if (!config.getSshPublicKey().isBlank())
-        {
-            System.out.println("  Personal SSH public key: " + config.getSshPublicKey());
-        }
-        else if (console != null)
-        {
-            final var defaultKey = "~/.ssh/id_ed25519.pub";
+        if (!config.sshPublicKey.isBlank()) {
+            System.out.println("  Personal SSH public key: " + config.sshPublicKey);
+        } else if (console != null) {
+            String defaultKey = "~/.ssh/id_ed25519.pub";
             System.out.print("  Path to your SSH public key [" + defaultKey + "]: ");
-            final var input = console.readLine().strip();
-            config.setSshPublicKey(input.isBlank() ? defaultKey : input);
-            System.out.println("  SSH public key set to: " + config.getSshPublicKey());
-        }
-        else
-        {
-            config.setSshPublicKey("~/.ssh/id_ed25519.pub");
+            String input = console.readLine().strip();
+            config.sshPublicKey = input.isBlank() ? defaultKey : input;
+            System.out.println("  SSH public key set to: " + config.sshPublicKey);
+        } else {
+            config.sshPublicKey = "~/.ssh/id_ed25519.pub";
             System.out.println("  Defaulting to ~/.ssh/id_ed25519.pub");
         }
     }
 
-    private void setupSearchPaths(final Console console)
-    {
+    private void setupSearchPaths(Console console) {
         System.out.println("\n[4/4] Template search paths...");
         AttimoConfig.setupSearchPaths(console);
     }

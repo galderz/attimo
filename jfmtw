@@ -1,0 +1,158 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# jfmt wrapper script, version 0.9.0
+#
+# Downloads and caches the jfmt JAR on first use, then runs jfmt with the
+# required javac exports. Modelled on the Maven Wrapper (mvnw).
+#
+# In a Maven project (pom.xml present), automatically supplies --source-path
+# and --class-path when the caller does not provide them.
+#
+# Required: Java 25+, curl or wget
+#
+# Optional ENV vars:
+#   JFMT_CACHE_DIR - override the default cache directory
+#   JFMTW_VERBOSE  - true: enable verbose output
+# ----------------------------------------------------------------------------
+
+set -eu
+
+# Resolve the project root (directory containing this script)
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+
+# Read distributionUrl from properties file
+properties_file="$script_dir/.jfmt/jfmt-wrapper.properties"
+if [ ! -f "$properties_file" ]; then
+    echo "Error: $properties_file not found" >&2
+    exit 1
+fi
+
+distribution_url=""
+while IFS='=' read -r key value; do
+    case "$key" in
+        distributionUrl) distribution_url="$value" ;;
+    esac
+done < "$properties_file"
+
+if [ -z "$distribution_url" ]; then
+    echo "Error: distributionUrl not found in $properties_file" >&2
+    exit 1
+fi
+
+# Derive JAR filename from URL
+jar_name="${distribution_url##*/}"
+
+# Cache directory: $JFMT_CACHE_DIR or $XDG_CACHE_HOME/jfmt or ~/.cache/jfmt
+if [ -n "${JFMT_CACHE_DIR-}" ]; then
+    cache_dir="$JFMT_CACHE_DIR"
+elif [ -n "${XDG_CACHE_HOME-}" ]; then
+    cache_dir="$XDG_CACHE_HOME/jfmt"
+else
+    cache_dir="$HOME/.cache/jfmt"
+fi
+
+jar_path="$cache_dir/$jar_name"
+
+# Download the JAR if not cached
+if [ ! -f "$jar_path" ]; then
+    mkdir -p "$cache_dir"
+
+    [ "${JFMTW_VERBOSE-}" = true ] && echo "Downloading jfmt from $distribution_url ..." >&2
+
+    if command -v curl >/dev/null 2>&1; then
+        curl --fail --silent --show-error --location --output "$jar_path" "$distribution_url" \
+            || { echo "Error: failed to download $distribution_url" >&2; rm -f "$jar_path"; exit 1; }
+    elif command -v wget >/dev/null 2>&1; then
+        wget --quiet --output-document="$jar_path" "$distribution_url" \
+            || { echo "Error: failed to download $distribution_url" >&2; rm -f "$jar_path"; exit 1; }
+    else
+        echo "Error: curl or wget is required to download jfmt" >&2
+        exit 1
+    fi
+
+    [ "${JFMTW_VERBOSE-}" = true ] && echo "Cached jfmt at $jar_path" >&2
+fi
+
+# Find java
+if [ -n "${JAVA_HOME-}" ]; then
+    java_cmd="$JAVA_HOME/bin/java"
+else
+    java_cmd="java"
+fi
+
+if ! command -v "$java_cmd" >/dev/null 2>&1; then
+    echo "Error: java not found. Set JAVA_HOME or add java to PATH." >&2
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Auto-detect Maven project classpath when the caller does not supply
+# --source-path or --class-path.  This lets bare  ./jfmtw <files>  work
+# the same as passing the flags explicitly.
+# ---------------------------------------------------------------------------
+maven_args=""
+has_source_path=false
+has_class_path=false
+for arg in "$@"; do
+    case "$arg" in
+        --source-path|--sourcepath|-sourcepath) has_source_path=true ;;
+        --class-path|--classpath|-classpath|-cp) has_class_path=true ;;
+    esac
+done
+
+if [ "$has_source_path" = false ] || [ "$has_class_path" = false ]; then
+    pom_file="$script_dir/pom.xml"
+    if [ -f "$pom_file" ]; then
+        # Resolve and cache the Maven classpath (regenerate when pom.xml changes)
+        cp_cache="$script_dir/target/jfmt-classpath.txt"
+        if [ ! -f "$cp_cache" ] || [ "$pom_file" -nt "$cp_cache" ]; then
+            [ "${JFMTW_VERBOSE-}" = true ] && echo "Resolving Maven classpath ..." >&2
+            mvn -f "$pom_file" dependency:build-classpath \
+                -Dmdep.outputFile="$cp_cache" -q 2>/dev/null || true
+        fi
+
+        classpath=""
+        if [ -f "$cp_cache" ]; then
+            classpath="$(cat "$cp_cache")"
+        fi
+
+        # Build --source-path and --class-path args for main and test trees.
+        # Separate invocations per source root are not needed: jfmt accepts
+        # a single --source-path covering all roots when combined with
+        # --class-path that includes compiled main classes.
+        src_roots=""
+        if [ -d "$script_dir/src/main/java" ]; then
+            src_roots="$script_dir/src/main/java"
+        fi
+        if [ -d "$script_dir/src/test/java" ]; then
+            if [ -n "$src_roots" ]; then
+                src_roots="$src_roots:$script_dir/src/test/java"
+            else
+                src_roots="$script_dir/src/test/java"
+            fi
+            # Test code may reference compiled main classes
+            if [ -d "$script_dir/target/classes" ] && [ -n "$classpath" ]; then
+                classpath="$classpath:$script_dir/target/classes"
+            fi
+        fi
+
+        if [ "$has_source_path" = false ] && [ -n "$src_roots" ]; then
+            maven_args="$maven_args --source-path $src_roots"
+        fi
+        if [ "$has_class_path" = false ] && [ -n "$classpath" ]; then
+            maven_args="$maven_args --class-path $classpath"
+        fi
+    fi
+fi
+
+# Run jfmt with the required javac internal exports
+# shellcheck disable=SC2086
+exec "$java_cmd" \
+    --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
+    -jar "$jar_path" $maven_args "$@"

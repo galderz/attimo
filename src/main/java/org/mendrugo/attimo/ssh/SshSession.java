@@ -1,7 +1,5 @@
 package org.mendrugo.attimo.ssh;
 
-import org.mendrugo.attimo.Environment;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -9,12 +7,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Manages an SSH session to a spot instance via the system ssh command.
- * Waits for SSH to be reachable, then launches an interactive session.
- */
-public class SshSession
-{
+import org.mendrugo.attimo.Environment;
+
+public class SshSession {
     private static final int SSH_PORT = 22;
     private static final int CONNECT_TIMEOUT_MS = 3000;
     private static final int RETRY_DELAY_MS = 5000;
@@ -24,62 +19,31 @@ public class SshSession
     private final String user;
     private final Path privateKeyPath;
 
-    public SshSession(
-        final String host
-        , final String user
-        , final Path privateKeyPath
-    )
-    {
+    public SshSession(String host, String user, Path privateKeyPath) {
         this.host = host;
         this.user = user;
         this.privateKeyPath = privateKeyPath;
     }
 
-    /**
-     * Create an SSH session using the default user and the cloud provider's
-     * managed SSH key.
-     *
-     * @param host the host to connect to
-     * @param cloud the cloud provider identifier for SSH key path
-     */
-    public SshSession(
-        final String host
-        , final String cloud
-    )
-    {
+    public SshSession(String host, String cloud) {
         this(host, DEFAULT_USER, Environment.sshKeyFile(cloud));
     }
 
-    /**
-     * Wait until SSH is reachable on the remote host.
-     *
-     * @param timeoutSeconds maximum time to wait
-     * @return true if SSH is reachable, false if timed out
-     */
-    public boolean waitForSsh(final int timeoutSeconds)
-    {
-        final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+    public boolean waitForSsh(int timeoutSeconds) {
+        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
         System.out.println("  Waiting for SSH on " + host + ":" + SSH_PORT + "...");
 
-        while (System.currentTimeMillis() < deadline)
-        {
-            try (final var socket = new Socket())
-            {
+        while (System.currentTimeMillis() < deadline) {
+            try (Socket socket = new Socket()) {
                 socket.connect(new InetSocketAddress(host, SSH_PORT), CONNECT_TIMEOUT_MS);
                 System.out.println("  SSH is reachable.");
                 return true;
-            }
-            catch (final IOException e)
-            {
-                // Not ready yet
+            } catch (IOException e) {
             }
 
-            try
-            {
+            try {
                 Thread.sleep(RETRY_DELAY_MS);
-            }
-            catch (final InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return false;
             }
@@ -89,37 +53,23 @@ public class SshSession
         return false;
     }
 
-    /**
-     * Launch an interactive SSH session. Blocks until the session ends.
-     *
-     * @return the exit code of the ssh process
-     */
-    public int connect()
-    {
-        final var command = buildSshCommand();
+    public int connect() {
+        List<String> command = buildSshCommand();
 
-        try
-        {
+        try {
             System.out.println("  Connecting to " + user + "@" + host + "...\n");
-            final var pb = new ProcessBuilder(command);
+            ProcessBuilder pb = new ProcessBuilder(command);
             pb.inheritIO();
-            final var process = pb.start();
+            Process process = pb.start();
             return process.waitFor();
-        }
-        catch (final IOException | InterruptedException e)
-        {
+        } catch (IOException | InterruptedException e) {
             System.err.println("SSH connection failed: " + e.getMessage());
             return 1;
         }
     }
 
-    /**
-     * Build the ssh command with appropriate options.
-     * Visible for testing.
-     */
-    List<String> buildSshCommand()
-    {
-        final var cmd = new ArrayList<String>();
+    List<String> buildSshCommand() {
+        ArrayList<String> cmd = new ArrayList<String>();
         cmd.add("ssh");
         cmd.add("-i");
         cmd.add(privateKeyPath.toString());
