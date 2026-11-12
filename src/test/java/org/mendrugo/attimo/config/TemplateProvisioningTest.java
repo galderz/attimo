@@ -37,7 +37,7 @@ class TemplateProvisioningTest
     void awsProvisioningWithBuiltinOpenjdkTemplate()
     {
         // Simulate what AwsRequestCommand does
-        final var defs = ImageDef.loadAll(List.of());
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
         final var recorder = new RecordingProvisioner();
@@ -77,7 +77,7 @@ class TemplateProvisioningTest
             """);
 
         // Simulate AwsRequestCommand: load, resolve, collect, provision
-        final var defs = ImageDef.loadAll(List.of(tempDir.toString()));
+        final var defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
         final var imageDef = ImageDef.findByName("tpl-extended", defs);
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
         final var recorder = new RecordingProvisioner();
@@ -96,7 +96,7 @@ class TemplateProvisioningTest
     void blueHatProvisioningWithBuiltinOpenjdkTemplate()
     {
         // Simulate what BlueHatRequestCommand does
-        final var defs = ImageDef.loadAll(List.of());
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
         final var recorder = new RecordingProvisioner();
@@ -135,7 +135,7 @@ class TemplateProvisioningTest
             """);
 
         // Simulate BlueHatRequestCommand: load, resolve, collect, provision
-        final var defs = ImageDef.loadAll(List.of(tempDir.toString()));
+        final var defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
         final var imageDef = ImageDef.findByName("tpl-extended", defs);
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
         final var recorder = new RecordingProvisioner();
@@ -186,7 +186,7 @@ class TemplateProvisioningTest
     @Test
     void provisioningWithMinimalTemplateIsNoOp()
     {
-        final var defs = ImageDef.loadAll(List.of());
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var imageDef = ImageDef.findByName("tpl-minimal", defs);
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
         final var recorder = new RecordingProvisioner();

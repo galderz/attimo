@@ -217,8 +217,26 @@ public class ImageDef
 
     /**
      * Load all image definitions with explicit search paths.
+     * Includes project-local definitions from {@code .attimo/images/}
+     * relative to the current working directory.
      */
     public static Map<String, ImageDef> loadAll(final List<String> searchPaths)
+    {
+        return loadAll(searchPaths, PROJECT_IMAGES_DIR);
+    }
+
+    /**
+     * Load all image definitions with explicit search paths and
+     * project-local directory. Use this overload in tests to avoid
+     * reading from the real cwd.
+     *
+     * @param searchPaths   directories to scan for {@code images/} subdirectories
+     * @param projectDir    project-local image directory (may be null to skip)
+     */
+    static Map<String, ImageDef> loadAll(
+        final List<String> searchPaths
+        , final Path projectDir
+    )
     {
         final var defs = new LinkedHashMap<String, ImageDef>();
         loadBuiltins(defs);
@@ -227,7 +245,10 @@ public class ImageDef
             final var expanded = expandTilde(searchPath);
             loadFromDirectory(Path.of(expanded).resolve("images"), defs);
         }
-        loadFromDirectory(PROJECT_IMAGES_DIR, defs);
+        if (projectDir != null)
+        {
+            loadFromDirectory(projectDir, defs);
+        }
         return defs;
     }
 

@@ -16,7 +16,7 @@ class ImageDefTest
     @Test
     void minimalIsRoot()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var minimal = defs.get("tpl-minimal");
         assertThat(minimal).isNotNull();
         assertThat(minimal.isRoot()).isTrue();
@@ -28,7 +28,7 @@ class ImageDefTest
     @Test
     void openjdkHasParent()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         assertThat(openjdk).isNotNull();
         assertThat(openjdk.isRoot()).isFalse();
@@ -39,7 +39,7 @@ class ImageDefTest
     @Test
     void openjdkPackagesIncludeBuildEssentials()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         assertThat(openjdk.getPackages())
             .contains("gcc", "gcc-c++", "make", "autoconf");
@@ -48,7 +48,7 @@ class ImageDefTest
     @Test
     void openjdkPackagesIncludeJdk()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         assertThat(openjdk.getPackages())
             .contains("java-latest-openjdk-devel");
@@ -57,7 +57,7 @@ class ImageDefTest
     @Test
     void openjdkPackagesIncludeXLibs()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         assertThat(openjdk.getPackages())
             .contains(
@@ -73,7 +73,7 @@ class ImageDefTest
     @Test
     void openjdkPackagesIncludeCapstone()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         assertThat(openjdk.getPackages())
             .contains("capstone", "capstone-devel");
@@ -82,7 +82,7 @@ class ImageDefTest
     @Test
     void ancestorsOfOpenjdkIsMinimal()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         final var ancestors = ImageDef.ancestors(openjdk, defs);
         assertThat(ancestors).hasSize(1);
@@ -92,7 +92,7 @@ class ImageDefTest
     @Test
     void ancestorsOfMinimalIsEmpty()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var minimal = defs.get("tpl-minimal");
         final var ancestors = ImageDef.ancestors(minimal, defs);
         assertThat(ancestors).isEmpty();
@@ -101,14 +101,14 @@ class ImageDefTest
     @Test
     void loadAllReturnsAllBuiltins()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         assertThat(defs).containsKeys("tpl-minimal", "tpl-openjdk");
     }
 
     @Test
     void findByNameReturnsCorrectDef()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var found = ImageDef.findByName("tpl-openjdk", defs);
         assertThat(found).isNotNull();
         assertThat(found.getName()).isEqualTo("tpl-openjdk");
@@ -117,7 +117,7 @@ class ImageDefTest
     @Test
     void findByNameReturnsNullForUnknown()
     {
-        final var defs = ImageDef.loadAll();
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var found = ImageDef.findByName("tpl-nonexistent", defs);
         assertThat(found).isNull();
     }
@@ -201,7 +201,7 @@ class ImageDefTest
               - vim
             """);
 
-        final var defs = ImageDef.loadAll(List.of(tempDir.toString()));
+        final var defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
 
         // Built-ins still loaded
         assertThat(defs).containsKeys("tpl-minimal", "tpl-openjdk");
@@ -225,7 +225,7 @@ class ImageDefTest
               - gcc
             """);
 
-        final var defs = ImageDef.loadAll(List.of(tempDir.toString()));
+        final var defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
         final var openjdk = defs.get("tpl-openjdk");
         assertThat(openjdk.getDescription()).isEqualTo("Overridden OpenJDK");
         assertThat(openjdk.getPackages()).containsExactly("gcc");
@@ -234,7 +234,7 @@ class ImageDefTest
     @Test
     void emptySearchPathsLoadsOnlyBuiltins()
     {
-        final var defs = ImageDef.loadAll(List.of());
+        final var defs = ImageDef.loadAll(List.of(), null);
         assertThat(defs).containsOnlyKeys("tpl-minimal", "tpl-openjdk");
     }
 
@@ -340,7 +340,7 @@ class ImageDefTest
     @Test
     void collectAllPackagesBuiltinOpenjdkInheritsMinimal()
     {
-        final var defs = ImageDef.loadAll(List.of());
+        final var defs = ImageDef.loadAll(List.of(), null);
         final var openjdk = defs.get("tpl-openjdk");
         final var packages = ImageDef.collectAllPackages(openjdk, defs);
         assertThat(packages).contains("gcc", "java-latest-openjdk-devel");
