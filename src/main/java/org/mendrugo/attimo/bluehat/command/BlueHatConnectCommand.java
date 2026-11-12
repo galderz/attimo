@@ -34,7 +34,6 @@ public class BlueHatConnectCommand extends BaseCommand
         final var hostName = config.effectiveHostName();
         final var port = BlueHat.API_PORT;
 
-        // Start local cloud if needed
         Process localProcess = null;
         try
         {
@@ -53,7 +52,7 @@ public class BlueHatConnectCommand extends BaseCommand
         , final int port
     )
     {
-        // Verify the VM is still running
+
         try
         {
             final var client = new BlueHatClient(hostName, port);

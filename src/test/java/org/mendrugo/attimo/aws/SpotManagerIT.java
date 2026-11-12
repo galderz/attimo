@@ -17,12 +17,6 @@ import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
 
-/**
- * Integration tests for SpotManager against LocalStack.
- * Tests security group and key pair operations.
- * Spot instance launch is not tested here because LocalStack's
- * spot support is limited.
- */
 @Testcontainers
 class SpotManagerIT
 {
@@ -42,7 +36,6 @@ class SpotManagerIT
 
             assertThat(sgId).isNotBlank();
 
-            // Verify the security group exists and has SSH ingress
             final var describeResponse = ec2.describeSecurityGroups(
                 DescribeSecurityGroupsRequest.builder()
                     .groupIds(sgId)
@@ -53,13 +46,11 @@ class SpotManagerIT
             final var sg = describeResponse.securityGroups().getFirst();
             assertThat(sg.groupName()).startsWith("attimo-");
 
-            // Verify SSH ingress rule
             assertThat(sg.ipPermissions()).isNotEmpty();
             final var sshRule = sg.ipPermissions().getFirst();
             assertThat(sshRule.fromPort()).isEqualTo(22);
             assertThat(sshRule.toPort()).isEqualTo(22);
 
-            // Cleanup
             ec2.deleteSecurityGroup(
                 DeleteSecurityGroupRequest.builder()
                     .groupId(sgId)
@@ -79,7 +70,6 @@ class SpotManagerIT
 
             assertThat(keyName).startsWith("attimo-");
 
-            // Verify the key pair exists
             final var describeResponse = ec2.describeKeyPairs(
                 DescribeKeyPairsRequest.builder()
                     .keyNames(keyName)
@@ -89,7 +79,6 @@ class SpotManagerIT
             assertThat(describeResponse.keyPairs()).hasSize(1);
             assertThat(describeResponse.keyPairs().getFirst().keyName()).isEqualTo(keyName);
 
-            // Cleanup
             ec2.deleteKeyPair(
                 DeleteKeyPairRequest.builder()
                     .keyName(keyName)

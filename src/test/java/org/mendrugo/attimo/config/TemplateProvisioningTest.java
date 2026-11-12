@@ -14,29 +14,13 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Verifies the full provisioning path that both AWS and Blue Hat
- * request commands follow:
- *
- * <ol>
- *   <li>Load templates (ImageDef.loadAll)</li>
- *   <li>Resolve template by name (ImageDef.findByName)</li>
- *   <li>Collect all packages including inherited (ImageDef.collectAllPackages)</li>
- *   <li>Provision via BootJdkProvisioner.provision (OS-aware)</li>
- * </ol>
- *
- * This catches regressions where a request command accidentally
- * calls {@code imageDef.getPackages()} instead of
- * {@code ImageDef.collectAllPackages()}.
- */
 class TemplateProvisioningTest
 {
-    // ── AWS (AL2023) path ──────────────────────────────────────────
 
     @Test
     void awsProvisioningWithBuiltinOpenjdkTemplate()
     {
-        // Simulate what AwsRequestCommand does
+
         final var defs = ImageDef.loadAll(List.of(), null);
         final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
@@ -44,12 +28,11 @@ class TemplateProvisioningTest
 
         BootJdkProvisioner.provision(allPackages, recorder, false, "x86_64");
 
-        // On AL2023, java-latest-openjdk-devel is intercepted
         assertThat(recorder.installedPackages)
             .doesNotContain("java-latest-openjdk-devel")
             .contains("gcc", "gcc-c++", "make", "autoconf")
             .contains("capstone", "capstone-devel");
-        // Adoptium tarball download was triggered
+
         assertThat(recorder.ranCommands).isNotEmpty();
     }
 
@@ -57,7 +40,7 @@ class TemplateProvisioningTest
     void awsProvisioningWithInheritedTemplate(@TempDir final Path tempDir)
         throws IOException
     {
-        // Create a parent with base packages and a child that adds more
+
         final var imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
         Files.writeString(imagesDir.resolve("base.yaml"), """
@@ -76,7 +59,6 @@ class TemplateProvisioningTest
               - autoconf
             """);
 
-        // Simulate AwsRequestCommand: load, resolve, collect, provision
         final var defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
         final var imageDef = ImageDef.findByName("tpl-extended", defs);
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
@@ -84,18 +66,15 @@ class TemplateProvisioningTest
 
         BootJdkProvisioner.provision(allPackages, recorder, false, "x86_64");
 
-        // Parent packages are inherited, JDK intercepted for AL2023
         assertThat(recorder.installedPackages)
             .containsExactly("gcc", "make", "autoconf");
         assertThat(recorder.ranCommands).isNotEmpty();
     }
 
-    // ── Blue Hat (Fedora) path ─────────────────────────────────────
-
     @Test
     void blueHatProvisioningWithBuiltinOpenjdkTemplate()
     {
-        // Simulate what BlueHatRequestCommand does
+
         final var defs = ImageDef.loadAll(List.of(), null);
         final var imageDef = ImageDef.findByName("tpl-openjdk", defs);
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
@@ -103,12 +82,11 @@ class TemplateProvisioningTest
 
         BootJdkProvisioner.provision(allPackages, recorder, true, "x86_64");
 
-        // On Fedora, java-latest-openjdk-devel is passed to dnf as-is
         assertThat(recorder.installedPackages)
             .contains("java-latest-openjdk-devel")
             .contains("gcc", "gcc-c++", "make", "autoconf")
             .contains("capstone", "capstone-devel");
-        // No Adoptium tarball download on Fedora
+
         assertThat(recorder.ranCommands).isEmpty();
     }
 
@@ -134,7 +112,6 @@ class TemplateProvisioningTest
               - autoconf
             """);
 
-        // Simulate BlueHatRequestCommand: load, resolve, collect, provision
         final var defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
         final var imageDef = ImageDef.findByName("tpl-extended", defs);
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
@@ -142,31 +119,26 @@ class TemplateProvisioningTest
 
         BootJdkProvisioner.provision(allPackages, recorder, true, "x86_64");
 
-        // Parent packages inherited, JDK installed via dnf on Fedora
         assertThat(recorder.installedPackages)
             .containsExactly("gcc", "make", "java-latest-openjdk-devel", "autoconf");
         assertThat(recorder.ranCommands).isEmpty();
     }
 
-    // ── Unknown template (rejected before provisioning) ────────────
-
     @Test
     void awsRejectsUnknownTemplateBeforeProvisioning()
     {
-        // Simulate what AwsRequestCommand does at the start of doExecute()
+
         final var resolved = ImageDef.resolve("tpl-nonexistent");
 
-        // Should return null — no cloud resources created
         assertThat(resolved).isNull();
     }
 
     @Test
     void blueHatRejectsUnknownTemplateBeforeProvisioning()
     {
-        // Simulate what BlueHatRequestCommand does at the start of doExecute()
+
         final var resolved = ImageDef.resolve("tpl-nonexistent");
 
-        // Should return null — no VM created
         assertThat(resolved).isNull();
     }
 
@@ -180,8 +152,6 @@ class TemplateProvisioningTest
         assertThat(resolved.packages())
             .contains("gcc", "java-latest-openjdk-devel");
     }
-
-    // ── Minimal template (no packages) ─────────────────────────────
 
     @Test
     void provisioningWithMinimalTemplateIsNoOp()
@@ -199,10 +169,6 @@ class TemplateProvisioningTest
         assertThat(recorder.ranCommands).isEmpty();
     }
 
-    /**
-     * Test double that records what BootJdkProvisioner passes to
-     * the SSH provisioner, without making real SSH connections.
-     */
     private static class RecordingProvisioner extends SshProvisioner
     {
         final List<String> ranCommands = new ArrayList<>();

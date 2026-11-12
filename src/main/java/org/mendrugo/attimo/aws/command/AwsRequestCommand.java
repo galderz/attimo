@@ -35,7 +35,7 @@ import java.util.Set;
 )
 public class AwsRequestCommand extends BaseCommand
 {
-    /** Maximum number of candidates to try before giving up. */
+
     private static final int MAX_LAUNCH_ATTEMPTS = 3;
 
     @Option(
@@ -63,21 +63,19 @@ public class AwsRequestCommand extends BaseCommand
     @Override
     protected CommandResult doExecute() throws Exception
     {
-        // Validate init
+
         if (!AwsInitCommand.hasBeenInitialized())
         {
             System.err.println("Error: AWS has not been initialized. Run 'ato aws init' first.");
             return CommandResult.FAILURE;
         }
 
-        // Validate template before any cloud resources are created
         final var resolved = ImageDef.resolve(template);
         if (resolved == null)
         {
             return CommandResult.FAILURE;
         }
 
-        // Check for existing active instance
         final var existingState = InstanceState.load(Aws.CLOUD);
         if (existingState.hasActiveInstance())
         {
@@ -94,7 +92,6 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // 1. Resolve ISA → instance types
         System.out.println("=== Requesting spot instance ===\n");
         System.out.println("[1/4] Resolving ISA feature: " + isaFeature);
 
@@ -110,7 +107,6 @@ public class AwsRequestCommand extends BaseCommand
         System.out.println("  " + feature.description() + " (" + feature.architecture() + ")");
         System.out.println("  Candidate families: " + String.join(", ", feature.families()));
 
-        // Parse instance size
         final InstanceSize instanceSize;
         try
         {
@@ -122,7 +118,6 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // 2. Find spot options across continents
         System.out.println("\n[2/4] Querying spot prices across continents"
             + " (size: " + instanceSize.label() + ")...");
 
@@ -147,7 +142,6 @@ public class AwsRequestCommand extends BaseCommand
             System.out.println("  (" + (recommendations.size() - 1) + " fallback options available)");
         }
 
-        // 3. Resolve base AMI + launch with retry on capacity failure
         System.out.println("\n[3/4] Launching spot instance...");
 
         final var arch = "aarch64".equals(feature.architecture()) ? "arm64" : "x86_64";
@@ -169,7 +163,6 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // Print launch details only on success
         final var rec = launchResult.recommendation;
         System.out.println("  " + rec.instanceType() + " in "
             + rec.availabilityZone() + " @ $"
@@ -191,7 +184,7 @@ public class AwsRequestCommand extends BaseCommand
         , final ImageDef.ResolvedTemplate resolved
     )
     {
-        // Save state for reconnection
+
         final var state = new InstanceState();
         state.setInstanceId(launchResult.instanceId);
         state.setRegion(launchResult.recommendation.region());
@@ -207,7 +200,6 @@ public class AwsRequestCommand extends BaseCommand
         state.setSessionId(launchResult.sessionId);
         state.save(Aws.CLOUD);
 
-        // 4. Provision + SSH
         System.out.println("\n[4/4] Provisioning and connecting...");
 
         final var sshUser = BaseAmiResolver.SSH_USER;
@@ -221,10 +213,9 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // Provision packages from template (including inherited ancestor packages)
         final var provisioner = new SshProvisioner(launchResult.publicIp, sshUser, keyFile);
         final var allPackages = resolved.packages();
-        // Derive arch from ISA feature for Adoptium API
+
         final var isaMapping = new IsaMapping();
         final var resolvedFeature = isaMapping.resolve(isaFeature);
         final var templateArch = resolvedFeature != null
@@ -233,14 +224,12 @@ public class AwsRequestCommand extends BaseCommand
         BootJdkProvisioner.provision(
             allPackages
             , provisioner
-            , false  // AL2023, not Fedora
+            , false
             , templateArch
         );
 
-        // Connect
         final var exitCode = sshSession.connect();
 
-        // Post-SSH: prompt to keep or destroy
         if (exitCode == 0)
         {
             promptKeepOrDestroy(launchResult.ec2, state);
@@ -249,11 +238,6 @@ public class AwsRequestCommand extends BaseCommand
         return CommandResult.SUCCESS;
     }
 
-    /**
-     * Try launching a spot instance, retrying with the next-best candidate
-     * on capacity failure. Cleans up resources (SG, key pair) from failed
-     * attempts before moving to the next.
-     */
     private LaunchResult launchWithRetry(
         final List<SpotRecommendation> recommendations
         , final AwsClientFactory factory
@@ -268,7 +252,6 @@ public class AwsRequestCommand extends BaseCommand
             final var recommendation = recommendations.get(attempt);
             final var region = recommendation.region();
 
-            // Resolve AMI in this region
             final String amiId;
             try (final var ssm = factory.ssm(region))
             {
@@ -281,7 +264,6 @@ public class AwsRequestCommand extends BaseCommand
                 continue;
             }
 
-            // Launch spot instance
             final Ec2Client ec2 = factory.ec2(region);
             final var spotManager = new SpotManager(ec2);
 
@@ -299,7 +281,6 @@ public class AwsRequestCommand extends BaseCommand
                     , keyPairName
                 );
 
-                // Wait for running
                 final var publicIp = spotManager.waitForRunning(instanceId, 300);
 
                 return new LaunchResult(
@@ -343,25 +324,16 @@ public class AwsRequestCommand extends BaseCommand
         return null;
     }
 
-    /**
-     * AWS error codes that indicate a launch failure retryable in
-     * a different region. These are stable API contracts.
-     */
     static final Set<String> RETRYABLE_ERROR_CODES = Set.of(
-        "InsufficientInstanceCapacity"  // no spot/on-demand capacity
-        , "SpotMaxPriceTooLow"          // spot price exceeds bid
-        , "MaxSpotInstanceCountExceeded" // per-region spot limit
-        , "InvalidAMIID.NotFound"        // AMI doesn't exist in region
+        "InsufficientInstanceCapacity"
+        , "SpotMaxPriceTooLow"
+        , "MaxSpotInstanceCountExceeded"
+        , "InvalidAMIID.NotFound"
     );
 
-    /**
-     * Check if a launch error is retryable in a different region.
-     * Checks the AWS error code first (stable API contract), then
-     * falls back to message text matching for non-Ec2Exception errors.
-     */
     static boolean isRetryableLaunchError(final Exception e)
     {
-        // Prefer error code (stable AWS API contract)
+
         if (e instanceof Ec2Exception ec2Ex
             && ec2Ex.awsErrorDetails() != null)
         {
@@ -372,8 +344,6 @@ public class AwsRequestCommand extends BaseCommand
             }
         }
 
-        // Fall back to message text for non-Ec2 exceptions
-        // (e.g., AwsException wrappers, timeout errors)
         final var msg = e.getMessage();
         if (msg == null)
         {
@@ -386,9 +356,6 @@ public class AwsRequestCommand extends BaseCommand
             || msg.contains("does not exist");
     }
 
-    /**
-     * Return a concise, user-friendly reason for a retryable error.
-     */
     static String retryableReason(final Exception e)
     {
         if (e instanceof Ec2Exception ec2Ex
@@ -428,9 +395,6 @@ public class AwsRequestCommand extends BaseCommand
         return "Launch failed";
     }
 
-    /**
-     * Clean up SG and key pair from a failed launch attempt.
-     */
     private void cleanupFailedAttempt(
         final Ec2Client ec2
         , final String sgId
@@ -446,7 +410,7 @@ public class AwsRequestCommand extends BaseCommand
         }
         catch (final Exception ignored)
         {
-            // Best-effort cleanup
+
         }
 
         try
@@ -458,14 +422,10 @@ public class AwsRequestCommand extends BaseCommand
         }
         catch (final Exception ignored)
         {
-            // Best-effort cleanup
+
         }
     }
 
-    /**
-     * Prompt the user to keep or destroy the instance.
-     * The caller is responsible for closing the Ec2Client.
-     */
     private void promptKeepOrDestroy(
         final Ec2Client ec2
         , final InstanceState state

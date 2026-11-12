@@ -11,19 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 
-/**
- * Manages the local Blue Hat cloud lifecycle.
- *
- * <p>When a git repository is configured (local mode), this class handles:
- * <ul>
- *   <li>{@link #cloneAndBuild(String)} — clone the git repository and build with Maven (during init)</li>
- *   <li>{@link #start(String)} — launch the Quarkus app as a background process</li>
- *   <li>{@link #healthCheck(String, int)} — verify the cloud is reachable via HTTP</li>
- *   <li>{@link #stop(Process)} — stop the background process</li>
- * </ul>
- *
- * <p>For remote hosts, only {@link #healthCheck(String, int)} is needed.
- */
 public final class BlueHatCloudRunner
 {
     private BlueHatCloudRunner() {}
@@ -32,24 +19,12 @@ public final class BlueHatCloudRunner
     private static final int HEALTH_MAX_RETRIES = 10;
     private static final Duration HEALTH_RETRY_DELAY = Duration.ofMillis(1000);
 
-    /**
-     * Returns the directory where the Blue Hat cloud repository is cloned.
-     *
-     * @param repository the git repository URL
-     */
     public static Path repoDir(final String repository)
     {
         final var repoName = extractRepoName(repository);
         return Environment.cacheDir(BlueHat.CLOUD).resolve(repoName);
     }
 
-    /**
-     * Clone the Blue Hat cloud repository and build it with Maven.
-     * Called during {@code ato bh init} when running locally.
-     *
-     * @param repository the git repository URL
-     * @throws BlueHatException if clone or build fails
-     */
     public static void cloneAndBuild(final String repository)
     {
         if (repository.isBlank())
@@ -89,14 +64,6 @@ public final class BlueHatCloudRunner
         }
     }
 
-    /**
-     * Start the local Blue Hat cloud as a background process.
-     * The process binds to localhost on the default Quarkus port (8080).
-     *
-     * @param repository the git repository URL (used to locate the built jar)
-     * @return the running process
-     * @throws BlueHatException if the process cannot be started
-     */
     public static Process start(final String repository)
     {
         final var targetDir = repoDir(repository);
@@ -130,7 +97,6 @@ public final class BlueHatCloudRunner
                 .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()))
                 .start();
 
-            // Wait for it to be healthy
             if (!waitForHealthy("localhost", BlueHat.API_PORT, process))
             {
                 process.destroyForcibly();
@@ -150,14 +116,6 @@ public final class BlueHatCloudRunner
         }
     }
 
-    /**
-     * Perform a health check against a Blue Hat cloud endpoint.
-     * Queries {@code GET /vm} and verifies a valid JSON response is returned.
-     *
-     * @param host the host name or IP
-     * @param port the port
-     * @return true if the health check succeeds
-     */
     public static boolean healthCheck(final String host, final int port)
     {
         try
@@ -177,7 +135,6 @@ public final class BlueHatCloudRunner
                 , HttpResponse.BodyHandlers.ofString()
             );
 
-            // Any 2xx response with a body is considered healthy
             return response.statusCode() >= 200
                 && response.statusCode() < 300
                 && response.body() != null
@@ -189,11 +146,6 @@ public final class BlueHatCloudRunner
         }
     }
 
-    /**
-     * Stop the local Blue Hat cloud process.
-     *
-     * @param process the process to stop (may be null)
-     */
     public static void stop(final Process process)
     {
         if (process != null && process.isAlive())
@@ -216,18 +168,11 @@ public final class BlueHatCloudRunner
         }
     }
 
-    /**
-     * Returns the log file path for the local Blue Hat cloud process.
-     */
     static Path logFile()
     {
         return Environment.cacheDir(BlueHat.CLOUD).resolve("cloud.log");
     }
 
-    /**
-     * Wait for the Blue Hat cloud to become healthy, retrying up to HEALTH_MAX_RETRIES times.
-     * Stops early if the process exits (no point retrying against a dead process).
-     */
     private static boolean waitForHealthy(
         final String host
         , final int port
@@ -260,10 +205,6 @@ public final class BlueHatCloudRunner
         return false;
     }
 
-    /**
-     * Report why the local cloud failed to start, showing the log file location
-     * and the last few lines of output.
-     */
     private static void reportStartupFailure(
         final Process process
         , final Path logFile
@@ -287,7 +228,6 @@ public final class BlueHatCloudRunner
 
         sb.append("\n  Log file: ").append(logFile);
 
-        // Show last lines of the log
         try
         {
             if (Files.exists(logFile) && Files.size(logFile) > 0)
@@ -306,33 +246,26 @@ public final class BlueHatCloudRunner
         }
         catch (final IOException ignored)
         {
-            // Best effort — if we can't read the log, we still report the path
+
         }
 
         throw new BlueHatException(sb.toString());
     }
 
-    /**
-     * Extract a repository name from a git URL.
-     * E.g. "https://github.com/openjdk/bluehat-cloud.git" → "bluehat-cloud"
-     */
     static String extractRepoName(final String repoUrl)
     {
         var name = repoUrl;
 
-        // Remove trailing slash
         if (name.endsWith("/"))
         {
             name = name.substring(0, name.length() - 1);
         }
 
-        // Remove .git suffix
         if (name.endsWith(".git"))
         {
             name = name.substring(0, name.length() - 4);
         }
 
-        // Extract last path segment
         final var lastSlash = name.lastIndexOf('/');
         if (lastSlash >= 0)
         {
@@ -375,14 +308,6 @@ public final class BlueHatCloudRunner
         }
     }
 
-    /**
-     * Ensure the Blue Hat cloud is running and healthy.
-     * For local mode: starts the cloud process from the built repository.
-     * For remote mode: performs a health check against the remote host.
-     *
-     * @param config the Blue Hat configuration
-     * @return the local process (or null if remote)
-     */
     public static Process ensureCloudRunning(final BlueHatConfig config)
     {
         final var hostName = config.effectiveHostName();

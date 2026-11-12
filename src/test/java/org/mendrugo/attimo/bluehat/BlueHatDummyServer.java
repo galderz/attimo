@@ -12,15 +12,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * A lightweight dummy Blue Hat API server for integration testing.
- * Simulates the Blue Hat cloud proxy endpoints:
- * <ul>
- *   <li>POST /vm — create a VM, returns fqdn</li>
- *   <li>GET /vm — list all VMs</li>
- *   <li>DELETE /vm/{fqdn} — destroy a VM</li>
- * </ul>
- */
 public class BlueHatDummyServer implements AutoCloseable
 {
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -45,7 +36,7 @@ public class BlueHatDummyServer implements AutoCloseable
 
     public BlueHatDummyServer() throws IOException
     {
-        this(0); // random port
+        this(0);
     }
 
     public BlueHatDummyServer(final int port) throws IOException
@@ -71,9 +62,6 @@ public class BlueHatDummyServer implements AutoCloseable
         server.stop(0);
     }
 
-    /**
-     * Get the number of active (non-destroyed) VMs.
-     */
     public int activeVmCount()
     {
         return (int)vms.values().stream()
@@ -96,7 +84,7 @@ public class BlueHatDummyServer implements AutoCloseable
                     case "GET" -> handleListVms(exchange);
                     case "DELETE" ->
                     {
-                        // Extract fqdn from path: /vm/{fqdn}
+
                         final var fqdn = path.substring("/vm/".length());
                         handleDestroyVm(exchange, fqdn);
                     }
@@ -207,7 +195,6 @@ public class BlueHatDummyServer implements AutoCloseable
             return;
         }
 
-        // Mark as deleted
         vms.put(fqdn, new VmRecord(
             vm.vmId()
             , vm.description()

@@ -8,11 +8,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Manages a dedicated SSH key pair for cloud instance access.
- * Key pair at ~/.config/attimo/{cloud}/ssh/id_ed25519.
- * Borrowed from incus-spawn's SshKeyManager pattern.
- */
 public final class SshKeyManager
 {
     private SshKeyManager() {}
@@ -23,9 +18,6 @@ public final class SshKeyManager
             && Files.exists(Environment.sshPubKeyFile(cloud));
     }
 
-    /**
-     * Generate an ed25519 key pair if one does not already exist.
-     */
     public static void ensureKeyPairExists(final String cloud)
     {
         if (exists(cloud))
@@ -76,9 +68,6 @@ public final class SshKeyManager
         }
     }
 
-    /**
-     * Read the managed public key content.
-     */
     public static String publicKeyContent(final String cloud)
     {
         try

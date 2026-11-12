@@ -104,9 +104,6 @@ class AwsRequestCommandTest
         assertThat(AwsRequestCommand.isRetryableLaunchError(ex)).isFalse();
     }
 
-    /**
-     * Build a mock Ec2Exception with the given error code and message.
-     */
     private static Ec2Exception ec2Exception(
         final String errorCode
         , final String message

@@ -46,21 +46,19 @@ public class BlueHatRequestCommand extends BaseCommand
     @Override
     protected CommandResult doExecute() throws Exception
     {
-        // Validate init
+
         if (!BlueHatInitCommand.hasBeenInitialized())
         {
             System.err.println("Error: Blue Hat has not been initialized. Run 'ato bh init' first.");
             return CommandResult.FAILURE;
         }
 
-        // Validate template before any cloud resources are created
         final var resolved = ImageDef.resolve(template);
         if (resolved == null)
         {
             return CommandResult.FAILURE;
         }
 
-        // Check for existing active instance
         final var existingState = InstanceState.load(BlueHat.CLOUD);
         if (existingState.hasActiveInstance())
         {
@@ -76,7 +74,6 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // Parse instance size
         final BlueHatInstanceSize instanceSize;
         try
         {
@@ -91,7 +88,6 @@ public class BlueHatRequestCommand extends BaseCommand
         final var hostName = config.effectiveHostName();
         final var port = BlueHat.API_PORT;
 
-        // Start local cloud if needed
         Process localProcess = null;
         try
         {
@@ -115,7 +111,6 @@ public class BlueHatRequestCommand extends BaseCommand
         System.out.println("[1/4] Preparing request (size: " + instanceSize.label()
             + ", " + instanceSize.cpus() + " CPUs, " + instanceSize.memoryGb() + " GB)...");
 
-        // Build the request
         final var pubKey = SshKeyManager.publicKeyContent(BlueHat.CLOUD);
         final var description = generateDescription();
         final var request = new BlueHatClient.VmRequest(
@@ -126,7 +121,6 @@ public class BlueHatRequestCommand extends BaseCommand
             , pubKey
         );
 
-        // Send the request
         System.out.println("\n[2/4] Requesting VM from Blue Hat (" + hostName + ":" + port + ")...");
         final var client = new BlueHatClient(hostName, port);
         final var response = client.requestVm(request);
@@ -138,7 +132,6 @@ public class BlueHatRequestCommand extends BaseCommand
         }
         System.out.println("  VM provisioned: " + fqdn);
 
-        // Save state for reconnection
         final var state = new InstanceState();
         state.setInstanceId(fqdn);
         state.setPublicIp(fqdn);
@@ -146,7 +139,6 @@ public class BlueHatRequestCommand extends BaseCommand
         state.setLaunchedAt(Instant.now().toString());
         state.save(BlueHat.CLOUD);
 
-        // Wait for SSH and provision
         System.out.println("\n[3/4] Waiting for SSH...");
         final var keyFile = Environment.sshKeyFile(BlueHat.CLOUD);
         final var sshSession = new SshSession(fqdn, BlueHat.SSH_USER, keyFile);
@@ -158,21 +150,18 @@ public class BlueHatRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // Provision packages from template (including inherited ancestor packages)
         System.out.println("\n[4/4] Provisioning and connecting...");
         final var provisioner = new SshProvisioner(fqdn, BlueHat.SSH_USER, keyFile);
         final var allPackages = resolved.packages();
         BootJdkProvisioner.provision(
             allPackages
             , provisioner
-            , true  // Fedora
-            , "x86_64"  // Blue Hat default arch
+            , true
+            , "x86_64"
         );
 
-        // Connect via SSH
         final var exitCode = sshSession.connect();
 
-        // Post-SSH: prompt to keep or destroy
         if (exitCode == 0)
         {
             promptKeepOrDestroy(client, state);

@@ -21,7 +21,7 @@ public final class BuildInfo
         }
         catch (final IOException e)
         {
-            // ignore — defaults will be used
+
         }
 
         this.version = props.getProperty("version", "dev");

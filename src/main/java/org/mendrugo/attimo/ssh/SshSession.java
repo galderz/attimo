@@ -9,10 +9,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Manages an SSH session to a spot instance via the system ssh command.
- * Waits for SSH to be reachable, then launches an interactive session.
- */
 public class SshSession
 {
     private static final int SSH_PORT = 22;
@@ -35,13 +31,6 @@ public class SshSession
         this.privateKeyPath = privateKeyPath;
     }
 
-    /**
-     * Create an SSH session using the default user and the cloud provider's
-     * managed SSH key.
-     *
-     * @param host the host to connect to
-     * @param cloud the cloud provider identifier for SSH key path
-     */
     public SshSession(
         final String host
         , final String cloud
@@ -50,12 +39,6 @@ public class SshSession
         this(host, DEFAULT_USER, Environment.sshKeyFile(cloud));
     }
 
-    /**
-     * Wait until SSH is reachable on the remote host.
-     *
-     * @param timeoutSeconds maximum time to wait
-     * @return true if SSH is reachable, false if timed out
-     */
     public boolean waitForSsh(final int timeoutSeconds)
     {
         final long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
@@ -71,7 +54,7 @@ public class SshSession
             }
             catch (final IOException e)
             {
-                // Not ready yet
+
             }
 
             try
@@ -89,11 +72,6 @@ public class SshSession
         return false;
     }
 
-    /**
-     * Launch an interactive SSH session. Blocks until the session ends.
-     *
-     * @return the exit code of the ssh process
-     */
     public int connect()
     {
         final var command = buildSshCommand();
@@ -113,10 +91,6 @@ public class SshSession
         }
     }
 
-    /**
-     * Build the ssh command with appropriate options.
-     * Visible for testing.
-     */
     List<String> buildSshCommand()
     {
         final var cmd = new ArrayList<String>();

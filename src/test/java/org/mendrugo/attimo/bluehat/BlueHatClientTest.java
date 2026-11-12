@@ -40,7 +40,7 @@ class BlueHatClientTest
         {
             if ("POST".equals(exchange.getRequestMethod()))
             {
-                // Verify request body is consumed
+
                 final var body = new String(
                     exchange.getRequestBody().readAllBytes()
                     , StandardCharsets.UTF_8

@@ -13,10 +13,6 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 
-/**
- * HTTP client for the Blue Hat cloud API.
- * Handles VM request, list, and destroy operations.
- */
 public class BlueHatClient
 {
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -38,13 +34,6 @@ public class BlueHatClient
             .build();
     }
 
-    /**
-     * Request a new VM from Blue Hat cloud.
-     *
-     * @param request the VM request parameters
-     * @return the response containing the FQDN of the provisioned VM
-     * @throws BlueHatException if the request fails
-     */
     public VmResponse requestVm(final VmRequest request)
     {
         try
@@ -54,8 +43,7 @@ public class BlueHatClient
                 .uri(URI.create(baseUrl + "/vm"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
-                // Creating a VM can take considerably more,
-                // so use a larger timeout compared to other requests.
+
                 .timeout(TIMEOUT.multipliedBy(10))
                 .build();
 
@@ -84,12 +72,6 @@ public class BlueHatClient
         }
     }
 
-    /**
-     * List all VMs for the current user.
-     *
-     * @return list of VM details
-     * @throws BlueHatException if the request fails
-     */
     public List<VmDetails> listVms()
     {
         try
@@ -125,13 +107,6 @@ public class BlueHatClient
         }
     }
 
-    /**
-     * Destroy a VM by its FQDN.
-     *
-     * @param fqdn the fully qualified domain name of the VM to destroy
-     * @return the destroy response
-     * @throws BlueHatException if the request fails
-     */
     public DestroyResponse destroyVm(final String fqdn)
     {
         try
@@ -166,8 +141,6 @@ public class BlueHatClient
             throw new BlueHatException("Failed to destroy VM: " + e.getMessage(), e);
         }
     }
-
-    // --- Request/Response records ---
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record VmRequest(

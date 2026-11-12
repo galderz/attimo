@@ -38,7 +38,6 @@ public class AwsStatusCommand extends BaseCommand
         System.out.println("ISA:       " + state.getIsaFeature());
         System.out.println("AMI:       " + state.getAmiId());
 
-        // Calculate uptime and cost
         if (!state.getLaunchedAt().isBlank())
         {
             try
@@ -63,7 +62,6 @@ public class AwsStatusCommand extends BaseCommand
             }
         }
 
-        // Verify instance is actually running
         System.out.println();
         try
         {

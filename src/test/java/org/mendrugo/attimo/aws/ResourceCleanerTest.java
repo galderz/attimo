@@ -54,7 +54,7 @@ class ResourceCleanerTest
             .thenReturn(TerminateInstancesResponse.builder().build());
         when(ec2.describeInstances(any(DescribeInstancesRequest.class)))
             .thenReturn(terminatedResponse());
-        // SG deletion fails with non-dependent-object error (no retry)
+
         doThrow(new RuntimeException("Access denied"))
             .when(ec2).deleteSecurityGroup(any(DeleteSecurityGroupRequest.class));
 
@@ -62,7 +62,6 @@ class ResourceCleanerTest
         final var cleaner = new ResourceCleaner(ec2);
         final var errors = cleaner.cleanAll(state, "aws");
 
-        // Should still have tried to delete key pair even though SG deletion failed
         assertThat(errors).hasSize(1);
         assertThat(errors.getFirst()).contains("security group");
         verify(ec2).deleteKeyPair(any(DeleteKeyPairRequest.class));
@@ -82,10 +81,8 @@ class ResourceCleanerTest
         final var cleaner = new ResourceCleaner(ec2);
         final var errors = cleaner.cleanAll(state, "aws");
 
-        // State should NOT be cleared when there are errors
         assertThat(errors).isNotEmpty();
-        // (InstanceState.clear() is not called — verified by the fact that
-        //  errors are returned, which means the caller knows to retry)
+
     }
 
     @Test

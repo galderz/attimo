@@ -9,11 +9,6 @@ import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
 
 import java.net.URI;
 
-/**
- * Creates AWS SDK v2 clients using the default credential chain.
- * Attimo never stores AWS credentials — authentication is delegated
- * entirely to the SDK (env vars, ~/.aws/credentials, SSO, etc.).
- */
 public class AwsClientFactory
 {
     private final URI endpointOverride;
@@ -23,11 +18,6 @@ public class AwsClientFactory
         this(null);
     }
 
-    /**
-     * Constructor for testing with LocalStack or other endpoints.
-     *
-     * @param endpointOverride custom endpoint URI, or null for real AWS
-     */
     public AwsClientFactory(final URI endpointOverride)
     {
         this.endpointOverride = endpointOverride;
@@ -61,11 +51,6 @@ public class AwsClientFactory
         return builder.build();
     }
 
-    /**
-     * Validate that AWS credentials are available and working.
-     *
-     * @return null on success, or an error message describing the problem
-     */
     public String validateCredentials()
     {
         try

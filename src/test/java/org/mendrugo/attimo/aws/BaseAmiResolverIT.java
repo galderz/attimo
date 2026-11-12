@@ -17,9 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.SSM;
 
-/**
- * Integration tests for BaseAmiResolver against LocalStack SSM.
- */
 @Testcontainers
 class BaseAmiResolverIT
 {
@@ -32,11 +29,7 @@ class BaseAmiResolverIT
     @Test
     void ssmClientCanGetAndPutParameters()
     {
-        // Verify SSM works against LocalStack.
-        // We can't write to /aws/service/ (reserved by LocalStack),
-        // and the real AL2023 parameters aren't seeded in LocalStack,
-        // so we verify basic SSM operations and that the resolver
-        // throws a clear error when the parameter is missing.
+
         try (final var ssm = ssmClient())
         {
             ssm.putParameter(
@@ -60,8 +53,7 @@ class BaseAmiResolverIT
     @Test
     void resolverReturnsAmiIdFromSsm()
     {
-        // LocalStack pre-seeds /aws/service/ parameters, so the
-        // resolver should succeed and return a non-blank AMI ID.
+
         try (final var ssm = ssmClient())
         {
             final var resolver = new BaseAmiResolver();

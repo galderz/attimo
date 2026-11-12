@@ -36,7 +36,6 @@ public class BlueHatStatusCommand extends BaseCommand
         final var hostName = config.effectiveHostName();
         final var port = BlueHat.API_PORT;
 
-        // Start local cloud if needed
         Process localProcess = null;
         try
         {
@@ -75,7 +74,6 @@ public class BlueHatStatusCommand extends BaseCommand
                 System.out.println("VM ID:     " + vm.vmId());
                 System.out.println("State:     " + formatState(vm.state()));
 
-                // Calculate uptime from created timestamp
                 if (vm.createdIso8601() != null && !vm.createdIso8601().isBlank())
                 {
                     try

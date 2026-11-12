@@ -24,9 +24,7 @@ import java.nio.file.Path;
 )
 public class AwsInitCommand extends BaseCommand
 {
-    /**
-     * Check if init has been run by looking for the config file.
-     */
+
     public static boolean hasBeenInitialized()
     {
         return Files.exists(Environment.configFile(Aws.CLOUD));
@@ -75,7 +73,6 @@ public class AwsInitCommand extends BaseCommand
 
         System.out.println("  " + error);
 
-        // Detect login_session issue — may indicate expired session or missing signin module
         if (error.contains("login_session"))
         {
             System.out.println();
@@ -140,7 +137,6 @@ public class AwsInitCommand extends BaseCommand
             return false;
         }
 
-        // Write to ~/.aws/credentials
         try
         {
             final Path awsDir = Path.of(System.getProperty("user.home"), ".aws");
@@ -160,7 +156,6 @@ public class AwsInitCommand extends BaseCommand
             credFile.toFile().setWritable(true, true);
             System.out.println("  Credentials saved to ~/.aws/credentials");
 
-            // Verify
             final var factory = new AwsClientFactory();
             final var verifyError = factory.validateCredentials();
             if (verifyError != null)
@@ -207,11 +202,9 @@ public class AwsInitCommand extends BaseCommand
             }
         }
 
-        // Step 1: Select continent
         final var continent = selectContinent(console);
         config.setContinent(continent.name());
 
-        // Step 2: Select region within continent
         final var region = selectRegion(console, continent);
         config.setPreferredRegion(region);
     }
@@ -237,7 +230,7 @@ public class AwsInitCommand extends BaseCommand
         {
             case "2" -> Continent.AMERICAS;
             case "3" -> Continent.ASIA_PACIFIC;
-            // "1" and anything else → EMEA
+
             default -> Continent.EMEA;
         };
     }
@@ -282,7 +275,6 @@ public class AwsInitCommand extends BaseCommand
     {
         System.out.println("\n[3/4] Configuring SSH key...");
 
-        // Generate managed key pair
         if (SshKeyManager.exists(Aws.CLOUD))
         {
             System.out.println("  Managed SSH key pair already exists.");
@@ -300,7 +292,6 @@ public class AwsInitCommand extends BaseCommand
             }
         }
 
-        // Ask for personal SSH public key path
         if (!config.getSshPublicKey().isBlank())
         {
             System.out.println("  Personal SSH public key: " + config.getSshPublicKey());

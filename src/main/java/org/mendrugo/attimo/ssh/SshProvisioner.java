@@ -7,10 +7,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Runs provisioning commands over SSH on a remote instance.
- * Used during AMI build and direct provisioning.
- */
 public class SshProvisioner
 {
     private final String host;
@@ -36,24 +32,11 @@ public class SshProvisioner
         this(host, "ec2-user", Environment.sshKeyFile(cloud));
     }
 
-    /**
-     * Run a command over SSH. Streams output to stdout/stderr.
-     *
-     * @param command the command to run
-     * @return the exit code
-     */
     public int run(final String command)
     {
-        return run(command, 600); // 10 minute default timeout
+        return run(command, 600);
     }
 
-    /**
-     * Run a command over SSH with a timeout.
-     *
-     * @param command the command to run
-     * @param timeoutSeconds maximum time to wait
-     * @return the exit code
-     */
     public int run(final String command, final int timeoutSeconds)
     {
         final var sshCmd = List.of(
@@ -88,12 +71,6 @@ public class SshProvisioner
         }
     }
 
-    /**
-     * Install packages via dnf.
-     *
-     * @param packages list of package names
-     * @return true if installation succeeded
-     */
     public boolean installPackages(final List<String> packages)
     {
         if (packages.isEmpty())

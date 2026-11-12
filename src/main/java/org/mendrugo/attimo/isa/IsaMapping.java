@@ -15,11 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Hybrid ISA → instance family mapping.
- * Static YAML mappings from classpath + user overrides from ~/.config/attimo/isa-mappings/.
- * Falls back to AWS DescribeInstanceTypes for unknown features (not yet implemented).
- */
 public class IsaMapping
 {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
@@ -33,28 +28,16 @@ public class IsaMapping
         loadUserOverrides();
     }
 
-    /**
-     * Resolve an ISA feature name to its definition.
-     *
-     * @param featureName the ISA feature (e.g., "avx512", "sve")
-     * @return the feature definition, or null if not found
-     */
     public IsaFeature resolve(final String featureName)
     {
         return features.get(featureName.toLowerCase());
     }
 
-    /**
-     * Get all known ISA feature names.
-     */
     public List<String> allFeatureNames()
     {
         return List.copyOf(features.keySet());
     }
 
-    /**
-     * Get all known features.
-     */
     public List<IsaFeature> allFeatures()
     {
         return List.copyOf(features.values());

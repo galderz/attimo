@@ -23,10 +23,6 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
 
-/**
- * Manages the lifecycle of a spot instance: create security group,
- * import SSH key pair, launch instance, wait for ready, terminate.
- */
 public class SpotManager
 {
     private final Ec2Client ec2;
@@ -49,11 +45,6 @@ public class SpotManager
         return sessionId;
     }
 
-    /**
-     * Create a security group allowing SSH (port 22) from anywhere.
-     *
-     * @return the security group ID
-     */
     public String createSecurityGroup()
     {
         final var groupName = "attimo-" + sessionId.substring(0, 8);
@@ -95,12 +86,6 @@ public class SpotManager
         return sgId;
     }
 
-    /**
-     * Import an SSH public key as an EC2 key pair.
-     *
-     * @param publicKeyContent the SSH public key content
-     * @return the key pair name
-     */
     public String importKeyPair(final String publicKeyContent)
     {
         final var keyName = "attimo-" + sessionId.substring(0, 8);
@@ -121,15 +106,6 @@ public class SpotManager
         return keyName;
     }
 
-    /**
-     * Launch a spot instance.
-     *
-     * @param amiId          the AMI to launch from
-     * @param instanceType   the instance type (e.g., "c7i.xlarge")
-     * @param securityGroupId the security group ID
-     * @param keyPairName    the key pair name
-     * @return the instance ID
-     */
     public String launchSpotInstance(
         final String amiId
         , final String instanceType
@@ -168,13 +144,6 @@ public class SpotManager
         return instanceId;
     }
 
-    /**
-     * Wait for an instance to reach the running state.
-     *
-     * @param instanceId the instance to wait for
-     * @param timeoutSeconds maximum time to wait
-     * @return the public IP address
-     */
     public String waitForRunning(
         final String instanceId
         , final int timeoutSeconds
@@ -217,14 +186,11 @@ public class SpotManager
             }
             catch (final software.amazon.awssdk.services.ec2.model.Ec2Exception e)
             {
-                // AWS eventual consistency: instance ID may not be
-                // visible immediately after launch, especially in
-                // newer/opt-in regions. Retry on InvalidInstanceID.NotFound.
+
                 if (e.awsErrorDetails() != null
                     && "InvalidInstanceID.NotFound".equals(e.awsErrorDetails().errorCode()))
                 {
-                    // AWS eventual consistency: instance ID may not be
-                    // visible immediately after launch. Silently retry.
+
                 }
                 else
                 {
@@ -248,12 +214,6 @@ public class SpotManager
         );
     }
 
-    /**
-     * Check if an instance is still running.
-     *
-     * @param instanceId the instance to check
-     * @return true if running, false otherwise
-     */
     public boolean isRunning(final String instanceId)
     {
         try

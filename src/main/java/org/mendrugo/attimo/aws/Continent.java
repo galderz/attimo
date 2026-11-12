@@ -5,16 +5,6 @@ import java.util.List;
 
 import static org.mendrugo.attimo.aws.Region.*;
 
-/**
- * Geographic continent groupings of AWS regions for spot pricing
- * comparison and capacity fallback. Three continents cover all
- * AWS regions, with EMEA including Middle East and Africa.
- *
- * <p>When requesting a spot instance, all regions in the user's
- * home continent are queried. Representative regions in the other
- * two continents are also queried as fallback candidates, with
- * graduated pricing penalties based on distance.
- */
 public enum Continent
 {
     EMEA(
@@ -79,54 +69,31 @@ public enum Continent
         this.displayName = displayName;
     }
 
-    /**
-     * All regions in this continent.
-     */
     public List<Region> regions()
     {
         return regions;
     }
 
-    /**
-     * All region codes in this continent (convenience for AWS SDK calls).
-     */
     public List<String> regionCodes()
     {
         return regions.stream().map(Region::code).toList();
     }
 
-    /**
-     * Three high-volume representative regions used when this continent
-     * is a fallback (to keep query count bounded).
-     */
     public List<Region> representatives()
     {
         return representatives;
     }
 
-    /**
-     * Representative region codes (convenience for AWS SDK calls).
-     */
     public List<String> representativeCodes()
     {
         return representatives.stream().map(Region::code).toList();
     }
 
-    /**
-     * Human-readable name for display in the CLI.
-     */
     public String displayName()
     {
         return displayName;
     }
 
-    /**
-     * Find the continent containing the given region code.
-     *
-     * @param regionCode AWS region code (e.g., "eu-west-1")
-     * @return the continent containing this region
-     * @throws IllegalArgumentException if the region is not in any known continent
-     */
     public static Continent forRegion(final String regionCode)
     {
         for (final Continent continent : values())
@@ -145,10 +112,6 @@ public enum Continent
         );
     }
 
-    /**
-     * Return the other two continents (not this one),
-     * in declaration order.
-     */
     public List<Continent> others()
     {
         final var result = new ArrayList<Continent>();

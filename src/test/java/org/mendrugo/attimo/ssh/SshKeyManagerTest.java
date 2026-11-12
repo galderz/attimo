@@ -19,15 +19,14 @@ class SshKeyManagerTest
     @EnabledOnOs(OS.LINUX)
     void ensureKeyPairCreatesKeys()
     {
-        // Only test if ssh-keygen is available and keys don't exist yet
+
         if (SshKeyManager.exists(TEST_CLOUD))
         {
-            // Keys already exist, just verify we can read the public key
+
             final var pubKey = SshKeyManager.publicKeyContent(TEST_CLOUD);
             assertThat(pubKey).isNotBlank();
             assertThat(pubKey).contains("ssh-ed25519");
         }
-        // If keys don't exist, we skip rather than create them
-        // (would pollute the test environment)
+
     }
 }

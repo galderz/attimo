@@ -11,20 +11,11 @@ import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Validates that the grep pattern used by {@link BootJdkProvisioner}
- * correctly extracts the version from the Adoptium API response.
- * This catches format changes (e.g. spacing) before they hit real instances.
- */
 class AdoptiumApiIT
 {
     private static final String API_URL =
         "https://api.adoptium.net/v3/info/available_releases";
 
-    /**
-     * The same regex as the grep -o pattern in BootJdkProvisioner,
-     * translated to Java: {@code "most_recent_feature_release": *[0-9]+}
-     */
     private static final Pattern VERSION_PATTERN = Pattern.compile(
         "\"most_recent_feature_release\":\\s*([0-9]+)"
     );
@@ -61,7 +52,7 @@ class AdoptiumApiIT
     @Test
     void downloadUrlReturnsRedirect() throws IOException, InterruptedException
     {
-        // Use the same URL pattern as BootJdkProvisioner
+
         final var version = latestVersion();
         final var url = String.format(
             "https://api.adoptium.net/v3/binary/latest/%s/ga/linux/x64/jdk/hotspot/normal/eclipse"
@@ -77,7 +68,6 @@ class AdoptiumApiIT
             .build();
         final var response = client.send(request, HttpResponse.BodyHandlers.discarding());
 
-        // Adoptium API redirects to GitHub releases
         assertThat(response.statusCode())
             .as("Download URL should redirect (307), got %d for %s", response.statusCode(), url)
             .isEqualTo(307);

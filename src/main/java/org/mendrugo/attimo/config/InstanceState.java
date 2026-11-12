@@ -13,10 +13,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 
-/**
- * Tracks the active spot instance for reconnection after local restarts.
- * Stored at ~/.config/attimo/state.yaml.
- */
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class InstanceState
@@ -59,8 +55,6 @@ public class InstanceState
 
     @JsonProperty("session-id")
     private String sessionId = "";
-
-    // Getters and setters
 
     public String getInstanceId() { return instanceId; }
     public void setInstanceId(final String instanceId) { this.instanceId = instanceId == null ? "" : instanceId; }
@@ -108,9 +102,6 @@ public class InstanceState
 
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
-    /**
-     * Load state for a specific cloud provider.
-     */
     public static InstanceState load(final String cloud)
     {
         final Path stateFile = Environment.stateFile(cloud);
@@ -130,9 +121,6 @@ public class InstanceState
         }
     }
 
-    /**
-     * Save state for a specific cloud provider.
-     */
     public void save(final String cloud)
     {
         final Path stateFile = Environment.stateFile(cloud);
@@ -157,9 +145,6 @@ public class InstanceState
         }
     }
 
-    /**
-     * Clear state for a specific cloud provider.
-     */
     public static void clear(final String cloud)
     {
         try

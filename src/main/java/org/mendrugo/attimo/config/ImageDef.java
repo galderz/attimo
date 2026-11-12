@@ -16,18 +16,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Definition of a template image, loaded from YAML.
- *
- * <p>Mirrors incus-spawn's ImageDef: templates form a parent chain
- * where a root template (no parent) is the base, and children
- * add packages on top. Resolution order: built-in (classpath
- * {@code images/}) → search paths ({@code images/} subdirectory)
- * → project-local ({@code .attimo/images/}).
- *
- * <p>Only four fields are supported: {@code name}, {@code description},
- * {@code parent}, and {@code packages}.
- */
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ImageDef
@@ -35,9 +23,6 @@ public class ImageDef
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
     private static final String RESOURCE_DIR = "images/";
 
-    // Hardcoded list of built-in image filenames. Classpath directory
-    // scanning is unreliable in GraalVM native image, so we enumerate
-    // explicitly. Update this list when adding a new built-in image.
     private static final List<String> BUILTIN_FILES = List.of(
         "minimal.yaml"
         , "openjdk.yaml"
@@ -90,20 +75,11 @@ public class ImageDef
         this.packages = packages == null ? List.of() : packages;
     }
 
-    /**
-     * Whether this image is built from scratch (no parent).
-     * Same semantics as incus-spawn's {@code ImageDef.isRoot()}.
-     */
     public boolean isRoot()
     {
         return parent == null || parent.isBlank();
     }
 
-    /**
-     * Return the ordered list of ancestor images, starting from the
-     * immediate parent and walking up to the root. Stops if a name
-     * is missing from {@code defs} or if a cycle is detected.
-     */
     public static List<ImageDef> ancestors(
         final ImageDef start
         , final Map<String, ImageDef> defs
@@ -117,7 +93,7 @@ public class ImageDef
         {
             if (!visited.add(parentName))
             {
-                break; // cycle detected
+                break;
             }
             final var p = defs.get(parentName);
             if (p == null)
@@ -130,18 +106,6 @@ public class ImageDef
         return result;
     }
 
-    /**
-     * Collect all packages for a template, walking the parent chain
-     * from root to leaf. Packages from ancestors come first; duplicates
-     * are removed preserving first occurrence order.
-     *
-     * <p>This is the API that cloud providers should call to get the
-     * full package list for provisioning.
-     *
-     * @param imageDef the template to collect packages for
-     * @param defs     all loaded image definitions
-     * @return deduplicated package list, root-first order
-     */
     public static List<String> collectAllPackages(
         final ImageDef imageDef
         , final Map<String, ImageDef> defs
@@ -149,8 +113,6 @@ public class ImageDef
     {
         final var ancestors = ancestors(imageDef, defs);
 
-        // Build chain root-first: ancestors are parent→root order,
-        // so reverse them, then append the leaf template.
         final var chain = new ArrayList<ImageDef>();
         for (int i = ancestors.size() - 1; i >= 0; i--)
         {
@@ -158,7 +120,6 @@ public class ImageDef
         }
         chain.add(imageDef);
 
-        // Collect packages preserving insertion order, dedup
         final var allPackages = new LinkedHashSet<String>();
         for (final var def : chain)
         {
@@ -167,17 +128,6 @@ public class ImageDef
         return new ArrayList<>(allPackages);
     }
 
-    /**
-     * Resolve a template by name: load all definitions, find the template,
-     * and collect all packages (including inherited from ancestors).
-     *
-     * <p>This is the single entry point both AWS and Blue Hat request
-     * commands should call to validate and resolve a template before
-     * any cloud resources are created.
-     *
-     * @param templateName the template name (e.g. "tpl-openjdk")
-     * @return the resolved result, or null if the template is unknown
-     */
     public static ResolvedTemplate resolve(final String templateName)
     {
         final var defs = loadAll();
@@ -193,46 +143,22 @@ public class ImageDef
         return new ResolvedTemplate(imageDef, packages);
     }
 
-    /**
-     * A resolved template with its full package list (including inherited).
-     */
     public record ResolvedTemplate(
         ImageDef imageDef
         , List<String> packages
     )
     {}
 
-    /**
-     * Load all image definitions: built-in first, then search paths,
-     * then project-local. Later definitions with the same name override
-     * earlier ones. Search paths come from {@link AttimoConfig}.
-     *
-     * <p>Same resolution order as incus-spawn:
-     * built-in → search paths ({@code images/} subdirectory) → project-local.
-     */
     public static Map<String, ImageDef> loadAll()
     {
         return loadAll(AttimoConfig.load().getSearchPaths());
     }
 
-    /**
-     * Load all image definitions with explicit search paths.
-     * Includes project-local definitions from {@code .attimo/images/}
-     * relative to the current working directory.
-     */
     public static Map<String, ImageDef> loadAll(final List<String> searchPaths)
     {
         return loadAll(searchPaths, PROJECT_IMAGES_DIR);
     }
 
-    /**
-     * Load all image definitions with explicit search paths and
-     * project-local directory. Use this overload in tests to avoid
-     * reading from the real cwd.
-     *
-     * @param searchPaths   directories to scan for {@code images/} subdirectories
-     * @param projectDir    project-local image directory (may be null to skip)
-     */
     static Map<String, ImageDef> loadAll(
         final List<String> searchPaths
         , final Path projectDir
@@ -264,9 +190,6 @@ public class ImageDef
         }
     }
 
-    /**
-     * Find an image definition by name.
-     */
     public static ImageDef findByName(
         final String name
         , final Map<String, ImageDef> defs
@@ -275,9 +198,6 @@ public class ImageDef
         return defs.get(name);
     }
 
-    /**
-     * Parse an image definition from a YAML string.
-     */
     public static ImageDef parseYaml(final String yaml) throws IOException
     {
         return YAML.readValue(yaml, ImageDef.class);

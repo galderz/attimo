@@ -11,7 +11,7 @@ class BootJdkProvisionerTest
     @Test
     void jdkPackageConstantMatchesOpenjdkYaml()
     {
-        // The constant must match what's in images/openjdk.yaml
+
         assertThat(BootJdkProvisioner.JDK_PACKAGE)
             .isEqualTo("java-latest-openjdk-devel");
     }
@@ -19,7 +19,7 @@ class BootJdkProvisionerTest
     @Test
     void fedoraKeepsJdkPackageInDnfList()
     {
-        // On Fedora, java-latest-openjdk-devel stays in the dnf list
+
         final var packages = List.of(
             "java-latest-openjdk-devel"
             , "gcc"
@@ -29,10 +29,9 @@ class BootJdkProvisionerTest
         final var recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, true, "x86_64");
 
-        // All packages passed to dnf including the JDK
         assertThat(recorder.installedPackages)
             .contains("java-latest-openjdk-devel", "gcc", "make");
-        // No SSH commands run (no tarball download)
+
         assertThat(recorder.ranCommands).isEmpty();
     }
 
@@ -48,11 +47,10 @@ class BootJdkProvisionerTest
         final var recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "x86_64");
 
-        // JDK removed from dnf list
         assertThat(recorder.installedPackages)
             .contains("gcc", "make")
             .doesNotContain("java-latest-openjdk-devel");
-        // Version check + download + extract
+
         assertThat(recorder.ranCommands).hasSize(3);
         assertThat(recorder.ranCommands.get(0)).contains("adoptium");
         assertThat(recorder.ranCommands.get(1)).contains("adoptium").contains("x64");
@@ -68,7 +66,7 @@ class BootJdkProvisionerTest
         BootJdkProvisioner.provision(packages, recorder, false, "aarch64");
 
         assertThat(recorder.ranCommands).hasSize(3);
-        // Download step uses aarch64
+
         assertThat(recorder.ranCommands.get(1))
             .contains("aarch64")
             .doesNotContain("/x64/");
@@ -77,13 +75,12 @@ class BootJdkProvisionerTest
     @Test
     void noJdkPackageMeansNothingSpecial()
     {
-        // Template without java-latest-openjdk-devel
+
         final var packages = List.of("gcc", "make");
 
         final var recorder = new RecordingProvisioner();
         BootJdkProvisioner.provision(packages, recorder, false, "x86_64");
 
-        // No tarball download, all packages go to dnf
         assertThat(recorder.ranCommands).isEmpty();
         assertThat(recorder.installedPackages).containsExactly("gcc", "make");
     }
@@ -99,10 +96,6 @@ class BootJdkProvisionerTest
         assertThat(recorder.installedPackages).isEmpty();
     }
 
-    /**
-     * A test double for SshProvisioner that records what was called
-     * instead of making real SSH connections.
-     */
     private static class RecordingProvisioner extends SshProvisioner
     {
         final java.util.List<String> ranCommands = new java.util.ArrayList<>();

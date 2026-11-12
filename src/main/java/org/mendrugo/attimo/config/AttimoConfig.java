@@ -15,13 +15,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Shared attimo configuration stored at {@code ~/.config/attimo/config.yaml}.
- *
- * <p>Contains settings shared across all cloud providers, such as template
- * search paths. Cloud-specific settings live in per-cloud config files
- * (e.g. {@code ~/.config/attimo/aws/config.yaml}).
- */
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AttimoConfig
@@ -41,9 +34,6 @@ public class AttimoConfig
         this.searchPaths = searchPaths == null ? List.of() : searchPaths;
     }
 
-    /**
-     * Load from {@code ~/.config/attimo/config.yaml}, or return defaults.
-     */
     public static AttimoConfig load()
     {
         final Path configFile = Environment.configRoot().resolve("config.yaml");
@@ -63,9 +53,6 @@ public class AttimoConfig
         }
     }
 
-    /**
-     * Save to {@code ~/.config/attimo/config.yaml} with owner-only permissions.
-     */
     public void save()
     {
         final Path configFile = Environment.configRoot().resolve("config.yaml");
@@ -97,13 +84,6 @@ public class AttimoConfig
         }
     }
 
-    /**
-     * Interactive setup for template search paths. Shared across all
-     * cloud providers since search paths are stored in the global
-     * attimo config, not per-cloud config.
-     *
-     * @param console the system console (may be null for non-interactive)
-     */
     public static void setupSearchPaths(final Console console)
     {
         System.out.println("  Local directories where attimo looks for custom image");

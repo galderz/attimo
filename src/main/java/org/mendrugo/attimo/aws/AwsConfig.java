@@ -12,10 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
-/**
- * AWS-specific configuration stored at ~/.config/attimo/aws/config.yaml.
- * Owner-only permissions (chmod 600) for security.
- */
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AwsConfig

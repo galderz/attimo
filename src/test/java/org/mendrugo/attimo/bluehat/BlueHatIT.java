@@ -9,11 +9,6 @@ import java.io.IOException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Integration tests for the Blue Hat cloud integration.
- * Uses {@link BlueHatDummyServer} as a local API server to test
- * the full request/list/destroy workflow without a real Blue Hat cloud.
- */
 class BlueHatIT
 {
     private BlueHatDummyServer server;
@@ -39,7 +34,7 @@ class BlueHatIT
     @Test
     void fullLifecycle_requestListDestroy()
     {
-        // 1. Request a VM
+
         final var request = new BlueHatClient.VmRequest(
             "16"
             , "32"
@@ -56,7 +51,6 @@ class BlueHatIT
 
         final var fqdn = createResponse.fqdn();
 
-        // 2. List VMs and verify our VM exists
         final var vms = client.listVms();
         assertThat(vms).isNotEmpty();
 
@@ -69,13 +63,11 @@ class BlueHatIT
         assertThat(ourVm.get().description()).isEqualTo("attimo integration test VM");
         assertThat(ourVm.get().createdIso8601()).isNotBlank();
 
-        // 3. Destroy the VM
         final var destroyResponse = client.destroyVm(fqdn);
         assertThat(destroyResponse.status()).isEqualTo("success");
         assertThat(destroyResponse.details()).isEqualTo("vm deletion initiated");
         assertThat(destroyResponse.requestId()).isNotBlank();
 
-        // 4. Verify the VM is now marked as deleted
         final var vmsAfterDestroy = client.listVms();
         final var deletedVm = vmsAfterDestroy.stream()
             .filter(vm -> fqdn.equals(vm.fqdn()))
@@ -87,7 +79,7 @@ class BlueHatIT
     @Test
     void requestMultipleVms()
     {
-        // Request 3 VMs with different sizes
+
         final var vm1 = client.requestVm(new BlueHatClient.VmRequest(
             "1", "2", "RedHat 10.2", "micro vm", "key1"
         ));
@@ -98,12 +90,10 @@ class BlueHatIT
             "32", "64", "RedHat 10.2", "large vm", "key3"
         ));
 
-        // All should have unique FQDNs
         assertThat(vm1.fqdn()).isNotEqualTo(vm2.fqdn());
         assertThat(vm2.fqdn()).isNotEqualTo(vm3.fqdn());
         assertThat(vm1.fqdn()).isNotEqualTo(vm3.fqdn());
 
-        // All should appear in the list
         final var vms = client.listVms();
         assertThat(vms).hasSize(3);
         assertThat(vms.stream().allMatch(vm -> "running".equals(vm.state()))).isTrue();
@@ -151,10 +141,8 @@ class BlueHatIT
             "8", "16", "RedHat 10.2", "vm2", "key"
         ));
 
-        // Destroy vm1
         client.destroyVm(vm1.fqdn());
 
-        // vm2 should still be running
         final var vms = client.listVms();
         final var remainingVm = vms.stream()
             .filter(vm -> vm2.fqdn().equals(vm.fqdn()))
@@ -163,7 +151,6 @@ class BlueHatIT
         assertThat(remainingVm).isPresent();
         assertThat(remainingVm.get().state()).isEqualTo("running");
 
-        // vm1 should be deleted
         final var destroyedVm = vms.stream()
             .filter(vm -> vm1.fqdn().equals(vm.fqdn()))
             .findFirst();

@@ -13,46 +13,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-/**
- * Analyses spot pricing across continents and selects the best instances
- * for a given ISA feature. Returns a ranked list of recommendations so
- * that callers can retry with the next-best option on capacity failure.
- *
- * <p>Scoring tiers (lower penalty = higher preference):
- * <ul>
- *   <li>Tier 0: user's exact preferred region (0% penalty)</li>
- *   <li>Tier 1: other regions in the user's continent (+10%)</li>
- *   <li>Tier 2: cheaper foreign continent (+25%)</li>
- *   <li>Tier 3: more expensive foreign continent (+40%)</li>
- * </ul>
- */
 public class SpotAdvisor
 {
-    // Default instance size tier
+
     private static final InstanceSize DEFAULT_SIZE = InstanceSize.DEFAULT;
 
-    // Tier penalties for proximity scoring
-    static final double TIER_1_PENALTY = 0.10; // same continent, different region
-    static final double TIER_2_PENALTY = 0.25; // cheaper foreign continent
-    static final double TIER_3_PENALTY = 0.40; // more expensive foreign continent
+    static final double TIER_1_PENALTY = 0.10;
+    static final double TIER_2_PENALTY = 0.25;
+    static final double TIER_3_PENALTY = 0.40;
 
-    // Bias toward larger instances (lower interruption rate).
-    // Applied as a discount factor to the score of larger instances.
     private static final double SIZE_BIAS_PER_STEP = 0.03;
 
     private final Function<String, Ec2Client> ec2Factory;
 
-    /**
-     * @param ec2Factory creates an Ec2Client for a given region
-     */
     public SpotAdvisor(final Function<String, Ec2Client> ec2Factory)
     {
         this.ec2Factory = ec2Factory;
     }
 
-    /**
-     * Find the best spot instance using the default size (medium).
-     */
     public List<SpotRecommendation> recommend(
         final IsaFeature feature
         , final String preferredRegion
@@ -61,19 +39,6 @@ public class SpotAdvisor
         return recommend(feature, preferredRegion, DEFAULT_SIZE);
     }
 
-    /**
-     * Find ranked spot instance options across all continents.
-     *
-     * <p>Queries all regions in the user's home continent plus
-     * representative regions in the other two continents. Returns
-     * a ranked list (best first) so callers can retry on capacity
-     * failure.
-     *
-     * @param feature         the ISA feature defining candidate instance families
-     * @param preferredRegion the user's preferred region
-     * @param size            the instance size tier controlling vCPU/RAM
-     * @return ranked list of recommendations (best first), empty if none available
-     */
     public List<SpotRecommendation> recommend(
         final IsaFeature feature
         , final String preferredRegion
@@ -88,17 +53,14 @@ public class SpotAdvisor
             return List.of();
         }
 
-        // Collect prices per continent
         final var pricesPerContinent = new HashMap<Continent, List<PricedCandidate>>();
 
-        // Query all regions in home continent
         final var homePrices = queryContinent(
             homeContinent.regionCodes()
             , candidateTypes
         );
         pricesPerContinent.put(homeContinent, homePrices);
 
-        // Query representative regions in foreign continents
         for (final Continent foreign : homeContinent.others())
         {
             final var foreignPrices = queryContinent(
@@ -108,14 +70,12 @@ public class SpotAdvisor
             pricesPerContinent.put(foreign, foreignPrices);
         }
 
-        // Determine foreign continent priority (cheaper first)
         final var foreignContinents = homeContinent.others();
         final var foreignOrder = rankForeignContinents(
             foreignContinents
             , pricesPerContinent
         );
 
-        // Score all candidates with tiered penalties
         return scoreAndRank(
             pricesPerContinent
             , preferredRegion
@@ -124,18 +84,11 @@ public class SpotAdvisor
         );
     }
 
-    /**
-     * Expand instance families to specific instance types using the default size.
-     */
     List<String> expandToInstanceTypes(final List<String> families)
     {
         return expandToInstanceTypes(families, DEFAULT_SIZE);
     }
 
-    /**
-     * Expand instance families to specific instance types for a given size tier.
-     * E.g., "c7i" with MEDIUM → ["c7i.4xlarge", "c7i.8xlarge"]
-     */
     List<String> expandToInstanceTypes(
         final List<String> families
         , final InstanceSize size
@@ -169,10 +122,7 @@ public class SpotAdvisor
             }
             catch (final Exception e)
             {
-                // Silently skip regions that aren't enabled (opt-in regions
-                // like eu-south-1, af-south-1 return 401/AuthFailure) and
-                // regions that time out (me-south-1 often does).
-                // Only warn for truly unexpected errors.
+
                 final var msg = e.getMessage();
                 if (!isRegionSkippable(msg))
                 {
@@ -193,7 +143,6 @@ public class SpotAdvisor
     {
         final var results = new ArrayList<PricedCandidate>();
 
-        // Query in batches (AWS limits instance type filter)
         final int batchSize = 20;
         for (int i = 0; i < instanceTypes.size(); i += batchSize)
         {
@@ -227,13 +176,13 @@ public class SpotAdvisor
                     }
                     catch (final NumberFormatException ignored)
                     {
-                        // Skip malformed price entries
+
                     }
                 }
             }
             catch (final Exception e)
             {
-                // Silently skip opt-in/timeout errors at batch level too
+
                 if (!isRegionSkippable(e.getMessage()))
                 {
                     System.err.println("  Warning: spot price query failed for batch in "
@@ -245,10 +194,6 @@ public class SpotAdvisor
         return results;
     }
 
-    /**
-     * Rank foreign continents by median spot price (cheapest first).
-     * A continent with no prices goes last.
-     */
     List<Continent> rankForeignContinents(
         final List<Continent> foreignContinents
         , final Map<Continent, List<PricedCandidate>> pricesPerContinent
@@ -262,9 +207,6 @@ public class SpotAdvisor
         return sorted;
     }
 
-    /**
-     * Score all candidates with tiered penalties and return a ranked list.
-     */
     List<SpotRecommendation> scoreAndRank(
         final Map<Continent, List<PricedCandidate>> pricesPerContinent
         , final String preferredRegion
@@ -282,14 +224,12 @@ public class SpotAdvisor
             {
                 double score = candidate.price;
 
-                // Size bias: prefer larger instances (lower interruption rate)
                 final int sizeIdx = sizeIndex(candidate.instanceType);
                 score *= (1.0 - sizeIdx * SIZE_BIAS_PER_STEP);
 
-                // Continent/region proximity penalty
                 if (continent == homeContinent && candidate.region.equals(preferredRegion))
                 {
-                    // Tier 0: no penalty
+
                 }
                 else if (continent == homeContinent)
                 {
@@ -323,15 +263,6 @@ public class SpotAdvisor
         return results;
     }
 
-    /**
-     * Determine the penalty for a foreign continent.
-     * Only called for non-home continents; home continent
-     * scoring is handled directly in {@link #scoreAndRank}.
-     *
-     * @param foreignContinent the foreign continent being scored
-     * @param foreignOrder     foreign continents ranked by median price (cheapest first)
-     * @return TIER_2_PENALTY for the cheapest foreign continent, TIER_3_PENALTY otherwise
-     */
     private double foreignPenalty(
         final Continent foreignContinent
         , final List<Continent> foreignOrder
@@ -418,11 +349,6 @@ public class SpotAdvisor
         return index;
     }
 
-    /**
-     * Check if an error indicates the region should be silently skipped.
-     * Covers opt-in regions (401/AuthFailure/OptInRequired) and
-     * regions that time out (Connect timed out).
-     */
     static boolean isRegionSkippable(final String msg)
     {
         if (msg == null)

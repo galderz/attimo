@@ -1,19 +1,5 @@
 package org.mendrugo.attimo.bluehat;
 
-/**
- * Controls the size of the Blue Hat VM launched for OpenJDK development.
- * Maps size tiers to CPU and memory (GB) values.
- *
- * <p>Memory-to-CPU ratio is 2:1 for development workloads,
- * providing enough RAM for OpenJDK builds and jtreg test runs.
- *
- * <ul>
- *   <li><b>MICRO</b> — 1 CPU, 2 GB — smoke tests and verification</li>
- *   <li><b>SMALL</b> — 8 CPUs, 16 GB — full builds (~10 min)</li>
- *   <li><b>MEDIUM</b> — 16 CPUs, 32 GB — iterative development (~5 min, default)</li>
- *   <li><b>LARGE</b> — 32 CPUs, 64 GB — fast builds and jtreg runs (~2 min)</li>
- * </ul>
- */
 public enum BlueHatInstanceSize
 {
     MICRO("micro", "Cheapest (1 CPU, 2 GB)", 1, 2)
@@ -61,13 +47,6 @@ public enum BlueHatInstanceSize
         return memoryGb;
     }
 
-    /**
-     * Parse a size label (case-insensitive) to a BlueHatInstanceSize.
-     *
-     * @param label the size label (e.g. "medium", "LARGE")
-     * @return the matching BlueHatInstanceSize
-     * @throws IllegalArgumentException if the label is unknown
-     */
     public static BlueHatInstanceSize fromLabel(final String label)
     {
         for (final BlueHatInstanceSize size : values())

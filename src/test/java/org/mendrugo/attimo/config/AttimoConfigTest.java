@@ -43,13 +43,12 @@ class AttimoConfigTest
     @Test
     void saveAndLoadRoundTrip(@TempDir final Path tempDir) throws IOException
     {
-        // Write a config with search paths
+
         final var configFile = tempDir.resolve("config.yaml");
         final var config = new AttimoConfig();
         config.setSearchPaths(List.of("/home/user/templates", "/opt/shared"));
         YAML.writeValue(configFile.toFile(), config);
 
-        // Read it back
         final var loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
         assertThat(loaded.getSearchPaths())
             .containsExactly("/home/user/templates", "/opt/shared");

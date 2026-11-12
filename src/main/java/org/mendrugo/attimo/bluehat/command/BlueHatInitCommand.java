@@ -20,9 +20,7 @@ import java.nio.file.Files;
 )
 public class BlueHatInitCommand extends BaseCommand
 {
-    /**
-     * Check if init has been run by looking for the config file.
-     */
+
     public static boolean hasBeenInitialized()
     {
         return Files.exists(Environment.configFile(BlueHat.CLOUD));
@@ -159,7 +157,6 @@ public class BlueHatInitCommand extends BaseCommand
     {
         System.out.println("\nConfiguring SSH key...");
 
-        // Generate managed key pair
         if (SshKeyManager.exists(BlueHat.CLOUD))
         {
             System.out.println("  Managed SSH key pair already exists.");
@@ -177,7 +174,6 @@ public class BlueHatInitCommand extends BaseCommand
             }
         }
 
-        // Ask for personal SSH public key path
         if (!config.getSshPublicKey().isBlank())
         {
             System.out.println("  Personal SSH public key: " + config.getSshPublicKey());

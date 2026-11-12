@@ -15,13 +15,6 @@ import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Ensures all AWS resources created by attimo are cleaned up,
- * leaving zero cost footprint. Each step is best-effort:
- * if one fails, the remaining steps still execute.
- *
- * State is only cleared when ALL resources are successfully removed.
- */
 public class ResourceCleaner
 {
     private final Ec2Client ec2;
@@ -32,14 +25,6 @@ public class ResourceCleaner
         this.ec2 = ec2;
     }
 
-    /**
-     * Clean up all resources from the given instance state.
-     * State file is only cleared if all resources are successfully removed.
-     *
-     * @param state the active instance state
-     * @param cloud the cloud provider identifier for state file paths
-     * @return list of errors (empty if all steps succeeded)
-     */
     public List<String> cleanAll(
         final InstanceState state
         , final String cloud
@@ -58,19 +43,13 @@ public class ResourceCleaner
         }
         else
         {
-            // Keep state file so 'ato <cloud> destroy' can retry
+
             System.err.println("  State file kept for retry. Run 'ato " + cloud + " destroy' to finish cleanup.");
         }
 
         return List.copyOf(errors);
     }
 
-    /**
-     * Scan for any attimo-tagged resources that may have been orphaned
-     * (e.g., after a crash or incomplete cleanup). Cleans them up.
-     *
-     * @return list of errors (empty if all orphans cleaned or none found)
-     */
     public List<String> cleanOrphans()
     {
         errors.clear();
@@ -121,7 +100,7 @@ public class ResourceCleaner
         {
             if (isRegionNotEnabled(e))
             {
-                return; // silently skip — region not enabled in account
+                return;
             }
 
             errors.add("Failed to scan for orphaned security groups: " + e.getMessage());
@@ -175,18 +154,13 @@ public class ResourceCleaner
         {
             if (isRegionNotEnabled(e))
             {
-                return; // silently skip — region not enabled in account
+                return;
             }
 
             errors.add("Failed to scan for orphaned instances: " + e.getMessage());
         }
     }
 
-    /**
-     * Check if an exception indicates the region is not enabled in the account.
-     * AWS opt-in regions (eu-south-1, eu-south-2, etc.) return 401/AuthFailure
-     * when not activated.
-     */
     private static boolean isRegionNotEnabled(final Exception e)
     {
         final var msg = e.getMessage();
@@ -264,7 +238,7 @@ public class ResourceCleaner
             }
             catch (final Exception e)
             {
-                // Instance may already be gone
+
                 return;
             }
         }
@@ -294,10 +268,6 @@ public class ResourceCleaner
         }
     }
 
-    /**
-     * Delete a security group with retries. SG deletion can fail if the
-     * instance hasn't fully released its network interface yet.
-     */
     private void deleteSecurityGroupWithRetry(final String securityGroupId)
     {
         if (securityGroupId.isBlank())
@@ -321,7 +291,7 @@ public class ResourceCleaner
                         .build()
                 );
 
-                return; // success
+                return;
             }
             catch (final Exception e)
             {

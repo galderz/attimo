@@ -1,8 +1,5 @@
 package org.mendrugo.attimo.bluehat;
 
-/**
- * Typed exception for Blue Hat cloud operations.
- */
 public class BlueHatException extends RuntimeException
 {
     public BlueHatException(final String message)

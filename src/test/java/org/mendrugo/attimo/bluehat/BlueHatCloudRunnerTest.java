@@ -52,7 +52,7 @@ class BlueHatCloudRunnerTest
     @Test
     void healthCheckFailsWhenServerNotRunning()
     {
-        // Server not started — connection should fail
+
         assertThat(BlueHatCloudRunner.healthCheck("localhost", port)).isFalse();
     }
 
@@ -72,7 +72,7 @@ class BlueHatCloudRunnerTest
     @Test
     void healthCheckFailsOnUnreachableHost()
     {
-        // Unreachable host — should fail without hanging
+
         assertThat(BlueHatCloudRunner.healthCheck("192.0.2.1", 8080)).isFalse();
     }
 
@@ -111,7 +111,7 @@ class BlueHatCloudRunnerTest
     @Test
     void stopHandlesNullProcess()
     {
-        // Should not throw
+
         BlueHatCloudRunner.stop(null);
     }
 }

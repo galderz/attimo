@@ -2,17 +2,6 @@ package org.mendrugo.attimo.aws;
 
 import java.util.List;
 
-/**
- * Controls the size of the AWS instance launched for OpenJDK development.
- * Each tier targets a different build-time objective (excluding provisioning).
- *
- * <ul>
- *   <li><b>MICRO</b> — cheapest possible, 2–4 vCPUs, useful for smoke tests</li>
- *   <li><b>SMALL</b> — ~10 min OpenJDK build, 8–16 vCPUs</li>
- *   <li><b>MEDIUM</b> — ~5 min OpenJDK build, 16–32 vCPUs (default)</li>
- *   <li><b>LARGE</b> — ~2 min OpenJDK build, 32–64 vCPUs</li>
- * </ul>
- */
 public enum InstanceSize
 {
     MICRO(
@@ -68,13 +57,6 @@ public enum InstanceSize
         return awsSizes;
     }
 
-    /**
-     * Parse a size label (case-insensitive) to an InstanceSize.
-     *
-     * @param label the size label (e.g. "medium", "LARGE")
-     * @return the matching InstanceSize
-     * @throws IllegalArgumentException if the label is unknown
-     */
     public static InstanceSize fromLabel(final String label)
     {
         for (final InstanceSize size : values())

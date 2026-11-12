@@ -32,7 +32,6 @@ public class BlueHatDestroyCommand extends BaseCommand
         final var hostName = config.effectiveHostName();
         final var port = BlueHat.API_PORT;
 
-        // Start local cloud if needed
         Process localProcess = null;
         try
         {

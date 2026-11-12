@@ -1,12 +1,8 @@
 package org.mendrugo.attimo.aws;
 
-/**
- * AWS regions known to attimo. Each region has a code (used by the AWS SDK)
- * and a human-readable description for display.
- */
 public enum Region
 {
-    // EMEA
+
     EU_WEST_1("eu-west-1", "Ireland")
     , EU_WEST_2("eu-west-2", "London")
     , EU_WEST_3("eu-west-3", "Paris")
@@ -19,7 +15,6 @@ public enum Region
     , ME_CENTRAL_1("me-central-1", "UAE")
     , AF_SOUTH_1("af-south-1", "Cape Town")
 
-    // Americas
     , US_EAST_1("us-east-1", "N. Virginia")
     , US_EAST_2("us-east-2", "Ohio")
     , US_WEST_1("us-west-1", "N. California")
@@ -28,7 +23,6 @@ public enum Region
     , CA_WEST_1("ca-west-1", "Canada (Calgary)")
     , SA_EAST_1("sa-east-1", "São Paulo")
 
-    // Asia-Pacific
     , AP_NORTHEAST_1("ap-northeast-1", "Tokyo")
     , AP_NORTHEAST_2("ap-northeast-2", "Seoul")
     , AP_NORTHEAST_3("ap-northeast-3", "Osaka")
@@ -49,29 +43,16 @@ public enum Region
         this.description = description;
     }
 
-    /**
-     * AWS region code (e.g., "eu-west-1"). Used with the AWS SDK.
-     */
     public String code()
     {
         return code;
     }
 
-    /**
-     * Human-readable location (e.g., "Ireland"). Used for display.
-     */
     public String description()
     {
         return description;
     }
 
-    /**
-     * Look up a Region by its AWS code.
-     *
-     * @param code AWS region code (e.g., "eu-west-1")
-     * @return the matching Region
-     * @throws IllegalArgumentException if the code is not a known region
-     */
     public static Region fromCode(final String code)
     {
         for (final Region region : values())
@@ -85,9 +66,6 @@ public enum Region
         throw new IllegalArgumentException("Unknown AWS region: " + code);
     }
 
-    /**
-     * Check if an AWS region code is known.
-     */
     public static boolean isKnown(final String code)
     {
         for (final Region region : values())

@@ -24,7 +24,7 @@ class IsaMappingTest
         final var feature = mapping.resolve("avx512_vnni");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c6i", "c7i");
-        // c5 does NOT have VNNI
+
         assertThat(feature.families()).doesNotContain("c5");
     }
 
@@ -35,7 +35,7 @@ class IsaMappingTest
         assertThat(feature).isNotNull();
         assertThat(feature.architecture()).isEqualTo("aarch64");
         assertThat(feature.families()).contains("c7g", "m7g", "r7g");
-        // Graviton2 (c6g) does NOT have SVE
+
         assertThat(feature.families()).doesNotContain("c6g");
     }
 
@@ -45,7 +45,7 @@ class IsaMappingTest
         final var feature = mapping.resolve("sve2");
         assertThat(feature).isNotNull();
         assertThat(feature.families()).contains("c8g", "m8g");
-        // Graviton3 (c7g) does NOT have SVE2
+
         assertThat(feature.families()).doesNotContain("c7g");
     }
 

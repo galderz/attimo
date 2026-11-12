@@ -62,7 +62,7 @@ class BlueHatInstanceSizeTest
     @Test
     void memoryToCpuRatioIsConsistentForDevelopment()
     {
-        // For OpenJDK development, memory should be at least 2x CPUs
+
         for (final BlueHatInstanceSize size : BlueHatInstanceSize.values())
         {
             assertThat(size.memoryGb())

@@ -12,7 +12,7 @@ class AwsClientFactoryTest
     void createsEc2ClientForRegion()
     {
         final var factory = new AwsClientFactory();
-        // Just verify it doesn't throw — no real AWS call
+
         final var client = factory.ec2("us-east-1");
         assertThat(client).isNotNull();
         client.close();
@@ -30,7 +30,7 @@ class AwsClientFactoryTest
     @Test
     void validateCredentialsFailsWithoutRealAws()
     {
-        // Without real AWS or LocalStack, validation should fail gracefully
+
         final var factory = new AwsClientFactory(URI.create("http://localhost:1"));
         final var result = factory.validateCredentials();
         assertThat(result).isNotNull();

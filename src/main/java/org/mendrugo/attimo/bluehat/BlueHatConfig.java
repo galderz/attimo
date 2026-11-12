@@ -12,22 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
-/**
- * Blue Hat-specific configuration stored at ~/.config/attimo/bh/config.yaml.
- * Owner-only permissions (chmod 600) for security.
- *
- * <p>During {@code ato bh init}, the user chooses one of two modes:
- * <ul>
- *   <li><b>Local mode</b> — provides a git {@code repository} URL.
- *       The repository is cloned and built during init; the cloud is
- *       started locally on each command and stopped when it completes.</li>
- *   <li><b>Remote mode</b> — provides a {@code host-name} of a running
- *       Blue Hat cloud. Commands connect directly to that host.</li>
- * </ul>
- *
- * <p>The two modes are mutually exclusive: exactly one of {@code repository}
- * or {@code host-name} is set.
- */
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BlueHatConfig
@@ -73,26 +57,16 @@ public class BlueHatConfig
         this.sshPublicKey = sshPublicKey == null ? "" : sshPublicKey;
     }
 
-    /**
-     * Whether the Blue Hat cloud runs locally (a repository is configured).
-     */
     public boolean isLocal()
     {
         return !repository.isBlank();
     }
 
-    /**
-     * Whether the configuration has a cloud target (either repository or host-name).
-     */
     public boolean hasCloudTarget()
     {
         return !repository.isBlank() || !hostName.isBlank();
     }
 
-    /**
-     * Returns the effective host name for API calls.
-     * Local mode uses "localhost"; remote mode uses the configured host-name.
-     */
     public String effectiveHostName()
     {
         return isLocal() ? "localhost" : hostName;

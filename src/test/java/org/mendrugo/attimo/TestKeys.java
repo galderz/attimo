@@ -5,20 +5,10 @@ import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.EdECPublicKey;
 import java.util.Base64;
 
-/**
- * Generates ephemeral SSH key pairs for tests.
- * Keys are created in-memory and never written to disk or stored in source.
- */
 public final class TestKeys
 {
     private TestKeys() {}
 
-    /**
-     * Generate an OpenSSH-formatted ed25519 public key string.
-     * The key is generated fresh each call and exists only in memory.
-     *
-     * @return a string like "ssh-ed25519 AAAA... attimo-test"
-     */
     public static String generateEd25519PublicKey()
     {
         try
@@ -27,12 +17,9 @@ public final class TestKeys
             final var keyPair = keyPairGen.generateKeyPair();
             final var publicKey = (EdECPublicKey)keyPair.getPublic();
 
-            // Encode in OpenSSH format:
-            // string "ssh-ed25519" + string <32-byte raw key>
             final var point = publicKey.getPoint();
             final var rawKey = reverseBytes(adjustTo32Bytes(point.getY().toByteArray()));
 
-            // Set high bit if x is odd (EdDSA encoding)
             if (point.isXOdd())
             {
                 rawKey[31] |= (byte)0x80;
@@ -42,13 +29,11 @@ public final class TestKeys
             final var blob = new byte[4 + keyTypeBytes.length + 4 + rawKey.length];
             int offset = 0;
 
-            // length-prefixed key type
             putInt(blob, offset, keyTypeBytes.length);
             offset += 4;
             System.arraycopy(keyTypeBytes, 0, blob, offset, keyTypeBytes.length);
             offset += keyTypeBytes.length;
 
-            // length-prefixed raw key
             putInt(blob, offset, rawKey.length);
             offset += 4;
             System.arraycopy(rawKey, 0, blob, offset, rawKey.length);
@@ -69,14 +54,14 @@ public final class TestKeys
         }
         else if (input.length > 32)
         {
-            // BigInteger may prepend a zero byte for positive sign
+
             final var result = new byte[32];
             System.arraycopy(input, input.length - 32, result, 0, 32);
             return result;
         }
         else
         {
-            // Pad with leading zeros
+
             final var result = new byte[32];
             System.arraycopy(input, 0, result, 32 - input.length, input.length);
             return result;

@@ -16,10 +16,6 @@ import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.EC2;
 
-/**
- * Integration tests for ResourceCleaner against LocalStack.
- * Verifies that created resources are fully cleaned up.
- */
 @Testcontainers
 class ResourceCleanerIT
 {
@@ -34,19 +30,17 @@ class ResourceCleanerIT
     {
         try (final var ec2 = ec2Client())
         {
-            // Create resources via SpotManager
+
             final var manager = new SpotManager(ec2, "it-cleanup-test");
             final var sgId = manager.createSecurityGroup();
             final var dummyPubKey = org.mendrugo.attimo.TestKeys.generateEd25519PublicKey();
             final var keyName = manager.importKeyPair(dummyPubKey);
 
-            // Verify resources exist
             assertThat(describeSecurityGroup(ec2, sgId)).isTrue();
             assertThat(describeKeyPair(ec2, keyName)).isTrue();
 
-            // Clean up via ResourceCleaner
             final var state = new InstanceState();
-            state.setInstanceId(""); // no instance to terminate
+            state.setInstanceId("");
             state.setSecurityGroupId(sgId);
             state.setKeyPairName(keyName);
 
@@ -55,7 +49,6 @@ class ResourceCleanerIT
 
             assertThat(errors).isEmpty();
 
-            // Verify resources are gone
             assertThat(describeSecurityGroup(ec2, sgId)).isFalse();
             assertThat(describeKeyPair(ec2, keyName)).isFalse();
         }
@@ -66,7 +59,7 @@ class ResourceCleanerIT
     {
         try (final var ec2 = ec2Client())
         {
-            // Try to clean up resources that don't exist
+
             final var state = new InstanceState();
             state.setInstanceId("");
             state.setSecurityGroupId("sg-nonexistent");
@@ -75,7 +68,6 @@ class ResourceCleanerIT
             final var cleaner = new ResourceCleaner(ec2);
             final var errors = cleaner.cleanAll(state, "aws");
 
-            // Should report errors but not crash
             assertThat(errors).isNotEmpty();
         }
     }
@@ -85,14 +77,12 @@ class ResourceCleanerIT
     {
         try (final var ec2 = ec2Client())
         {
-            // Create a tagged SG (simulating an orphan)
+
             final var manager = new SpotManager(ec2, "it-orphan-test");
             final var sgId = manager.createSecurityGroup();
 
-            // Verify it exists
             assertThat(describeSecurityGroup(ec2, sgId)).isTrue();
 
-            // cleanOrphans should find and delete it
             final var cleaner = new ResourceCleaner(ec2);
             final var errors = cleaner.cleanOrphans();
 

@@ -190,7 +190,7 @@ class ImageDefTest
     @Test
     void searchPathLoadsExternalTemplates(@TempDir final Path tempDir) throws IOException
     {
-        // Create a search path with images/ subdirectory
+
         final var imagesDir = tempDir.resolve("images");
         Files.createDirectories(imagesDir);
         Files.writeString(imagesDir.resolve("custom.yaml"), """
@@ -203,9 +203,8 @@ class ImageDefTest
 
         final var defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
 
-        // Built-ins still loaded
         assertThat(defs).containsKeys("tpl-minimal", "tpl-openjdk");
-        // Custom template loaded from search path
+
         assertThat(defs).containsKey("tpl-custom");
         final var custom = defs.get("tpl-custom");
         assertThat(custom.getParent()).isEqualTo("tpl-minimal");
@@ -267,7 +266,7 @@ class ImageDefTest
         final var b = createDef("b", "a");
         final var defs = Map.of("a", a, "b", b);
         final var ancestors = ImageDef.ancestors(a, defs);
-        // Should stop instead of looping forever
+
         assertThat(ancestors).hasSize(1);
         assertThat(ancestors.getFirst().getName()).isEqualTo("b");
     }
@@ -303,7 +302,7 @@ class ImageDefTest
         final var defs = Map.of("root", root, "child", child);
 
         final var packages = ImageDef.collectAllPackages(child, defs);
-        // Root packages first, then child
+
         assertThat(packages).containsExactly("base-pkg", "child-pkg");
     }
 
@@ -317,7 +316,7 @@ class ImageDefTest
         final var defs = Map.of("root", root, "child", child);
 
         final var packages = ImageDef.collectAllPackages(child, defs);
-        // 'make' appears in both but should only be listed once
+
         assertThat(packages).containsExactly("gcc", "make", "autoconf");
     }
 

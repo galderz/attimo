@@ -36,7 +36,6 @@ public class AwsDestroyCommand extends BaseCommand
             return destroyActiveInstance(state);
         }
 
-        // No active instance — scan for orphaned resources
         return scanForOrphans();
     }
 
@@ -137,7 +136,6 @@ public class AwsDestroyCommand extends BaseCommand
             System.out.println("\nNo orphaned attimo resources found. All clean.");
         }
 
-        // Clear any stale state file
         InstanceState.clear(Aws.CLOUD);
         return CommandResult.SUCCESS;
     }
