@@ -186,218 +186,158 @@ docs/
 
 ## Code Style
 
-Aeron-inspired style (Allman braces, `final` parameters/locals, 4-space indent) combined with
-Elm-style comma-first formatting so that adding or removing an argument changes exactly one line
-in the diff.
+Source is formatted by [jfmt](https://github.com/Netflix/jfmt) (Netflix's Java formatter based on
+the [Code Conventions for the Java Programming Language](https://www.oracle.com/java/technologies/javase/codeconventions-introduction.html)).
+Run `./jfmtw` to format; a pre-commit hook rejects unformatted code.
 
-| Rule | Source |
-|------|--------|
-| Allman braces (opening `{` on new line) | Aeron |
-| `final` on all parameters and locals | Aeron |
-| 4-space indent, 4-space continuation | Aeron |
-| Braces always required (if/for/while) | Aeron |
-| No wildcard imports | Aeron |
-| No space after type cast | Aeron |
-| **Comma-first** on multi-line args/params/fields | Elm |
-| **One change = one line diff** for additions/removals | Elm |
+| Rule | Enforced by |
+|------|-------------|
+| K&R braces (opening `{` on same line) | jfmt |
+| 4-space block indent, 8-space continuation | jfmt |
+| Braces always required (if/for/while) | jfmt |
+| Imports sorted, unused removed, wildcards expanded | jfmt |
+| Method chains broken at syntactic boundaries | jfmt |
+| `final` on all parameters and locals | Convention |
 
 ```java
-// Records — comma-first for multi-field records
-public record IsaFeature(
-    final String name
-    , final String architecture
-    , final List<String> instanceFamilies
-)
-{}
+public record IsaFeature(String name, String architecture, List<String> instanceFamilies) {}
 
 public record SpotRecommendation(
-    final String instanceType
-    , final String region
-    , final String availabilityZone
-    , final double pricePerHour
-    , final double interruptionRate
-    , final String rationale
-)
-{}
+        String instanceType,
+        String region,
+        String availabilityZone,
+        double pricePerHour,
+        double interruptionRate,
+        String rationale) {}
 
-// Commands extend BaseCommand (Aesh pattern)
-// Cloud-specific commands live under aws/command/
 @CommandDefinition(
-    name = "request"
-    , description = "Request a spot instance with specific CPU ISA features"
-    , generateHelp = true
-)
-public class AwsRequestCommand extends BaseCommand
-{
+        name = "request",
+        description = "Request a spot instance with specific CPU ISA features",
+        generateHelp = true)
+public class AwsRequestCommand extends BaseCommand {
     @Option(
-        name = "isa"
-        , description = "CPU ISA feature (e.g. avx512, sve, aarch64)"
-        , required = true
-    )
+            name = "isa",
+            description = "CPU ISA feature (e.g. avx512, sve, aarch64)",
+            required = true)
     String isaFeature;
 
     @Option(
-        name = "size"
-        , description = "Instance size: micro, small, medium (default), large"
-        , defaultValue = "medium"
-    )
+            name = "size",
+            description = "Instance size: micro, small, medium (default), large",
+            defaultValue = "medium")
     String size;
 
-    @Option(
-        name = "template"
-        , description = "Image template to use"
-        , defaultValue = "jdk-dev"
-    )
-    String template;
-
     @Override
-    protected CommandResult doExecute() throws Exception
-    {
+    protected CommandResult doExecute() throws Exception {
         // 1. Resolve ISA → candidate instance types
         // 2. Query spot pricing across region group
         // 3. Select best option (cost vs longevity)
-        // 4. Build AMI if needed
-        // 5. Launch spot instance
-        // 6. Wait for ready, provision if needed
-        // 7. SSH in (with reconnection on spot termination)
+        // 4. Launch spot instance
+        // 5. SSH in
     }
 }
 
-// Config — Jackson YAML, Allman braces
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AttimoConfig
-{
+public class AttimoConfig {
     @JsonProperty("preferred-region")
     private String preferredRegion = "";
 
     @JsonProperty("ssh-public-key")
     private String sshPublicKey = "";
 
-    public static AttimoConfig load()
-    {
+    public static AttimoConfig load() {
         /* ... */
     }
 
-    public void save()
-    {
+    public void save() {
         /* ... */
     }
 }
 
-// AWS client factory — Allman braces, final params
-public class AwsClientFactory
-{
-    public Ec2Client ec2(final String region)
-    {
+public class AwsClientFactory {
+    public Ec2Client ec2(final String region) {
         return Ec2Client.builder()
-            .region(Region.of(region))
-            .build();
+                .region(Region.of(region))
+                .build();
     }
 
-    public String validateCredentials()
-    {
-        try (final StsClient sts = StsClient.create())
-        {
+    public String validateCredentials() {
+        try (final StsClient sts = StsClient.create()) {
             final GetCallerIdentityResponse identity = sts.getCallerIdentity();
             System.out.println("  Authenticated as: " + identity.arn());
             return null;
-        }
-        catch (final SdkException e)
-        {
+        } catch (final SdkException e) {
             return "AWS authentication failed: " + e.getMessage();
         }
     }
 }
 
-// Enum — comma-first between enum constants
-public enum Continent
-{
+public enum Continent {
     EMEA(
-        List.of("eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1")
-        , List.of("eu-west-1", "eu-central-1", "me-south-1")
-        , "EMEA (Europe, Middle East & Africa)"
-    )
-    , AMERICAS(
-        List.of("us-east-1", "us-east-2", "us-west-1", "us-west-2")
-        , List.of("us-east-1", "us-west-2", "ca-central-1")
-        , "Americas"
-    )
-    , ASIA_PACIFIC(
-        List.of("ap-northeast-1", "ap-southeast-1", "ap-south-1")
-        , List.of("ap-northeast-1", "ap-southeast-1", "ap-south-1")
-        , "Asia-Pacific"
-    );
+            List.of("eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1"),
+            List.of("eu-west-1", "eu-central-1", "me-south-1"),
+            "EMEA (Europe, Middle East & Africa)"),
+    AMERICAS(
+            List.of("us-east-1", "us-east-2", "us-west-1", "us-west-2"),
+            List.of("us-east-1", "us-west-2", "ca-central-1"),
+            "Americas"),
+    ASIA_PACIFIC(
+            List.of("ap-northeast-1", "ap-southeast-1", "ap-south-1"),
+            List.of("ap-northeast-1", "ap-southeast-1", "ap-south-1"),
+            "Asia-Pacific");
 
     private final List<String> regions;
     private final List<String> representatives;
     private final String displayName;
 
-    Continent(
-        final List<String> regions
-        , final List<String> representatives
-        , final String displayName
-    )
-    {
+    Continent(final List<String> regions, final List<String> representatives, final String displayName) {
         this.regions = regions;
         this.representatives = representatives;
         this.displayName = displayName;
     }
 }
 
-// Multi-argument methods — comma-first
 public void launchSpotInstance(
-    final String instanceType
-    , final String region
-    , final String amiId
-    , final String securityGroupId
-    , final String keyPairName
-)
-{
+        final String instanceType,
+        final String region,
+        final String amiId,
+        final String securityGroupId,
+        final String keyPairName) {
     final RunInstancesRequest request = RunInstancesRequest.builder()
-        .imageId(amiId)
-        .instanceType(InstanceType.fromValue(instanceType))
-        .keyName(keyPairName)
-        .securityGroupIds(securityGroupId)
-        .instanceMarketOptions(
-            InstanceMarketOptionsRequest.builder()
-                .marketType(MarketType.SPOT)
-                .spotOptions(
-                    SpotMarketOptions.builder()
-                        .spotInstanceType(SpotInstanceType.ONE_TIME)
-                        .build()
-                )
-                .build()
-        )
-        .minCount(1)
-        .maxCount(1)
-        .tagSpecifications(
-            TagSpecification.builder()
-                .resourceType(ResourceType.INSTANCE)
-                .tags(
-                    Tag.builder().key("attimo:managed").value("true").build()
-                    , Tag.builder().key("attimo:session-id").value(sessionId).build()
-                    , Tag.builder().key("attimo:template").value(template).build()
-                )
-                .build()
-        )
-        .build();
+            .imageId(amiId)
+            .instanceType(InstanceType.fromValue(instanceType))
+            .keyName(keyPairName)
+            .securityGroupIds(securityGroupId)
+            .instanceMarketOptions(InstanceMarketOptionsRequest.builder()
+                    .marketType(MarketType.SPOT)
+                    .spotOptions(SpotMarketOptions.builder()
+                            .spotInstanceType(SpotInstanceType.ONE_TIME)
+                            .build())
+                    .build())
+            .minCount(1)
+            .maxCount(1)
+            .tagSpecifications(TagSpecification.builder()
+                    .resourceType(ResourceType.INSTANCE)
+                    .tags(
+                            Tag.builder().key("attimo:managed").value("true").build(),
+                            Tag.builder().key("attimo:session-id").value(sessionId).build(),
+                            Tag.builder().key("attimo:template").value(template).build())
+                    .build())
+            .build();
 
     final RunInstancesResponse response = ec2.runInstances(request);
     final String instanceId = response.instances().getFirst().instanceId();
     System.out.println("  Launched " + instanceType + " in " + region + ": " + instanceId);
 }
 
-// Tests — Allman braces, Mockito
 @ExtendWith(MockitoExtension.class)
-class SpotAdvisorTest
-{
+class SpotAdvisorTest {
     @Mock
     Ec2Client ec2;
 
     @Test
-    void selectsCheapestInstanceAcrossRegions()
-    {
+    void selectsCheapestInstanceAcrossRegions() {
         // ...
     }
 }
