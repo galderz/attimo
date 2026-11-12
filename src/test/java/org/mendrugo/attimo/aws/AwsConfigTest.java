@@ -16,9 +16,9 @@ class AwsConfigTest {
     @Test
     void defaultsWhenNoFileExists() {
         AwsConfig config = new AwsConfig();
-        assertThat(config.getContinent()).isEmpty();
-        assertThat(config.getPreferredRegion()).isEmpty();
-        assertThat(config.getSshPublicKey()).isEmpty();
+        assertThat(config.continent).isEmpty();
+        assertThat(config.preferredRegion).isEmpty();
+        assertThat(config.sshPublicKey).isEmpty();
     }
 
     @Test
@@ -26,28 +26,16 @@ class AwsConfigTest {
         Path configFile = tempDir.resolve("config.yaml");
 
         AwsConfig config = new AwsConfig();
-        config.setContinent("EMEA");
-        config.setPreferredRegion("eu-west-1");
-        config.setSshPublicKey("~/.ssh/id_ed25519.pub");
+        config.continent = "EMEA";
+        config.preferredRegion = "eu-west-1";
+        config.sshPublicKey = "~/.ssh/id_ed25519.pub";
 
         YAML.writeValue(configFile.toFile(), config);
 
         AwsConfig loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
-        assertThat(loaded.getContinent()).isEqualTo("EMEA");
-        assertThat(loaded.getPreferredRegion()).isEqualTo("eu-west-1");
-        assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_ed25519.pub");
-    }
-
-    @Test
-    void nullsSafelyDefaultToEmpty() {
-        AwsConfig config = new AwsConfig();
-        config.setContinent(null);
-        config.setPreferredRegion(null);
-        config.setSshPublicKey(null);
-
-        assertThat(config.getContinent()).isEmpty();
-        assertThat(config.getPreferredRegion()).isEmpty();
-        assertThat(config.getSshPublicKey()).isEmpty();
+        assertThat(loaded.continent).isEqualTo("EMEA");
+        assertThat(loaded.preferredRegion).isEqualTo("eu-west-1");
+        assertThat(loaded.sshPublicKey).isEqualTo("~/.ssh/id_ed25519.pub");
     }
 
     @Test
@@ -61,8 +49,8 @@ class AwsConfigTest {
             """);
 
         AwsConfig loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
-        assertThat(loaded.getPreferredRegion()).isEqualTo("us-east-1");
-        assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
+        assertThat(loaded.preferredRegion).isEqualTo("us-east-1");
+        assertThat(loaded.sshPublicKey).isEqualTo("~/.ssh/id_rsa.pub");
     }
 
     @Test
@@ -72,9 +60,9 @@ class AwsConfigTest {
 
         AwsConfig loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
         if (loaded != null) {
-            assertThat(loaded.getContinent()).isEmpty();
-            assertThat(loaded.getPreferredRegion()).isEmpty();
-            assertThat(loaded.getSshPublicKey()).isEmpty();
+            assertThat(loaded.continent).isEmpty();
+            assertThat(loaded.preferredRegion).isEmpty();
+            assertThat(loaded.sshPublicKey).isEmpty();
         }
     }
 
@@ -88,7 +76,7 @@ class AwsConfigTest {
             """);
 
         AwsConfig loaded = YAML.readValue(configFile.toFile(), AwsConfig.class);
-        assertThat(loaded.getContinent()).isEmpty();
-        assertThat(loaded.getPreferredRegion()).isEqualTo("eu-west-1");
+        assertThat(loaded.continent).isEmpty();
+        assertThat(loaded.preferredRegion).isEqualTo("eu-west-1");
     }
 }

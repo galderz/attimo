@@ -59,7 +59,7 @@ public class BlueHatRequestCommand extends BaseCommand {
 
         InstanceState existingState = InstanceState.load(BlueHat.CLOUD);
         if (existingState.hasActiveInstance()) {
-            System.err.println("Error: a VM is already active (" + existingState.getInstanceId() + ").");
+            System.err.println("Error: a VM is already active (" + existingState.instanceId + ").");
             System.err.println("Use 'ato bh connect' to reconnect or 'ato bh destroy' to tear it down first.");
             return CommandResult.FAILURE;
         }
@@ -117,10 +117,10 @@ public class BlueHatRequestCommand extends BaseCommand {
         System.out.println("  VM provisioned: " + fqdn);
 
         InstanceState state = new InstanceState();
-        state.setInstanceId(fqdn);
-        state.setPublicIp(fqdn);
-        state.setInstanceType(instanceSize.label());
-        state.setLaunchedAt(Instant.now().toString());
+        state.instanceId = fqdn;
+        state.publicIp = fqdn;
+        state.instanceType = instanceSize.label();
+        state.launchedAt = Instant.now().toString();
         state.save(BlueHat.CLOUD);
 
         System.out.println("\n[3/4] Waiting for SSH...");
@@ -166,7 +166,7 @@ public class BlueHatRequestCommand extends BaseCommand {
         } else {
             System.out.println("Destroying VM...");
             try {
-                String fqdn = state.getInstanceId();
+                String fqdn = state.instanceId;
                 DestroyResponse response = client.destroyVm(fqdn);
 
                 if ("success".equalsIgnoreCase(response.status())) {

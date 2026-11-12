@@ -136,7 +136,7 @@ class TemplateProvisioningTest {
         ResolvedTemplate resolved = ImageDef.resolve("tpl-openjdk");
 
         assertThat(resolved).isNotNull();
-        assertThat(resolved.imageDef().getName()).isEqualTo("tpl-openjdk");
+        assertThat(resolved.imageDef().name).isEqualTo("tpl-openjdk");
         assertThat(resolved.packages()).contains("gcc", "java-latest-openjdk-devel");
     }
 

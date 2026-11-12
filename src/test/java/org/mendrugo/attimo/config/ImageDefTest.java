@@ -18,9 +18,9 @@ class ImageDefTest {
         ImageDef minimal = defs.get("tpl-minimal");
         assertThat(minimal).isNotNull();
         assertThat(minimal.isRoot()).isTrue();
-        assertThat(minimal.getName()).isEqualTo("tpl-minimal");
-        assertThat(minimal.getDescription()).isEqualTo("Base OS only");
-        assertThat(minimal.getPackages()).isEmpty();
+        assertThat(minimal.name).isEqualTo("tpl-minimal");
+        assertThat(minimal.description).isEqualTo("Base OS only");
+        assertThat(minimal.packages).isEmpty();
     }
 
     @Test
@@ -29,29 +29,29 @@ class ImageDefTest {
         ImageDef openjdk = defs.get("tpl-openjdk");
         assertThat(openjdk).isNotNull();
         assertThat(openjdk.isRoot()).isFalse();
-        assertThat(openjdk.getParent()).isEqualTo("tpl-minimal");
-        assertThat(openjdk.getDescription()).isEqualTo("OpenJDK build + test environment");
+        assertThat(openjdk.parent).isEqualTo("tpl-minimal");
+        assertThat(openjdk.description).isEqualTo("OpenJDK build + test environment");
     }
 
     @Test
     void openjdkPackagesIncludeBuildEssentials() {
         Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
         ImageDef openjdk = defs.get("tpl-openjdk");
-        assertThat(openjdk.getPackages()).contains("gcc", "gcc-c++", "make", "autoconf");
+        assertThat(openjdk.packages).contains("gcc", "gcc-c++", "make", "autoconf");
     }
 
     @Test
     void openjdkPackagesIncludeJdk() {
         Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
         ImageDef openjdk = defs.get("tpl-openjdk");
-        assertThat(openjdk.getPackages()).contains("java-latest-openjdk-devel");
+        assertThat(openjdk.packages).contains("java-latest-openjdk-devel");
     }
 
     @Test
     void openjdkPackagesIncludeXLibs() {
         Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
         ImageDef openjdk = defs.get("tpl-openjdk");
-        assertThat(openjdk.getPackages()).contains("libX11-devel", "libXt-devel", "libXrender-devel",
+        assertThat(openjdk.packages).contains("libX11-devel", "libXt-devel", "libXrender-devel",
                 "libXrandr-devel", "libXi-devel", "libXtst-devel");
     }
 
@@ -59,7 +59,7 @@ class ImageDefTest {
     void openjdkPackagesIncludeCapstone() {
         Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
         ImageDef openjdk = defs.get("tpl-openjdk");
-        assertThat(openjdk.getPackages()).contains("capstone", "capstone-devel");
+        assertThat(openjdk.packages).contains("capstone", "capstone-devel");
     }
 
     @Test
@@ -68,7 +68,7 @@ class ImageDefTest {
         ImageDef openjdk = defs.get("tpl-openjdk");
         List<ImageDef> ancestors = ImageDef.ancestors(openjdk, defs);
         assertThat(ancestors).hasSize(1);
-        assertThat(ancestors.getFirst().getName()).isEqualTo("tpl-minimal");
+        assertThat(ancestors.getFirst().name).isEqualTo("tpl-minimal");
     }
 
     @Test
@@ -90,7 +90,7 @@ class ImageDefTest {
         Map<String, ImageDef> defs = ImageDef.loadAll(List.of(), null);
         ImageDef found = ImageDef.findByName("tpl-openjdk", defs);
         assertThat(found).isNotNull();
-        assertThat(found.getName()).isEqualTo("tpl-openjdk");
+        assertThat(found.name).isEqualTo("tpl-openjdk");
     }
 
     @Test
@@ -108,9 +108,9 @@ class ImageDefTest {
             description: Test template
             """;
         ImageDef def = ImageDef.parseYaml(yaml);
-        assertThat(def.getName()).isEqualTo("tpl-test");
+        assertThat(def.name).isEqualTo("tpl-test");
         assertThat(def.isRoot()).isTrue();
-        assertThat(def.getPackages()).isEmpty();
+        assertThat(def.packages).isEmpty();
     }
 
     @Test
@@ -125,10 +125,10 @@ class ImageDefTest {
               - make
             """;
         ImageDef def = ImageDef.parseYaml(yaml);
-        assertThat(def.getName()).isEqualTo("tpl-child");
+        assertThat(def.name).isEqualTo("tpl-child");
         assertThat(def.isRoot()).isFalse();
-        assertThat(def.getParent()).isEqualTo("tpl-test");
-        assertThat(def.getPackages()).containsExactly("gcc", "make");
+        assertThat(def.parent).isEqualTo("tpl-test");
+        assertThat(def.packages).containsExactly("gcc", "make");
     }
 
     @Test
@@ -140,7 +140,7 @@ class ImageDefTest {
             unknown_field: should be ignored
             """;
         ImageDef def = ImageDef.parseYaml(yaml);
-        assertThat(def.getName()).isEqualTo("tpl-test");
+        assertThat(def.name).isEqualTo("tpl-test");
     }
 
     @Test
@@ -181,8 +181,8 @@ class ImageDefTest {
 
         assertThat(defs).containsKey("tpl-custom");
         ImageDef custom = defs.get("tpl-custom");
-        assertThat(custom.getParent()).isEqualTo("tpl-minimal");
-        assertThat(custom.getPackages()).containsExactly("vim");
+        assertThat(custom.parent).isEqualTo("tpl-minimal");
+        assertThat(custom.packages).containsExactly("vim");
     }
 
     @Test
@@ -200,8 +200,8 @@ class ImageDefTest {
 
         Map<String, ImageDef> defs = ImageDef.loadAll(List.of(tempDir.toString()), null);
         ImageDef openjdk = defs.get("tpl-openjdk");
-        assertThat(openjdk.getDescription()).isEqualTo("Overridden OpenJDK");
-        assertThat(openjdk.getPackages()).containsExactly("gcc");
+        assertThat(openjdk.description).isEqualTo("Overridden OpenJDK");
+        assertThat(openjdk.packages).containsExactly("gcc");
     }
 
     @Test
@@ -237,7 +237,7 @@ class ImageDefTest {
         List<ImageDef> ancestors = ImageDef.ancestors(a, defs);
 
         assertThat(ancestors).hasSize(1);
-        assertThat(ancestors.getFirst().getName()).isEqualTo("b");
+        assertThat(ancestors.getFirst().name).isEqualTo("b");
     }
 
     @Test
@@ -315,23 +315,23 @@ class ImageDefTest {
             packages:
             """;
         ImageDef def = ImageDef.parseYaml(yaml);
-        assertThat(def.getPackages())
+        assertThat(def.packages)
                 .isNotNull()
                 .isEmpty();
     }
 
     private static ImageDef createDef(String name, String parent) {
         ImageDef def = new ImageDef();
-        def.setName(name);
-        def.setParent(parent);
+        def.name = name;
+        def.parent = parent;
         return def;
     }
 
     private static ImageDef createDefWithPackages(String name, String parent, List<String> packages) {
         ImageDef def = new ImageDef();
-        def.setName(name);
-        def.setParent(parent);
-        def.setPackages(packages);
+        def.name = name;
+        def.parent = parent;
+        def.packages = packages;
         return def;
     }
 }

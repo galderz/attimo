@@ -12,13 +12,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 @RegisterForReflection
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonAutoDetect(fieldVisibility = Visibility.ANY)
 public class ImageDef {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
     private static final String RESOURCE_DIR = "images/";
@@ -27,42 +32,12 @@ public class ImageDef {
 
     private static final Path PROJECT_IMAGES_DIR = Path.of(".attimo/images");
 
-    private String name;
-    private String description = "";
-    private String parent;
-    private List<String> packages = List.of();
+    String name;
+    String description = "";
+    String parent;
 
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getParent() {
-        return parent;
-    }
-
-    public void setParent(String parent) {
-        this.parent = parent;
-    }
-
-    public List<String> getPackages() {
-        return packages;
-    }
-
-    public void setPackages(List<String> packages) {
-        this.packages = packages == null ? List.of() : packages;
-    }
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    List<String> packages = List.of();
 
     public boolean isRoot() {
         return parent == null || parent.isBlank();
@@ -71,8 +46,8 @@ public class ImageDef {
     public static List<ImageDef> ancestors(ImageDef start, Map<String, ImageDef> defs) {
         ArrayList<ImageDef> result = new ArrayList<ImageDef>();
         HashSet<String> visited = new HashSet<String>();
-        visited.add(start.getName());
-        String parentName = start.getParent();
+        visited.add(start.name);
+        String parentName = start.parent;
         while (parentName != null && !parentName.isBlank()) {
             if (!visited.add(parentName)) {
                 break;
@@ -82,7 +57,7 @@ public class ImageDef {
                 break;
             }
             result.add(p);
-            parentName = p.getParent();
+            parentName = p.parent;
         }
         return result;
     }
@@ -98,7 +73,7 @@ public class ImageDef {
 
         LinkedHashSet<String> allPackages = new LinkedHashSet<String>();
         for (ImageDef def : chain) {
-            allPackages.addAll(def.getPackages());
+            allPackages.addAll(def.packages);
         }
         return new ArrayList<>(allPackages);
     }
@@ -118,7 +93,7 @@ public class ImageDef {
     public record ResolvedTemplate(ImageDef imageDef, List<String> packages) {}
 
     public static Map<String, ImageDef> loadAll() {
-        return loadAll(AttimoConfig.load().getSearchPaths());
+        return loadAll(AttimoConfig.load().searchPaths);
     }
 
     public static Map<String, ImageDef> loadAll(List<String> searchPaths) {
@@ -142,7 +117,7 @@ public class ImageDef {
         for (String filename : BUILTIN_FILES) {
             ImageDef def = loadResource(RESOURCE_DIR + filename);
             if (def != null) {
-                defs.put(def.getName(), def);
+                defs.put(def.name, def);
             }
         }
     }
@@ -166,8 +141,8 @@ public class ImageDef {
                   .forEach(path -> {
                       try (InputStream is = Files.newInputStream(path)) {
                           ImageDef def = YAML.readValue(is, ImageDef.class);
-                          if (def.getName() != null) {
-                              defs.put(def.getName(), def);
+                          if (def.name != null) {
+                              defs.put(def.name, def);
                           }
                       } catch (IOException e) {
                           System.err.println("Warning: failed to parse " + path.getFileName() + ": " + e.getMessage());

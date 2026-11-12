@@ -26,7 +26,7 @@ public class BlueHatConnectCommand extends BaseCommand {
             return CommandResult.FAILURE;
         }
 
-        String fqdn = state.getInstanceId();
+        String fqdn = state.instanceId;
         BlueHatConfig config = BlueHatConfig.load();
         String hostName = config.effectiveHostName();
         int port = BlueHat.API_PORT;

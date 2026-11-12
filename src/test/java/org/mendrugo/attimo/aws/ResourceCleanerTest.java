@@ -108,10 +108,10 @@ class ResourceCleanerTest {
 
     private org.mendrugo.attimo.config.InstanceState createTestState() {
         InstanceState state = new org.mendrugo.attimo.config.InstanceState();
-        state.setInstanceId("i-test123");
-        state.setSecurityGroupId("sg-test456");
-        state.setKeyPairName("attimo-test-key");
-        state.setRegion("eu-west-1");
+        state.instanceId = "i-test123";
+        state.securityGroupId = "sg-test456";
+        state.keyPairName = "attimo-test-key";
+        state.region = "eu-west-1";
         return state;
     }
 

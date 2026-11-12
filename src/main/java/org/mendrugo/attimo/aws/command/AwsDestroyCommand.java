@@ -39,14 +39,14 @@ public class AwsDestroyCommand extends BaseCommand {
 
     private CommandResult destroyActiveInstance(InstanceState state) {
         System.out.println("=== Destroying spot instance ===\n");
-        System.out.println("Instance: " + state.getInstanceId());
-        System.out.println("Type:     " + state.getInstanceType());
-        System.out.println("Region:   " + state.getRegion());
-        System.out.println("IP:       " + state.getPublicIp());
+        System.out.println("Instance: " + state.instanceId);
+        System.out.println("Type:     " + state.instanceType);
+        System.out.println("Region:   " + state.region);
+        System.out.println("IP:       " + state.publicIp);
         System.out.println();
 
         AwsClientFactory factory = new AwsClientFactory();
-        try (Ec2Client ec2 = factory.ec2(state.getRegion())) {
+        try (Ec2Client ec2 = factory.ec2(state.region)) {
             ResourceCleaner cleaner = new ResourceCleaner(ec2);
             List<String> errors = cleaner.cleanAll(state, Aws.CLOUD);
 
@@ -69,7 +69,7 @@ public class AwsDestroyCommand extends BaseCommand {
         System.out.println("Scanning for orphaned attimo resources...\n");
 
         AwsConfig config = AwsConfig.load();
-        String preferredRegion = config.getPreferredRegion();
+        String preferredRegion = config.preferredRegion;
 
         if (preferredRegion.isBlank()) {
             System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");

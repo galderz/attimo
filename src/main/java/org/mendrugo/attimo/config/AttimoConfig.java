@@ -10,6 +10,8 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -21,15 +23,8 @@ public class AttimoConfig {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     @JsonProperty("search-paths")
-    private List<String> searchPaths = List.of();
-
-    public List<String> getSearchPaths() {
-        return searchPaths;
-    }
-
-    public void setSearchPaths(List<String> searchPaths) {
-        this.searchPaths = searchPaths == null ? List.of() : searchPaths;
-    }
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    List<String> searchPaths = List.of();
 
     public static AttimoConfig load() {
         Path configFile = Environment.configRoot().resolve("config.yaml");
@@ -73,7 +68,7 @@ public class AttimoConfig {
         System.out.println();
 
         AttimoConfig config = load();
-        List<String> existing = config.getSearchPaths();
+        List<String> existing = config.searchPaths;
 
         if (!existing.isEmpty()) {
             System.out.println("  Current search paths:");
@@ -126,7 +121,7 @@ public class AttimoConfig {
         }
 
         if (!paths.equals(existing)) {
-            config.setSearchPaths(paths);
+            config.searchPaths = paths;
             config.save();
             System.out.println("  Search paths saved.");
         } else if (paths.isEmpty()) {

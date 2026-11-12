@@ -19,14 +19,14 @@ public class AwsConnectCommand extends BaseCommand {
         }
 
         System.out.println("Connecting to "
-                + state.getInstanceType()
+                + state.instanceType
                 + " in "
-                + state.getRegion()
+                + state.region
                 + " ("
-                + state.getPublicIp()
+                + state.publicIp
                 + ")...");
 
-        SshSession session = new SshSession(state.getPublicIp(), Aws.CLOUD);
+        SshSession session = new SshSession(state.publicIp, Aws.CLOUD);
         int exitCode = session.connect();
         return exitCode == 0 ? CommandResult.SUCCESS : CommandResult.valueOf(exitCode);
     }

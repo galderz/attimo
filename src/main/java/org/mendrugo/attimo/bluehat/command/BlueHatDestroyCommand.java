@@ -21,7 +21,7 @@ public class BlueHatDestroyCommand extends BaseCommand {
             return CommandResult.SUCCESS;
         }
 
-        String fqdn = state.getInstanceId();
+        String fqdn = state.instanceId;
         BlueHatConfig config = BlueHatConfig.load();
         String hostName = config.effectiveHostName();
         int port = BlueHat.API_PORT;
@@ -39,7 +39,7 @@ public class BlueHatDestroyCommand extends BaseCommand {
             InstanceState state) {
         System.out.println("=== Destroying Blue Hat VM ===\n");
         System.out.println("FQDN:  " + fqdn);
-        System.out.println("Size:  " + state.getInstanceType());
+        System.out.println("Size:  " + state.instanceType);
         System.out.println();
 
         try {

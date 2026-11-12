@@ -27,23 +27,23 @@ public class AwsStatusCommand extends BaseCommand {
         }
 
         System.out.println("=== Spot Instance Status ===\n");
-        System.out.println("Instance:  " + state.getInstanceId());
-        System.out.println("Type:      " + state.getInstanceType());
-        System.out.println("Region:    " + state.getRegion());
-        System.out.println("AZ:        " + state.getAvailabilityZone());
-        System.out.println("IP:        " + state.getPublicIp());
-        System.out.println("ISA:       " + state.getIsaFeature());
-        System.out.println("AMI:       " + state.getAmiId());
+        System.out.println("Instance:  " + state.instanceId);
+        System.out.println("Type:      " + state.instanceType);
+        System.out.println("Region:    " + state.region);
+        System.out.println("AZ:        " + state.availabilityZone);
+        System.out.println("IP:        " + state.publicIp);
+        System.out.println("ISA:       " + state.isaFeature);
+        System.out.println("AMI:       " + state.amiId);
 
-        if (!state.getLaunchedAt().isBlank()) {
+        if (!state.launchedAt.isBlank()) {
             try {
-                Instant launchedAt = Instant.parse(state.getLaunchedAt());
+                Instant launchedAt = Instant.parse(state.launchedAt);
                 Duration uptime = Duration.between(launchedAt, Instant.now());
                 double hours = uptime.toMinutes() / 60.0;
-                double cost = hours * state.getSpotPrice();
+                double cost = hours * state.spotPrice;
 
                 System.out.printf("Uptime:    %dh %dm%n", uptime.toHours(), uptime.toMinutes() % 60);
-                System.out.printf("Cost:      $%.3f (@ $%.4f/hr)%n", cost, state.getSpotPrice());
+                System.out.printf("Cost:      $%.3f (@ $%.4f/hr)%n", cost, state.spotPrice);
             } catch (Exception e) {
                 System.out.println("Uptime:    unknown");
             }
@@ -52,9 +52,9 @@ public class AwsStatusCommand extends BaseCommand {
         System.out.println();
         try {
             AwsClientFactory factory = new AwsClientFactory();
-            try (Ec2Client ec2 = factory.ec2(state.getRegion())) {
-                SpotManager manager = new SpotManager(ec2, state.getSessionId());
-                if (manager.isRunning(state.getInstanceId())) {
+            try (Ec2Client ec2 = factory.ec2(state.region)) {
+                SpotManager manager = new SpotManager(ec2, state.sessionId);
+                if (manager.isRunning(state.instanceId)) {
                     System.out.println("Status:    \u001B[32m● Running\u001B[0m");
                 } else {
                     System.out.println("Status:    \u001B[31m● Not running\u001B[0m (may have been terminated)");

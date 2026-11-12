@@ -7,6 +7,8 @@ import java.nio.file.StandardCopyOption;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -16,147 +18,55 @@ import org.mendrugo.attimo.Environment;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class InstanceState {
     @JsonProperty("instance-id")
-    private String instanceId = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String instanceId = "";
 
     @JsonProperty("region")
-    private String region = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String region = "";
 
     @JsonProperty("availability-zone")
-    private String availabilityZone = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String availabilityZone = "";
 
     @JsonProperty("instance-type")
-    private String instanceType = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String instanceType = "";
 
     @JsonProperty("public-ip")
-    private String publicIp = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String publicIp = "";
 
     @JsonProperty("launched-at")
-    private String launchedAt = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String launchedAt = "";
 
     @JsonProperty("spot-price")
-    private double spotPrice;
+    public double spotPrice;
 
     @JsonProperty("template")
-    private String template = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String template = "";
 
     @JsonProperty("isa-feature")
-    private String isaFeature = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String isaFeature = "";
 
     @JsonProperty("ami-id")
-    private String amiId = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String amiId = "";
 
     @JsonProperty("security-group-id")
-    private String securityGroupId = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String securityGroupId = "";
 
     @JsonProperty("key-pair-name")
-    private String keyPairName = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String keyPairName = "";
 
     @JsonProperty("session-id")
-    private String sessionId = "";
-
-    public String getInstanceId() {
-        return instanceId;
-    }
-
-    public void setInstanceId(String instanceId) {
-        this.instanceId = instanceId == null ? "" : instanceId;
-    }
-
-    public String getRegion() {
-        return region;
-    }
-
-    public void setRegion(String region) {
-        this.region = region == null ? "" : region;
-    }
-
-    public String getAvailabilityZone() {
-        return availabilityZone;
-    }
-
-    public void setAvailabilityZone(String az) {
-        this.availabilityZone = az == null ? "" : az;
-    }
-
-    public String getInstanceType() {
-        return instanceType;
-    }
-
-    public void setInstanceType(String instanceType) {
-        this.instanceType = instanceType == null ? "" : instanceType;
-    }
-
-    public String getPublicIp() {
-        return publicIp;
-    }
-
-    public void setPublicIp(String publicIp) {
-        this.publicIp = publicIp == null ? "" : publicIp;
-    }
-
-    public String getLaunchedAt() {
-        return launchedAt;
-    }
-
-    public void setLaunchedAt(String launchedAt) {
-        this.launchedAt = launchedAt == null ? "" : launchedAt;
-    }
-
-    public double getSpotPrice() {
-        return spotPrice;
-    }
-
-    public void setSpotPrice(double spotPrice) {
-        this.spotPrice = spotPrice;
-    }
-
-    public String getTemplate() {
-        return template;
-    }
-
-    public void setTemplate(String template) {
-        this.template = template == null ? "" : template;
-    }
-
-    public String getIsaFeature() {
-        return isaFeature;
-    }
-
-    public void setIsaFeature(String isaFeature) {
-        this.isaFeature = isaFeature == null ? "" : isaFeature;
-    }
-
-    public String getAmiId() {
-        return amiId;
-    }
-
-    public void setAmiId(String amiId) {
-        this.amiId = amiId == null ? "" : amiId;
-    }
-
-    public String getSecurityGroupId() {
-        return securityGroupId;
-    }
-
-    public void setSecurityGroupId(String sgId) {
-        this.securityGroupId = sgId == null ? "" : sgId;
-    }
-
-    public String getKeyPairName() {
-        return keyPairName;
-    }
-
-    public void setKeyPairName(String keyPairName) {
-        this.keyPairName = keyPairName == null ? "" : keyPairName;
-    }
-
-    public String getSessionId() {
-        return sessionId;
-    }
-
-    public void setSessionId(String sessionId) {
-        this.sessionId = sessionId == null ? "" : sessionId;
-    }
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String sessionId = "";
 
     public boolean hasActiveInstance() {
         return !instanceId.isBlank();

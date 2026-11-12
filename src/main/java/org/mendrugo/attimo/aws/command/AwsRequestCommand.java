@@ -70,13 +70,13 @@ public class AwsRequestCommand extends BaseCommand {
 
         InstanceState existingState = InstanceState.load(Aws.CLOUD);
         if (existingState.hasActiveInstance()) {
-            System.err.println("Error: an instance is already active (" + existingState.getInstanceId() + ").");
+            System.err.println("Error: an instance is already active (" + existingState.instanceId + ").");
             System.err.println("Use 'ato aws connect' to reconnect or 'ato aws destroy' to tear it down first.");
             return CommandResult.FAILURE;
         }
 
         AwsConfig config = AwsConfig.load();
-        String preferredRegion = config.getPreferredRegion();
+        String preferredRegion = config.preferredRegion;
         if (preferredRegion.isBlank()) {
             System.err.println("Error: no preferred region configured. Run 'ato aws init' first.");
             return CommandResult.FAILURE;
@@ -155,18 +155,18 @@ public class AwsRequestCommand extends BaseCommand {
 
     private CommandResult provisionAndConnect(LaunchResult launchResult, ResolvedTemplate resolved) {
         InstanceState state = new InstanceState();
-        state.setInstanceId(launchResult.instanceId);
-        state.setRegion(launchResult.recommendation.region());
-        state.setAvailabilityZone(launchResult.recommendation.availabilityZone());
-        state.setInstanceType(launchResult.recommendation.instanceType());
-        state.setPublicIp(launchResult.publicIp);
-        state.setLaunchedAt(Instant.now().toString());
-        state.setSpotPrice(launchResult.recommendation.pricePerHour());
-        state.setIsaFeature(isaFeature);
-        state.setAmiId(launchResult.amiId);
-        state.setSecurityGroupId(launchResult.securityGroupId);
-        state.setKeyPairName(launchResult.keyPairName);
-        state.setSessionId(launchResult.sessionId);
+        state.instanceId = launchResult.instanceId;
+        state.region = launchResult.recommendation.region();
+        state.availabilityZone = launchResult.recommendation.availabilityZone();
+        state.instanceType = launchResult.recommendation.instanceType();
+        state.publicIp = launchResult.publicIp;
+        state.launchedAt = Instant.now().toString();
+        state.spotPrice = launchResult.recommendation.pricePerHour();
+        state.isaFeature = isaFeature;
+        state.amiId = launchResult.amiId;
+        state.securityGroupId = launchResult.securityGroupId;
+        state.keyPairName = launchResult.keyPairName;
+        state.sessionId = launchResult.sessionId;
         state.save(Aws.CLOUD);
 
         System.out.println("\n[4/4] Provisioning and connecting...");

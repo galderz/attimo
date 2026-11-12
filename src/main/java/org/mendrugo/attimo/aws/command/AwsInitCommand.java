@@ -161,8 +161,8 @@ public class AwsInitCommand extends BaseCommand {
     private void setupRegion(Console console, AwsConfig config) {
         System.out.println("\n[2/4] Configuring preferred AWS region...");
 
-        if (!config.getPreferredRegion().isBlank()) {
-            System.out.println("  Current region: " + config.getPreferredRegion());
+        if (!config.preferredRegion.isBlank()) {
+            System.out.println("  Current region: " + config.preferredRegion);
             if (console != null) {
                 System.out.print("  Keep this region? (Y/n): ");
                 String answer = console.readLine().strip();
@@ -175,10 +175,10 @@ public class AwsInitCommand extends BaseCommand {
         }
 
         Continent continent = selectContinent(console);
-        config.setContinent(continent.name());
+        config.continent = continent.name();
 
         String region = selectRegion(console, continent);
-        config.setPreferredRegion(region);
+        config.preferredRegion = region;
     }
 
     private Continent selectContinent(Console console) {
@@ -249,16 +249,16 @@ public class AwsInitCommand extends BaseCommand {
             }
         }
 
-        if (!config.getSshPublicKey().isBlank()) {
-            System.out.println("  Personal SSH public key: " + config.getSshPublicKey());
+        if (!config.sshPublicKey.isBlank()) {
+            System.out.println("  Personal SSH public key: " + config.sshPublicKey);
         } else if (console != null) {
             String defaultKey = "~/.ssh/id_ed25519.pub";
             System.out.print("  Path to your SSH public key [" + defaultKey + "]: ");
             String input = console.readLine().strip();
-            config.setSshPublicKey(input.isBlank() ? defaultKey : input);
-            System.out.println("  SSH public key set to: " + config.getSshPublicKey());
+            config.sshPublicKey = input.isBlank() ? defaultKey : input;
+            System.out.println("  SSH public key set to: " + config.sshPublicKey);
         } else {
-            config.setSshPublicKey("~/.ssh/id_ed25519.pub");
+            config.sshPublicKey = "~/.ssh/id_ed25519.pub";
             System.out.println("  Defaulting to ~/.ssh/id_ed25519.pub");
         }
     }

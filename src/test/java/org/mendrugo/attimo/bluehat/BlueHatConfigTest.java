@@ -16,9 +16,9 @@ class BlueHatConfigTest {
     @Test
     void defaultsWhenNoFileExists() {
         BlueHatConfig config = new BlueHatConfig();
-        assertThat(config.getRepository()).isEmpty();
-        assertThat(config.getHostName()).isEmpty();
-        assertThat(config.getSshPublicKey()).isEmpty();
+        assertThat(config.repository).isEmpty();
+        assertThat(config.hostName).isEmpty();
+        assertThat(config.sshPublicKey).isEmpty();
     }
 
     @Test
@@ -26,15 +26,15 @@ class BlueHatConfigTest {
         Path configFile = tempDir.resolve("config.yaml");
 
         BlueHatConfig config = new BlueHatConfig();
-        config.setRepository("https://github.com/openjdk/bluehat-cloud.git");
-        config.setSshPublicKey("~/.ssh/id_ed25519.pub");
+        config.repository = "https://github.com/openjdk/bluehat-cloud.git";
+        config.sshPublicKey = "~/.ssh/id_ed25519.pub";
 
         YAML.writeValue(configFile.toFile(), config);
 
         BlueHatConfig loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
-        assertThat(loaded.getRepository()).isEqualTo("https://github.com/openjdk/bluehat-cloud.git");
-        assertThat(loaded.getHostName()).isEmpty();
-        assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_ed25519.pub");
+        assertThat(loaded.repository).isEqualTo("https://github.com/openjdk/bluehat-cloud.git");
+        assertThat(loaded.hostName).isEmpty();
+        assertThat(loaded.sshPublicKey).isEqualTo("~/.ssh/id_ed25519.pub");
     }
 
     @Test
@@ -42,21 +42,21 @@ class BlueHatConfigTest {
         Path configFile = tempDir.resolve("config.yaml");
 
         BlueHatConfig config = new BlueHatConfig();
-        config.setHostName("bluehat-proxy.acme.com");
-        config.setSshPublicKey("~/.ssh/id_rsa.pub");
+        config.hostName = "bluehat-proxy.acme.com";
+        config.sshPublicKey = "~/.ssh/id_rsa.pub";
 
         YAML.writeValue(configFile.toFile(), config);
 
         BlueHatConfig loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
-        assertThat(loaded.getRepository()).isEmpty();
-        assertThat(loaded.getHostName()).isEqualTo("bluehat-proxy.acme.com");
-        assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
+        assertThat(loaded.repository).isEmpty();
+        assertThat(loaded.hostName).isEqualTo("bluehat-proxy.acme.com");
+        assertThat(loaded.sshPublicKey).isEqualTo("~/.ssh/id_rsa.pub");
     }
 
     @Test
     void isLocalWhenRepositoryIsSet() {
         BlueHatConfig config = new BlueHatConfig();
-        config.setRepository("https://github.com/openjdk/bluehat-cloud.git");
+        config.repository = "https://github.com/openjdk/bluehat-cloud.git";
         assertThat(config.isLocal()).isTrue();
         assertThat(config.hasCloudTarget()).isTrue();
         assertThat(config.effectiveHostName()).isEqualTo("localhost");
@@ -65,7 +65,7 @@ class BlueHatConfigTest {
     @Test
     void isRemoteWhenHostNameIsSet() {
         BlueHatConfig config = new BlueHatConfig();
-        config.setHostName("bluehat-proxy.acme.com");
+        config.hostName = "bluehat-proxy.acme.com";
         assertThat(config.isLocal()).isFalse();
         assertThat(config.hasCloudTarget()).isTrue();
         assertThat(config.effectiveHostName()).isEqualTo("bluehat-proxy.acme.com");
@@ -79,18 +79,6 @@ class BlueHatConfigTest {
     }
 
     @Test
-    void nullsSafelyDefaultToEmpty() {
-        BlueHatConfig config = new BlueHatConfig();
-        config.setRepository(null);
-        config.setHostName(null);
-        config.setSshPublicKey(null);
-
-        assertThat(config.getRepository()).isEmpty();
-        assertThat(config.getHostName()).isEmpty();
-        assertThat(config.getSshPublicKey()).isEmpty();
-    }
-
-    @Test
     void ignoresUnknownFields(@TempDir final Path tempDir) throws Exception {
         Path configFile = tempDir.resolve("config.yaml");
         Files.writeString(configFile,
@@ -101,8 +89,8 @@ class BlueHatConfigTest {
             """);
 
         BlueHatConfig loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
-        assertThat(loaded.getRepository()).isEqualTo("https://github.com/openjdk/bluehat-cloud.git");
-        assertThat(loaded.getSshPublicKey()).isEqualTo("~/.ssh/id_rsa.pub");
+        assertThat(loaded.repository).isEqualTo("https://github.com/openjdk/bluehat-cloud.git");
+        assertThat(loaded.sshPublicKey).isEqualTo("~/.ssh/id_rsa.pub");
     }
 
     @Test
@@ -112,9 +100,9 @@ class BlueHatConfigTest {
 
         BlueHatConfig loaded = YAML.readValue(configFile.toFile(), BlueHatConfig.class);
         if (loaded != null) {
-            assertThat(loaded.getRepository()).isEmpty();
-            assertThat(loaded.getHostName()).isEmpty();
-            assertThat(loaded.getSshPublicKey()).isEmpty();
+            assertThat(loaded.repository).isEmpty();
+            assertThat(loaded.hostName).isEmpty();
+            assertThat(loaded.sshPublicKey).isEmpty();
         }
     }
 }

@@ -18,32 +18,25 @@ class AttimoConfigTest {
     @Test
     void defaultSearchPathsEmpty() {
         AttimoConfig config = new AttimoConfig();
-        assertThat(config.getSearchPaths()).isEmpty();
+        assertThat(config.searchPaths).isEmpty();
     }
 
     @Test
-    void setSearchPaths() {
+    void assignSearchPaths() {
         AttimoConfig config = new AttimoConfig();
-        config.setSearchPaths(List.of("/home/user/templates", "/opt/shared"));
-        assertThat(config.getSearchPaths()).containsExactly("/home/user/templates", "/opt/shared");
-    }
-
-    @Test
-    void setNullSearchPathsDefaultsToEmpty() {
-        AttimoConfig config = new AttimoConfig();
-        config.setSearchPaths(null);
-        assertThat(config.getSearchPaths()).isEmpty();
+        config.searchPaths = List.of("/home/user/templates", "/opt/shared");
+        assertThat(config.searchPaths).containsExactly("/home/user/templates", "/opt/shared");
     }
 
     @Test
     void saveAndLoadRoundTrip(@TempDir final Path tempDir) throws IOException {
         Path configFile = tempDir.resolve("config.yaml");
         AttimoConfig config = new AttimoConfig();
-        config.setSearchPaths(List.of("/home/user/templates", "/opt/shared"));
+        config.searchPaths = List.of("/home/user/templates", "/opt/shared");
         YAML.writeValue(configFile.toFile(), config);
 
         AttimoConfig loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
-        assertThat(loaded.getSearchPaths()).containsExactly("/home/user/templates", "/opt/shared");
+        assertThat(loaded.searchPaths).containsExactly("/home/user/templates", "/opt/shared");
     }
 
     @Test
@@ -52,7 +45,7 @@ class AttimoConfigTest {
         Files.writeString(configFile, "{}\n");
 
         AttimoConfig loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
-        assertThat(loaded.getSearchPaths()).isEmpty();
+        assertThat(loaded.searchPaths).isEmpty();
     }
 
     @Test
@@ -66,6 +59,6 @@ class AttimoConfigTest {
             """);
 
         AttimoConfig loaded = YAML.readValue(configFile.toFile(), AttimoConfig.class);
-        assertThat(loaded.getSearchPaths()).containsExactly("/opt/templates");
+        assertThat(loaded.searchPaths).containsExactly("/opt/templates");
     }
 }

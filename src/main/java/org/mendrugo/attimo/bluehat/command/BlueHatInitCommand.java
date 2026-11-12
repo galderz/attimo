@@ -34,10 +34,10 @@ public class BlueHatInitCommand extends BaseCommand {
             System.out.println("Current configuration:");
             if (config.isLocal()) {
                 System.out.println("  Mode:       local (git repository)");
-                System.out.println("  Repository: " + config.getRepository());
+                System.out.println("  Repository: " + config.repository);
             } else {
                 System.out.println("  Mode:       remote");
-                System.out.println("  Host:       " + config.getHostName());
+                System.out.println("  Host:       " + config.hostName);
             }
             System.out.println();
 
@@ -61,7 +61,7 @@ public class BlueHatInitCommand extends BaseCommand {
 
         if (config.isLocal()) {
             System.out.println("\nBuilding local Blue Hat cloud...");
-            BlueHatCloudRunner.cloneAndBuild(config.getRepository());
+            BlueHatCloudRunner.cloneAndBuild(config.repository);
         }
 
         printNextSteps();
@@ -105,8 +105,8 @@ public class BlueHatInitCommand extends BaseCommand {
                 return;
             }
 
-            config.setRepository(repo);
-            config.setHostName("");
+            config.repository = repo;
+            config.hostName = "";
             System.out.println("  Mode set to: local (repository: " + repo + ")");
         } else if ("2".equals(choice)) {
             System.out.print("  Blue Hat host name or IP address: ");
@@ -117,8 +117,8 @@ public class BlueHatInitCommand extends BaseCommand {
                 return;
             }
 
-            config.setHostName(host);
-            config.setRepository("");
+            config.hostName = host;
+            config.repository = "";
             System.out.println("  Mode set to: remote (host: " + host + ")");
         } else {
             System.err.println("  Invalid choice. Please enter 1 or 2.");
@@ -139,16 +139,16 @@ public class BlueHatInitCommand extends BaseCommand {
             }
         }
 
-        if (!config.getSshPublicKey().isBlank()) {
-            System.out.println("  Personal SSH public key: " + config.getSshPublicKey());
+        if (!config.sshPublicKey.isBlank()) {
+            System.out.println("  Personal SSH public key: " + config.sshPublicKey);
         } else if (console != null) {
             String defaultKey = "~/.ssh/id_ed25519.pub";
             System.out.print("  Path to your SSH public key [" + defaultKey + "]: ");
             String input = console.readLine().strip();
-            config.setSshPublicKey(input.isBlank() ? defaultKey : input);
-            System.out.println("  SSH public key set to: " + config.getSshPublicKey());
+            config.sshPublicKey = input.isBlank() ? defaultKey : input;
+            System.out.println("  SSH public key set to: " + config.sshPublicKey);
         } else {
-            config.setSshPublicKey("~/.ssh/id_ed25519.pub");
+            config.sshPublicKey = "~/.ssh/id_ed25519.pub";
             System.out.println("  Defaulting to ~/.ssh/id_ed25519.pub");
         }
     }

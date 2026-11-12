@@ -29,10 +29,10 @@ public class ResourceCleaner {
     public List<String> cleanAll(InstanceState state, String cloud) {
         errors.clear();
 
-        terminateInstance(state.getInstanceId());
-        waitForTermination(state.getInstanceId(), 120);
-        deleteKeyPair(state.getKeyPairName());
-        deleteSecurityGroupWithRetry(state.getSecurityGroupId());
+        terminateInstance(state.instanceId);
+        waitForTermination(state.instanceId, 120);
+        deleteKeyPair(state.keyPairName);
+        deleteSecurityGroupWithRetry(state.securityGroupId);
 
         if (errors.isEmpty()) {
             InstanceState.clear(cloud);

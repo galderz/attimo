@@ -228,7 +228,7 @@ public final class BlueHatCloudRunner {
         int port = BlueHat.API_PORT;
 
         if (config.isLocal()) {
-            return BlueHatCloudRunner.start(config.getRepository());
+            return BlueHatCloudRunner.start(config.repository);
         } else {
             if (!BlueHatCloudRunner.healthCheck(hostName, port)) {
                 throw new BlueHatException("Blue Hat cloud at " + hostName + ":" + port + " is not reachable. Verify the host is running.");

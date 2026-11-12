@@ -7,6 +7,8 @@ import java.nio.file.StandardCopyOption;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -18,37 +20,16 @@ public class BlueHatConfig {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     @JsonProperty("repository")
-    private String repository = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String repository = "";
 
     @JsonProperty("host-name")
-    private String hostName = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String hostName = "";
 
     @JsonProperty("ssh-public-key")
-    private String sshPublicKey = "";
-
-    public String getRepository() {
-        return repository;
-    }
-
-    public void setRepository(String repository) {
-        this.repository = repository == null ? "" : repository;
-    }
-
-    public String getHostName() {
-        return hostName;
-    }
-
-    public void setHostName(String hostName) {
-        this.hostName = hostName == null ? "" : hostName;
-    }
-
-    public String getSshPublicKey() {
-        return sshPublicKey;
-    }
-
-    public void setSshPublicKey(String sshPublicKey) {
-        this.sshPublicKey = sshPublicKey == null ? "" : sshPublicKey;
-    }
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String sshPublicKey = "";
 
     public boolean isLocal() {
         return !repository.isBlank();

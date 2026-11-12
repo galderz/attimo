@@ -30,7 +30,7 @@ public class BlueHatStatusCommand extends BaseCommand {
             return CommandResult.SUCCESS;
         }
 
-        String fqdn = state.getInstanceId();
+        String fqdn = state.instanceId;
         BlueHatConfig config = BlueHatConfig.load();
         String hostName = config.effectiveHostName();
         int port = BlueHat.API_PORT;
@@ -48,7 +48,7 @@ public class BlueHatStatusCommand extends BaseCommand {
             InstanceState state) {
         System.out.println("=== Blue Hat VM Status ===\n");
         System.out.println("FQDN:      " + fqdn);
-        System.out.println("Size:      " + state.getInstanceType());
+        System.out.println("Size:      " + state.instanceType);
 
         try {
             BlueHatClient client = new BlueHatClient(hostName, port);

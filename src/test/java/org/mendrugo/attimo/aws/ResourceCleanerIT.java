@@ -39,9 +39,9 @@ class ResourceCleanerIT {
             assertThat(describeKeyPair(ec2, keyName)).isTrue();
 
             InstanceState state = new InstanceState();
-            state.setInstanceId("");
-            state.setSecurityGroupId(sgId);
-            state.setKeyPairName(keyName);
+            state.instanceId = "";
+            state.securityGroupId = sgId;
+            state.keyPairName = keyName;
 
             ResourceCleaner cleaner = new ResourceCleaner(ec2);
             List<String> errors = cleaner.cleanAll(state, "aws");
@@ -57,9 +57,9 @@ class ResourceCleanerIT {
     void handlesAlreadyDeletedResources() {
         try (Ec2Client ec2 = ec2Client()) {
             InstanceState state = new InstanceState();
-            state.setInstanceId("");
-            state.setSecurityGroupId("sg-nonexistent");
-            state.setKeyPairName("attimo-nonexistent");
+            state.instanceId = "";
+            state.securityGroupId = "sg-nonexistent";
+            state.keyPairName = "attimo-nonexistent";
 
             ResourceCleaner cleaner = new ResourceCleaner(ec2);
             List<String> errors = cleaner.cleanAll(state, "aws");

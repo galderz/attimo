@@ -7,6 +7,8 @@ import java.nio.file.StandardCopyOption;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -18,37 +20,16 @@ public class AwsConfig {
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     @JsonProperty("continent")
-    private String continent = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String continent = "";
 
     @JsonProperty("preferred-region")
-    private String preferredRegion = "";
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String preferredRegion = "";
 
     @JsonProperty("ssh-public-key")
-    private String sshPublicKey = "";
-
-    public String getContinent() {
-        return continent;
-    }
-
-    public void setContinent(String continent) {
-        this.continent = continent == null ? "" : continent;
-    }
-
-    public String getPreferredRegion() {
-        return preferredRegion;
-    }
-
-    public void setPreferredRegion(String preferredRegion) {
-        this.preferredRegion = preferredRegion == null ? "" : preferredRegion;
-    }
-
-    public String getSshPublicKey() {
-        return sshPublicKey;
-    }
-
-    public void setSshPublicKey(String sshPublicKey) {
-        this.sshPublicKey = sshPublicKey == null ? "" : sshPublicKey;
-    }
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
+    public String sshPublicKey = "";
 
     public static AwsConfig load() {
         Path configFile = Environment.configFile(Aws.CLOUD);
