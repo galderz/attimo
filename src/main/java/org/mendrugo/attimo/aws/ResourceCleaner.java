@@ -37,7 +37,6 @@ public class ResourceCleaner {
         if (errors.isEmpty()) {
             InstanceState.clear(cloud);
         } else {
-
             System.err.println("  State file kept for retry. Run 'ato " + cloud + " destroy' to finish cleanup.");
         }
 
@@ -189,7 +188,6 @@ public class ResourceCleaner {
                 Thread.currentThread().interrupt();
                 return;
             } catch (Exception e) {
-
                 return;
             }
         }

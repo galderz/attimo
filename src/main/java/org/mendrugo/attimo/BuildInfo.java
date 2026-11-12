@@ -18,7 +18,6 @@ public final class BuildInfo {
                 props.load(is);
             }
         } catch (IOException e) {
-
         }
 
         this.version = props.getProperty("version", "dev");

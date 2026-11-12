@@ -182,7 +182,6 @@ public final class BlueHatCloudRunner {
                 }
             }
         } catch (IOException ignored) {
-
         }
 
         throw new BlueHatException(sb.toString());

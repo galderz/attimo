@@ -313,7 +313,6 @@ public class AwsRequestCommand extends BaseCommand {
                 ec2.deleteKeyPair(b -> b.keyName(keyPairName));
             }
         } catch (Exception ignored) {
-
         }
 
         try {
@@ -321,7 +320,6 @@ public class AwsRequestCommand extends BaseCommand {
                 ec2.deleteSecurityGroup(b -> b.groupId(sgId));
             }
         } catch (Exception ignored) {
-
         }
     }
 

@@ -46,7 +46,6 @@ class BlueHatCloudRunnerTest {
 
     @Test
     void healthCheckFailsWhenServerNotRunning() {
-
         assertThat(BlueHatCloudRunner.healthCheck("localhost", port)).isFalse();
     }
 
@@ -64,7 +63,6 @@ class BlueHatCloudRunnerTest {
 
     @Test
     void healthCheckFailsOnUnreachableHost() {
-
         assertThat(BlueHatCloudRunner.healthCheck("192.0.2.1", 8080)).isFalse();
     }
 
@@ -90,7 +88,6 @@ class BlueHatCloudRunnerTest {
 
     @Test
     void stopHandlesNullProcess() {
-
         BlueHatCloudRunner.stop(null);
     }
 }

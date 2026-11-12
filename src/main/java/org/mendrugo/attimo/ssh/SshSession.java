@@ -39,7 +39,6 @@ public class SshSession {
                 System.out.println("  SSH is reachable.");
                 return true;
             } catch (IOException e) {
-
             }
 
             try {

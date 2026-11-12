@@ -11,7 +11,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BootJdkProvisionerTest {
     @Test
     void jdkPackageConstantMatchesOpenjdkYaml() {
-
         assertThat(BootJdkProvisioner.JDK_PACKAGE).isEqualTo("java-latest-openjdk-devel");
     }
 

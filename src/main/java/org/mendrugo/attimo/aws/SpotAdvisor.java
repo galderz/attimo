@@ -115,7 +115,6 @@ public class SpotAdvisor {
                         final double price = Double.parseDouble(sp.spotPrice());
                         results.add(new PricedCandidate(sp.instanceTypeAsString(), region, sp.availabilityZone(), price));
                     } catch (NumberFormatException ignored) {
-
                     }
                 }
             } catch (Exception e) {
