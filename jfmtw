@@ -5,6 +5,9 @@
 # Downloads and caches the jfmt JAR on first use, then runs jfmt with the
 # required javac exports. Modelled on the Maven Wrapper (mvnw).
 #
+# In a Maven project (pom.xml present), automatically supplies --source-path
+# and --class-path when the caller does not provide them.
+#
 # Required: Java 25+, curl or wget
 #
 # Optional ENV vars:
@@ -36,7 +39,7 @@ if [ -z "$distribution_url" ]; then
     exit 1
 fi
 
-# Derive JAR filename and version from URL
+# Derive JAR filename from URL
 jar_name="${distribution_url##*/}"
 
 # Cache directory: $JFMT_CACHE_DIR or $XDG_CACHE_HOME/jfmt or ~/.cache/jfmt
@@ -82,7 +85,68 @@ if ! command -v "$java_cmd" >/dev/null 2>&1; then
     exit 1
 fi
 
+# ---------------------------------------------------------------------------
+# Auto-detect Maven project classpath when the caller does not supply
+# --source-path or --class-path.  This lets bare  ./jfmtw <files>  work
+# the same as passing the flags explicitly.
+# ---------------------------------------------------------------------------
+maven_args=""
+has_source_path=false
+has_class_path=false
+for arg in "$@"; do
+    case "$arg" in
+        --source-path|--sourcepath|-sourcepath) has_source_path=true ;;
+        --class-path|--classpath|-classpath|-cp) has_class_path=true ;;
+    esac
+done
+
+if [ "$has_source_path" = false ] || [ "$has_class_path" = false ]; then
+    pom_file="$script_dir/pom.xml"
+    if [ -f "$pom_file" ]; then
+        # Resolve and cache the Maven classpath (regenerate when pom.xml changes)
+        cp_cache="$script_dir/target/jfmt-classpath.txt"
+        if [ ! -f "$cp_cache" ] || [ "$pom_file" -nt "$cp_cache" ]; then
+            [ "${JFMTW_VERBOSE-}" = true ] && echo "Resolving Maven classpath ..." >&2
+            mvn -f "$pom_file" dependency:build-classpath \
+                -Dmdep.outputFile="$cp_cache" -q 2>/dev/null || true
+        fi
+
+        classpath=""
+        if [ -f "$cp_cache" ]; then
+            classpath="$(cat "$cp_cache")"
+        fi
+
+        # Build --source-path and --class-path args for main and test trees.
+        # Separate invocations per source root are not needed: jfmt accepts
+        # a single --source-path covering all roots when combined with
+        # --class-path that includes compiled main classes.
+        src_roots=""
+        if [ -d "$script_dir/src/main/java" ]; then
+            src_roots="$script_dir/src/main/java"
+        fi
+        if [ -d "$script_dir/src/test/java" ]; then
+            if [ -n "$src_roots" ]; then
+                src_roots="$src_roots:$script_dir/src/test/java"
+            else
+                src_roots="$script_dir/src/test/java"
+            fi
+            # Test code may reference compiled main classes
+            if [ -d "$script_dir/target/classes" ] && [ -n "$classpath" ]; then
+                classpath="$classpath:$script_dir/target/classes"
+            fi
+        fi
+
+        if [ "$has_source_path" = false ] && [ -n "$src_roots" ]; then
+            maven_args="$maven_args --source-path $src_roots"
+        fi
+        if [ "$has_class_path" = false ] && [ -n "$classpath" ]; then
+            maven_args="$maven_args --class-path $classpath"
+        fi
+    fi
+fi
+
 # Run jfmt with the required javac internal exports
+# shellcheck disable=SC2086
 exec "$java_cmd" \
     --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
     --add-exports jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED \
@@ -91,4 +155,4 @@ exec "$java_cmd" \
     --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED \
     --add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED \
     --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
-    -jar "$jar_path" "$@"
+    -jar "$jar_path" $maven_args "$@"
