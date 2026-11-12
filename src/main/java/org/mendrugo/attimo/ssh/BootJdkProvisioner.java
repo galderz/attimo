@@ -25,15 +25,16 @@ public final class BootJdkProvisioner
 
     /**
      * Partition packages into those that need dnf install and handle
-     * the boot JDK separately if on AL2023.
+     * the boot JDK separately if on AL2023. Errors are logged as
+     * warnings; provisioning failures are not fatal so that the user
+     * can still connect to the instance and fix issues manually.
      *
      * @param packages  full package list from the template
      * @param provisioner SSH provisioner for the target host
      * @param isFedora  true for Fedora (Blue Hat), false for AL2023 (AWS)
      * @param arch      target architecture: "x86_64" or "aarch64"
-     * @return true if all installations succeeded
      */
-    public static boolean provision(
+    public static void provision(
         final List<String> packages
         , final SshProvisioner provisioner
         , final boolean isFedora
@@ -42,7 +43,7 @@ public final class BootJdkProvisioner
     {
         if (packages.isEmpty())
         {
-            return true;
+            return;
         }
 
         final var dnfPackages = new ArrayList<>(packages);
@@ -58,7 +59,10 @@ public final class BootJdkProvisioner
 
         // Install remaining packages via dnf (on Fedora this includes
         // java-latest-openjdk-devel; on AL2023 it was removed above)
-        return provisioner.installPackages(dnfPackages);
+        if (!provisioner.installPackages(dnfPackages))
+        {
+            System.err.println("  Warning: package installation failed.");
+        }
     }
 
     /**

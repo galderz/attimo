@@ -191,11 +191,10 @@ class TemplateProvisioningTest
         final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
         final var recorder = new RecordingProvisioner();
 
-        final var result = BootJdkProvisioner.provision(
+        BootJdkProvisioner.provision(
             allPackages, recorder, false, "x86_64"
         );
 
-        assertThat(result).isTrue();
         assertThat(recorder.installedPackages).isEmpty();
         assertThat(recorder.ranCommands).isEmpty();
     }

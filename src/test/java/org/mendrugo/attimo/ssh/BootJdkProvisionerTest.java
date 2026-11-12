@@ -92,10 +92,9 @@ class BootJdkProvisionerTest
     void emptyPackagesIsNoOp()
     {
         final var recorder = new RecordingProvisioner();
-        final var result = BootJdkProvisioner.provision(
+        BootJdkProvisioner.provision(
             List.of(), recorder, false, "x86_64"
         );
-        assertThat(result).isTrue();
         assertThat(recorder.ranCommands).isEmpty();
         assertThat(recorder.installedPackages).isEmpty();
     }
