@@ -260,6 +260,113 @@ class ImageDefTest
         assertThat(ImageDef.expandTilde(path)).isEqualTo(path);
     }
 
+    @Test
+    void ancestorChainStopsOnCycle()
+    {
+        final var a = createDef("a", "b");
+        final var b = createDef("b", "a");
+        final var defs = Map.of("a", a, "b", b);
+        final var ancestors = ImageDef.ancestors(a, defs);
+        // Should stop instead of looping forever
+        assertThat(ancestors).hasSize(1);
+        assertThat(ancestors.getFirst().getName()).isEqualTo("b");
+    }
+
+    @Test
+    void ancestorChainStopsOnSelfReference()
+    {
+        final var self = createDef("self", "self");
+        final var defs = Map.of("self", self);
+        final var ancestors = ImageDef.ancestors(self, defs);
+        assertThat(ancestors).isEmpty();
+    }
+
+    @Test
+    void collectAllPackagesFromLeafOnly()
+    {
+        final var root = createDef("root", null);
+        final var child = createDefWithPackages("child", "root"
+            , List.of("gcc", "make"));
+        final var defs = Map.of("root", root, "child", child);
+
+        final var packages = ImageDef.collectAllPackages(child, defs);
+        assertThat(packages).containsExactly("gcc", "make");
+    }
+
+    @Test
+    void collectAllPackagesInheritsFromParent()
+    {
+        final var root = createDefWithPackages("root", null
+            , List.of("base-pkg"));
+        final var child = createDefWithPackages("child", "root"
+            , List.of("child-pkg"));
+        final var defs = Map.of("root", root, "child", child);
+
+        final var packages = ImageDef.collectAllPackages(child, defs);
+        // Root packages first, then child
+        assertThat(packages).containsExactly("base-pkg", "child-pkg");
+    }
+
+    @Test
+    void collectAllPackagesDeduplicates()
+    {
+        final var root = createDefWithPackages("root", null
+            , List.of("gcc", "make"));
+        final var child = createDefWithPackages("child", "root"
+            , List.of("make", "autoconf"));
+        final var defs = Map.of("root", root, "child", child);
+
+        final var packages = ImageDef.collectAllPackages(child, defs);
+        // 'make' appears in both but should only be listed once
+        assertThat(packages).containsExactly("gcc", "make", "autoconf");
+    }
+
+    @Test
+    void collectAllPackagesThreeLevelChain()
+    {
+        final var gp = createDefWithPackages("gp", null
+            , List.of("gp-pkg"));
+        final var p = createDefWithPackages("parent", "gp"
+            , List.of("parent-pkg"));
+        final var child = createDefWithPackages("child", "parent"
+            , List.of("child-pkg"));
+        final var defs = Map.of("gp", gp, "parent", p, "child", child);
+
+        final var packages = ImageDef.collectAllPackages(child, defs);
+        assertThat(packages).containsExactly(
+            "gp-pkg", "parent-pkg", "child-pkg");
+    }
+
+    @Test
+    void collectAllPackagesBuiltinOpenjdkInheritsMinimal()
+    {
+        final var defs = ImageDef.loadAll(List.of());
+        final var openjdk = defs.get("tpl-openjdk");
+        final var packages = ImageDef.collectAllPackages(openjdk, defs);
+        assertThat(packages).contains("gcc", "java-latest-openjdk-devel");
+    }
+
+    @Test
+    void collectAllPackagesRootTemplate()
+    {
+        final var root = createDefWithPackages("root", null
+            , List.of("pkg1"));
+        final var defs = Map.of("root", root);
+        final var packages = ImageDef.collectAllPackages(root, defs);
+        assertThat(packages).containsExactly("pkg1");
+    }
+
+    @Test
+    void setPackagesNullDefaultsToEmpty() throws IOException
+    {
+        final var yaml = """
+            name: tpl-test
+            packages:
+            """;
+        final var def = ImageDef.parseYaml(yaml);
+        assertThat(def.getPackages()).isNotNull().isEmpty();
+    }
+
     private static ImageDef createDef(
         final String name
         , final String parent
@@ -268,6 +375,19 @@ class ImageDefTest
         final var def = new ImageDef();
         def.setName(name);
         def.setParent(parent);
+        return def;
+    }
+
+    private static ImageDef createDefWithPackages(
+        final String name
+        , final String parent
+        , final List<String> packages
+    )
+    {
+        final var def = new ImageDef();
+        def.setName(name);
+        def.setParent(parent);
+        def.setPackages(packages);
         return def;
     }
 }

@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * correctly extracts the version from the Adoptium API response.
  * This catches format changes (e.g. spacing) before they hit real instances.
  */
-class AdoptiumApiTest
+class AdoptiumApiIT
 {
     private static final String API_URL =
         "https://api.adoptium.net/v3/info/available_releases";

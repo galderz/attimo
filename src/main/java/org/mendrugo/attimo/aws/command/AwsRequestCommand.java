@@ -25,8 +25,9 @@ import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 
 import java.time.Instant;
-import java.util.Set;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @CommandDefinition(
     name = "request"
@@ -67,6 +68,17 @@ public class AwsRequestCommand extends BaseCommand
         if (!AwsInitCommand.hasBeenInitialized())
         {
             System.err.println("Error: AWS has not been initialized. Run 'ato aws init' first.");
+            return CommandResult.FAILURE;
+        }
+
+        // Validate template before any cloud resources are created
+        final var defs = ImageDef.loadAll();
+        final var imageDef = ImageDef.findByName(template, defs);
+        if (imageDef == null)
+        {
+            System.err.println("Error: unknown template '" + template + "'.");
+            System.err.println("Available templates: "
+                + String.join(", ", defs.keySet()));
             return CommandResult.FAILURE;
         }
 
@@ -175,11 +187,15 @@ public class AwsRequestCommand extends BaseCommand
 
         try (launchResult)
         {
-            return provisionAndConnect(launchResult);
+            return provisionAndConnect(launchResult, imageDef, defs);
         }
     }
 
-    private CommandResult provisionAndConnect(final LaunchResult launchResult)
+    private CommandResult provisionAndConnect(
+        final LaunchResult launchResult
+        , final ImageDef imageDef
+        , final Map<String, ImageDef> defs
+    )
     {
         // Save state for reconnection
         final var state = new InstanceState();
@@ -211,17 +227,9 @@ public class AwsRequestCommand extends BaseCommand
             return CommandResult.FAILURE;
         }
 
-        // Provision packages from template
+        // Provision packages from template (including inherited ancestor packages)
         final var provisioner = new SshProvisioner(launchResult.publicIp, sshUser, keyFile);
-        final var defs = ImageDef.loadAll();
-        final var imageDef = ImageDef.findByName(template, defs);
-        if (imageDef == null)
-        {
-            System.err.println("Error: unknown template '" + template + "'.");
-            System.err.println("Available templates: "
-                + String.join(", ", defs.keySet()));
-            return CommandResult.FAILURE;
-        }
+        final var allPackages = ImageDef.collectAllPackages(imageDef, defs);
         // Derive arch from ISA feature for Adoptium API
         final var isaMapping = new IsaMapping();
         final var resolvedFeature = isaMapping.resolve(isaFeature);
@@ -229,7 +237,7 @@ public class AwsRequestCommand extends BaseCommand
             && "aarch64".equals(resolvedFeature.architecture())
             ? "aarch64" : "x86_64";
         BootJdkProvisioner.provision(
-            imageDef.getPackages()
+            allPackages
             , provisioner
             , false  // AL2023, not Fedora
             , templateArch

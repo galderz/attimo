@@ -10,7 +10,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -20,7 +22,8 @@ import java.util.Map;
  * <p>Mirrors incus-spawn's ImageDef: templates form a parent chain
  * where a root template (no parent) is the base, and children
  * add packages on top. Resolution order: built-in (classpath
- * {@code images/}) first.
+ * {@code images/}) → search paths ({@code images/} subdirectory)
+ * → project-local ({@code .attimo/images/}).
  *
  * <p>Only four fields are supported: {@code name}, {@code description},
  * {@code parent}, and {@code packages}.
@@ -84,7 +87,7 @@ public class ImageDef
 
     public void setPackages(final List<String> packages)
     {
-        this.packages = packages;
+        this.packages = packages == null ? List.of() : packages;
     }
 
     /**
@@ -99,7 +102,7 @@ public class ImageDef
     /**
      * Return the ordered list of ancestor images, starting from the
      * immediate parent and walking up to the root. Stops if a name
-     * is missing from {@code defs}.
+     * is missing from {@code defs} or if a cycle is detected.
      */
     public static List<ImageDef> ancestors(
         final ImageDef start
@@ -107,9 +110,15 @@ public class ImageDef
     )
     {
         final var result = new ArrayList<ImageDef>();
+        final var visited = new HashSet<String>();
+        visited.add(start.getName());
         var parentName = start.getParent();
         while (parentName != null && !parentName.isBlank())
         {
+            if (!visited.add(parentName))
+            {
+                break; // cycle detected
+            }
             final var p = defs.get(parentName);
             if (p == null)
             {
@@ -119,6 +128,43 @@ public class ImageDef
             parentName = p.getParent();
         }
         return result;
+    }
+
+    /**
+     * Collect all packages for a template, walking the parent chain
+     * from root to leaf. Packages from ancestors come first; duplicates
+     * are removed preserving first occurrence order.
+     *
+     * <p>This is the API that cloud providers should call to get the
+     * full package list for provisioning.
+     *
+     * @param imageDef the template to collect packages for
+     * @param defs     all loaded image definitions
+     * @return deduplicated package list, root-first order
+     */
+    public static List<String> collectAllPackages(
+        final ImageDef imageDef
+        , final Map<String, ImageDef> defs
+    )
+    {
+        final var ancestors = ancestors(imageDef, defs);
+
+        // Build chain root-first: ancestors are parent→root order,
+        // so reverse them, then append the leaf template.
+        final var chain = new ArrayList<ImageDef>();
+        for (int i = ancestors.size() - 1; i >= 0; i--)
+        {
+            chain.add(ancestors.get(i));
+        }
+        chain.add(imageDef);
+
+        // Collect packages preserving insertion order, dedup
+        final var allPackages = new LinkedHashSet<String>();
+        for (final var def : chain)
+        {
+            allPackages.addAll(def.getPackages());
+        }
+        return new ArrayList<>(allPackages);
     }
 
     /**
@@ -163,7 +209,7 @@ public class ImageDef
     }
 
     /**
-     * Find an image definition by name from the built-in set.
+     * Find an image definition by name.
      */
     public static ImageDef findByName(
         final String name
