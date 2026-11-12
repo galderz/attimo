@@ -130,7 +130,7 @@ If you're a new agent session picking up this project:
 - **Package manager** — `dnf`
 
 ### Test Counts
-- **194 unit tests** — all pass, no cloud interaction needed
+- **203 unit tests** — all pass, no cloud interaction needed
 - **17 integration tests** — 7 Blue Hat pass, 10 AWS require LocalStack + Podman
 
 ### Key Technical Decisions Made During Implementation
@@ -173,6 +173,8 @@ If you're a new agent session picking up this project:
 | — | AttimoConfig with search paths, ImageDef directory loading (incus-spawn pattern) | `ffee9f5` |
 | — | --template option on request commands, search path setup in init commands | `abfd572` |
 | — | README.md updated: template docs, boot JDK, search paths, custom templates | `1a98f20` |
+| — | Fix Adoptium grep pattern (space after colon), single API call, AdoptiumApiIT | `455d74a` |
+| — | PR #24 review: collectAllPackages (parent inheritance), early --template validation, cycle detection | `2a9e3e5` |
 
 ## Backlog — New Ideas & Improvements
 
