@@ -230,7 +230,7 @@ Instances are provisioned using image templates. The default template `tpl-openj
 
 **`tpl-openjdk`** provisions on Amazon Linux 2023:
 
-- **Boot JDK:** Adoptium Temurin (latest GA, downloaded to `/opt/jdk-<version>`)
+- **Boot JDK:** Adoptium Temurin (latest GA, downloaded to `~/opt/java-<version>`, symlinked as `~/opt/java`)
 - **Build tools:** gcc, gcc-c++, make, autoconf
 - **OpenJDK build dependencies:** cups-devel, libX11-devel, libXt-devel, libXrender-devel, libXrandr-devel, libXi-devel, libXtst-devel, alsa-lib-devel, fontconfig-devel, freetype-devel
 - **Disassembly:** capstone, capstone-devel
@@ -528,7 +528,7 @@ The `java-latest-openjdk-devel` package receives special treatment depending on 
 | OS | Behavior |
 |----|----------|
 | **Fedora** (Blue Hat) | Installed directly via `dnf install` (native package) |
-| **Amazon Linux 2023** (AWS) | Intercepted by attimo: downloads latest Adoptium Temurin tarball to `/opt/jdk-<version>` and displays the path |
+| **Amazon Linux 2023** (AWS) | Intercepted by attimo: downloads latest Adoptium Temurin tarball to `~/opt/java-<version>` (symlinked as `~/opt/java`) |
 
 All other packages are installed via `dnf install` on both platforms.
 

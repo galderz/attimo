@@ -56,7 +56,7 @@ class BootJdkProvisionerTest
         assertThat(recorder.ranCommands).hasSize(3);
         assertThat(recorder.ranCommands.get(0)).contains("adoptium");
         assertThat(recorder.ranCommands.get(1)).contains("adoptium").contains("x64");
-        assertThat(recorder.ranCommands.get(2)).contains("/opt/jdk");
+        assertThat(recorder.ranCommands.get(2)).contains("$HOME/opt/java");
     }
 
     @Test

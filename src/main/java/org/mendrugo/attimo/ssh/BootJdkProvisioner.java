@@ -11,15 +11,17 @@ import java.util.List;
  *
  * <p>On Amazon Linux 2023, that package doesn't exist. Instead, we
  * download the latest Adoptium Temurin tarball and extract it to
- * {@code /opt/jdk-<version>}. The path is displayed to the user.
+ * {@code $HOME/opt/java-<version>}. The path is displayed to the user.
+ * No {@code sudo} is required since the JDK is installed in the
+ * user's home directory.
  */
 public final class BootJdkProvisioner
 {
     /** The Fedora package name that triggers special handling on AL2023. */
     public static final String JDK_PACKAGE = "java-latest-openjdk-devel";
 
-    /** Install path for tarball-based JDK on AL2023. */
-    public static final String JDK_INSTALL_DIR = "/opt/jdk";
+    /** Symlink path for tarball-based JDK on AL2023. */
+    public static final String JDK_INSTALL_DIR = "$HOME/opt/java";
 
     private BootJdkProvisioner() {}
 
@@ -98,12 +100,13 @@ public final class BootJdkProvisioner
         // Step 2: Validate version was captured, then download tarball
         System.out.println("  Downloading Adoptium Temurin JDK (" + apiArch + ")...");
         final var downloadCmd = String.format(
-            "VERSION=$(cat /tmp/jdk-version.txt)"
+            "mkdir -p \"${HOME}/opt\""
+            + " && VERSION=$(cat /tmp/jdk-version.txt)"
             + " && test -n \"${VERSION}\""
             + " && echo \"  Latest release: JDK ${VERSION}\""
             + " && curl -fSL"
             + " \"https://api.adoptium.net/v3/binary/latest/${VERSION}/ga/linux/%s/jdk/hotspot/normal/eclipse\""
-            + " -o /tmp/jdk.tar.gz"
+            + " -o \"${HOME}/opt/jdk.tar.gz\""
             , apiArch
         );
         final var downloadRc = provisioner.run(downloadCmd, 300);
@@ -118,12 +121,12 @@ public final class BootJdkProvisioner
         System.out.println("  Extracting...");
         final var extractCmd = String.format(
             "VERSION=$(cat /tmp/jdk-version.txt)"
-            + " && sudo mkdir -p /opt/jdk-${VERSION}"
-            + " && sudo tar -xzf /tmp/jdk.tar.gz -C /opt/jdk-${VERSION} --strip-components=1"
-            + " && sudo ln -sfn /opt/jdk-${VERSION} %s"
-            + " && rm -f /tmp/jdk.tar.gz /tmp/jdk-version.txt"
-            + " && echo \"  Boot JDK installed: /opt/jdk-${VERSION}\""
-            + " && echo \"  Symlinked: %s -> /opt/jdk-${VERSION}\""
+            + " && mkdir -p \"${HOME}/opt/java-${VERSION}\""
+            + " && tar -xzf \"${HOME}/opt/jdk.tar.gz\" -C \"${HOME}/opt/java-${VERSION}\" --strip-components=1"
+            + " && ln -sfn \"${HOME}/opt/java-${VERSION}\" %s"
+            + " && rm -f \"${HOME}/opt/jdk.tar.gz\" /tmp/jdk-version.txt"
+            + " && echo \"  Boot JDK installed: ${HOME}/opt/java-${VERSION}\""
+            + " && echo \"  Symlinked: %s -> ${HOME}/opt/java-${VERSION}\""
             , JDK_INSTALL_DIR
             , JDK_INSTALL_DIR
         );
