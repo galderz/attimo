@@ -1,0 +1,94 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# jfmt wrapper script, version 0.9.0
+#
+# Downloads and caches the jfmt JAR on first use, then runs jfmt with the
+# required javac exports. Modelled on the Maven Wrapper (mvnw).
+#
+# Required: Java 25+, curl or wget
+#
+# Optional ENV vars:
+#   JFMT_CACHE_DIR - override the default cache directory
+#   JFMTW_VERBOSE  - true: enable verbose output
+# ----------------------------------------------------------------------------
+
+set -eu
+
+# Resolve the project root (directory containing this script)
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+
+# Read distributionUrl from properties file
+properties_file="$script_dir/.jfmt/jfmt-wrapper.properties"
+if [ ! -f "$properties_file" ]; then
+    echo "Error: $properties_file not found" >&2
+    exit 1
+fi
+
+distribution_url=""
+while IFS='=' read -r key value; do
+    case "$key" in
+        distributionUrl) distribution_url="$value" ;;
+    esac
+done < "$properties_file"
+
+if [ -z "$distribution_url" ]; then
+    echo "Error: distributionUrl not found in $properties_file" >&2
+    exit 1
+fi
+
+# Derive JAR filename and version from URL
+jar_name="${distribution_url##*/}"
+
+# Cache directory: $JFMT_CACHE_DIR or $XDG_CACHE_HOME/jfmt or ~/.cache/jfmt
+if [ -n "${JFMT_CACHE_DIR-}" ]; then
+    cache_dir="$JFMT_CACHE_DIR"
+elif [ -n "${XDG_CACHE_HOME-}" ]; then
+    cache_dir="$XDG_CACHE_HOME/jfmt"
+else
+    cache_dir="$HOME/.cache/jfmt"
+fi
+
+jar_path="$cache_dir/$jar_name"
+
+# Download the JAR if not cached
+if [ ! -f "$jar_path" ]; then
+    mkdir -p "$cache_dir"
+
+    [ "${JFMTW_VERBOSE-}" = true ] && echo "Downloading jfmt from $distribution_url ..." >&2
+
+    if command -v curl >/dev/null 2>&1; then
+        curl --fail --silent --show-error --location --output "$jar_path" "$distribution_url" \
+            || { echo "Error: failed to download $distribution_url" >&2; rm -f "$jar_path"; exit 1; }
+    elif command -v wget >/dev/null 2>&1; then
+        wget --quiet --output-document="$jar_path" "$distribution_url" \
+            || { echo "Error: failed to download $distribution_url" >&2; rm -f "$jar_path"; exit 1; }
+    else
+        echo "Error: curl or wget is required to download jfmt" >&2
+        exit 1
+    fi
+
+    [ "${JFMTW_VERBOSE-}" = true ] && echo "Cached jfmt at $jar_path" >&2
+fi
+
+# Find java
+if [ -n "${JAVA_HOME-}" ]; then
+    java_cmd="$JAVA_HOME/bin/java"
+else
+    java_cmd="java"
+fi
+
+if ! command -v "$java_cmd" >/dev/null 2>&1; then
+    echo "Error: java not found. Set JAVA_HOME or add java to PATH." >&2
+    exit 1
+fi
+
+# Run jfmt with the required javac internal exports
+exec "$java_cmd" \
+    --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED \
+    --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
+    -jar "$jar_path" "$@"

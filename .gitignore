@@ -9,6 +9,9 @@ target/
 .settings/
 .vscode/
 
+# jfmt wrapper — cache JAR locally, never commit binary
+.jfmt/*.jar
+
 # Secrets / env files — never commit
 .env
 .env.*

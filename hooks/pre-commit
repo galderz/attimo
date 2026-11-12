@@ -1,0 +1,31 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# Pre-commit hook: verify staged Java files are jfmt-formatted.
+# Install with: ln -sf ../../hooks/pre-commit .git/hooks/pre-commit
+# ----------------------------------------------------------------------------
+
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+jfmtw="$repo_root/jfmtw"
+
+if [ ! -x "$jfmtw" ]; then
+    echo "Warning: jfmtw not found or not executable, skipping format check" >&2
+    exit 0
+fi
+
+# Collect staged Java files (Added, Copied, Modified)
+staged_files="$(git diff --cached --name-only --diff-filter=ACM -- '*.java')"
+
+if [ -z "$staged_files" ]; then
+    exit 0
+fi
+
+# Run jfmt --check on all staged files at once
+# shellcheck disable=SC2086
+if ! "$jfmtw" --check $staged_files; then
+    echo "" >&2
+    echo "Commit rejected: some files are not formatted." >&2
+    echo "Run:  ./jfmtw $staged_files" >&2
+    exit 1
+fi
