@@ -35,7 +35,6 @@ public final class TestKeys {
             putInt(blob, offset, rawKey.length);
             offset += 4;
             System.arraycopy(rawKey, 0, blob, offset, rawKey.length);
-
             return "ssh-ed25519 " + Base64.getEncoder().encodeToString(blob) + " attimo-test";
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("Ed25519 not available", e);

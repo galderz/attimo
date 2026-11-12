@@ -49,7 +49,6 @@ public class ResourceCleaner {
 
         cleanOrphanedSecurityGroups();
         cleanOrphanedInstances();
-
         return List.copyOf(errors);
     }
 

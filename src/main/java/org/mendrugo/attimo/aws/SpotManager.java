@@ -70,7 +70,6 @@ public class SpotManager {
                                         .build())
                                 .build())
                 .build());
-
         return sgId;
     }
 
@@ -85,7 +84,6 @@ public class SpotManager {
                         .tags(attimoTags())
                         .build())
                 .build());
-
         return keyName;
     }
 

@@ -28,7 +28,6 @@ public class AwsConnectCommand extends BaseCommand {
 
         final SshSession session = new SshSession(state.getPublicIp(), Aws.CLOUD);
         final int exitCode = session.connect();
-
         return exitCode == 0 ? CommandResult.SUCCESS : CommandResult.valueOf(exitCode);
     }
 }

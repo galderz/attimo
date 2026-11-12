@@ -61,7 +61,6 @@ public class BlueHatConnectCommand extends BaseCommand {
         final Path keyFile = Environment.sshKeyFile(BlueHat.CLOUD);
         final SshSession session = new SshSession(fqdn, BlueHat.SSH_USER, keyFile);
         final int exitCode = session.connect();
-
         return exitCode == 0 ? CommandResult.SUCCESS : CommandResult.valueOf(exitCode);
     }
 }

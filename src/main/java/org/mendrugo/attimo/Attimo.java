@@ -25,7 +25,6 @@ public class Attimo implements QuarkusApplication {
                     .command(AttimoCommand.class)
                     .args(args)
                     .execute();
-
             return result != null ? result.getResultValue() : 1;
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());

@@ -55,7 +55,6 @@ public class SpotAdvisor {
 
         final List<Continent> foreignContinents = homeContinent.others();
         final List<Continent> foreignOrder = rankForeignContinents(foreignContinents, pricesPerContinent);
-
         return scoreAndRank(pricesPerContinent, preferredRegion, homeContinent, foreignOrder);
     }
 
@@ -129,7 +128,6 @@ public class SpotAdvisor {
     List<Continent> rankForeignContinents(List<Continent> foreignContinents, Map<Continent, List<PricedCandidate>> pricesPerContinent) {
         final ArrayList<Continent> sorted = new ArrayList<>(foreignContinents);
         sorted.sort(Comparator.comparingDouble(c -> medianPrice(pricesPerContinent.getOrDefault(c, List.of()))));
-
         return sorted;
     }
 

@@ -227,7 +227,6 @@ public class AwsRequestCommand extends BaseCommand {
                 final String instanceId = spotManager.launchSpotInstance(amiId, recommendation.instanceType(), sgId, keyPairName);
 
                 final String publicIp = spotManager.waitForRunning(instanceId, 300);
-
                 return new LaunchResult(instanceId, publicIp, amiId, sgId, keyPairName,
                         spotManager.sessionId(), recommendation, ec2);
             } catch (Exception e) {

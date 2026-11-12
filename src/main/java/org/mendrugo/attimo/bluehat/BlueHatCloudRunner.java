@@ -105,7 +105,6 @@ public final class BlueHatCloudRunner {
                     .build();
 
             final HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
-
             return response.statusCode() >= 200
                     && response.statusCode() < 300
                     && response.body() != null

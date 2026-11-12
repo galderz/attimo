@@ -195,7 +195,6 @@ public class AwsInitCommand extends BaseCommand {
 
         System.out.print("  Continent [1]: ");
         final String input = console.readLine().strip();
-
         return switch (input) {
             case "2" -> Continent.AMERICAS;
             case "3" -> Continent.ASIA_PACIFIC;
